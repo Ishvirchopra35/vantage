@@ -114,27 +114,101 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
     };
   }, []);
 
-  const inputStyle = {
-    width: '100%',
+  const cardStyle = {
+    maxWidth: '600px',
+    background: 'var(--card)',
     border: '1px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    padding: '24px',
+  } as const;
+
+  const labelStyle = {
+    display: 'block',
+    marginBottom: '6px',
+    color: 'var(--text)',
+    fontSize: '13px',
+    fontWeight: 600,
+  } as const;
+
+  const fieldStyle = {
+    width: '100%',
+    background: 'var(--bg)',
+    border: '1px solid rgba(255,255,255,0.12)',
     borderRadius: '10px',
-    padding: '12px 14px',
-    backgroundColor: 'var(--bg)',
+    padding: '10px 12px',
     color: 'var(--text)',
     fontSize: '14px',
-    boxSizing: 'border-box' as const,
     outline: 'none',
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    MozAppearance: 'none',
+    boxSizing: 'border-box',
+  } as const;
+
+  const focusStyle = '0 0 0 3px rgba(255,255,255,0.08)';
+
+  const tagWrapStyle = {
+    width: '100%',
+    background: 'var(--bg)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: '10px',
+    padding: '10px 12px',
+    color: 'var(--text)',
+    fontSize: '14px',
+    outline: 'none',
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: '6px',
+    boxSizing: 'border-box',
+  } as const;
+
+  const tagInputStyle = {
+    flex: '1 1 120px',
+    minWidth: '120px',
+    border: 'none',
+    background: 'transparent',
+    color: 'var(--text)',
+    fontSize: '14px',
+    padding: '0',
+    outline: 'none',
+    boxSizing: 'border-box',
+  } as const;
+
+  const chipStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    background: 'var(--border)',
+    color: 'var(--text)',
+    borderRadius: '6px',
+    padding: '2px 8px',
+    fontSize: '12px',
+    lineHeight: 1.4,
+  } as const;
+
+  const buttonStyle = {
+    width: '100%',
+    background: 'var(--accent)',
+    color: '#000',
+    border: 'none',
+    borderRadius: '10px',
+    padding: '12px',
+    fontSize: '14px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    marginTop: '16px',
   } as const;
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-8" style={{ color: 'var(--text)' }}>
+    <div style={{ ...cardStyle, width: '100%' }}>
+      <h1 style={{ marginBottom: '24px', color: 'var(--text)', fontSize: '24px', fontWeight: 600 }}>
         Profile
       </h1>
 
       {/* Full Name */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
+      <div style={{ marginBottom: '18px' }}>
+        <label style={labelStyle}>
           Full name
         </label>
         <input
@@ -142,9 +216,9 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
           placeholder="John Doe"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          style={inputStyle}
+          style={fieldStyle}
           onFocus={(e) => {
-            e.currentTarget.style.boxShadow = 'rgba(255, 255, 255, 0.12) 0px 0px 0px 3px';
+            e.currentTarget.style.boxShadow = focusStyle;
           }}
           onBlur={(e) => {
             e.currentTarget.style.boxShadow = 'none';
@@ -153,8 +227,8 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
       </div>
 
       {/* University */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
+      <div style={{ marginBottom: '18px' }}>
+        <label style={labelStyle}>
           University
         </label>
         <input
@@ -162,9 +236,9 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
           placeholder="Stanford University"
           value={university}
           onChange={(e) => setUniversity(e.target.value)}
-          style={inputStyle}
+          style={fieldStyle}
           onFocus={(e) => {
-            e.currentTarget.style.boxShadow = 'rgba(255, 255, 255, 0.12) 0px 0px 0px 3px';
+            e.currentTarget.style.boxShadow = focusStyle;
           }}
           onBlur={(e) => {
             e.currentTarget.style.boxShadow = 'none';
@@ -173,17 +247,17 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
       </div>
 
       {/* Graduation Year & Years Experience */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px', marginBottom: '18px' }}>
         <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
+          <label style={labelStyle}>
             Graduation year
           </label>
           <select
             value={graduationYear}
             onChange={(e) => setGraduationYear(parseInt(e.target.value))}
-            style={inputStyle}
+            style={fieldStyle}
             onFocus={(e) => {
-              e.currentTarget.style.boxShadow = 'rgba(255, 255, 255, 0.12) 0px 0px 0px 3px';
+              e.currentTarget.style.boxShadow = focusStyle;
             }}
             onBlur={(e) => {
               e.currentTarget.style.boxShadow = 'none';
@@ -197,15 +271,15 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
+          <label style={labelStyle}>
             Years of experience
           </label>
           <select
             value={yearsExperience}
             onChange={(e) => setYearsExperience(parseInt(e.target.value))}
-            style={inputStyle}
+            style={fieldStyle}
             onFocus={(e) => {
-              e.currentTarget.style.boxShadow = 'rgba(255, 255, 255, 0.12) 0px 0px 0px 3px';
+              e.currentTarget.style.boxShadow = focusStyle;
             }}
             onBlur={(e) => {
               e.currentTarget.style.boxShadow = 'none';
@@ -221,8 +295,8 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
       </div>
 
       {/* LinkedIn URL */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
+      <div style={{ marginBottom: '18px' }}>
+        <label style={labelStyle}>
           LinkedIn URL <span style={{ color: 'var(--muted)' }}>(optional)</span>
         </label>
         <input
@@ -230,9 +304,9 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
           placeholder="https://linkedin.com/in/yourprofile"
           value={linkedinUrl}
           onChange={(e) => setLinkedinUrl(e.target.value)}
-          style={inputStyle}
+          style={fieldStyle}
           onFocus={(e) => {
-            e.currentTarget.style.boxShadow = 'rgba(255, 255, 255, 0.12) 0px 0px 0px 3px';
+            e.currentTarget.style.boxShadow = focusStyle;
           }}
           onBlur={(e) => {
             e.currentTarget.style.boxShadow = 'none';
@@ -241,46 +315,28 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
       </div>
 
       {/* Skills Tags */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
+      <div style={{ marginBottom: '18px' }}>
+        <label style={labelStyle}>
           Skills
         </label>
-        <div
-          style={{
-            border: '1px solid var(--border)',
-            borderRadius: '10px',
-            padding: '8px',
-            backgroundColor: 'var(--bg)',
-            minHeight: '44px',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '6px',
-            alignItems: 'flex-start',
-            boxSizing: 'border-box' as const,
-          }}
-        >
+        <div style={tagWrapStyle}>
           {skills.map((skill, index) => (
             <div
               key={index}
-              className="flex items-center gap-1 px-3 py-1 rounded-full"
-              style={{
-                backgroundColor: 'var(--accent)',
-                color: '#000',
-                fontSize: '13px',
-              }}
+              style={chipStyle}
             >
               {skill}
               <button
                 type="button"
                 onClick={() => removeSkill(index)}
                 style={{
-                  background: 'none',
                   border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text)',
                   cursor: 'pointer',
-                  color: '#000',
-                  fontSize: '16px',
-                  padding: '0px 2px',
-                  lineHeight: '1',
+                  padding: '0',
+                  fontSize: '12px',
+                  lineHeight: 1,
                 }}
               >
                 ×
@@ -293,64 +349,40 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
             value={skillsInput}
             onChange={(e) => setSkillsInput(e.target.value)}
             onKeyDown={handleSkillsKeyDown}
-            style={{
-              border: 'none',
-              outline: 'none',
-              backgroundColor: 'transparent',
-              color: 'var(--text)',
-              fontSize: '14px',
-              flex: 1,
-              minWidth: '100px',
-              padding: '4px 0px',
+            style={tagInputStyle}
+            onFocus={(e) => {
+              e.currentTarget.style.boxShadow = 'none';
             }}
           />
         </div>
-        <p style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '6px' }}>
+        <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--muted)' }}>
           Press Enter or comma to add a skill. Press Backspace to remove the last one.
         </p>
       </div>
 
       {/* Target Roles Tags */}
-      <div className="mb-8">
-        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
+      <div style={{ marginBottom: '24px' }}>
+        <label style={labelStyle}>
           Target roles
         </label>
-        <div
-          style={{
-            border: '1px solid var(--border)',
-            borderRadius: '10px',
-            padding: '8px',
-            backgroundColor: 'var(--bg)',
-            minHeight: '44px',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '6px',
-            alignItems: 'flex-start',
-            boxSizing: 'border-box' as const,
-          }}
-        >
+        <div style={tagWrapStyle}>
           {targetRoles.map((role, index) => (
             <div
               key={index}
-              className="flex items-center gap-1 px-3 py-1 rounded-full"
-              style={{
-                backgroundColor: 'var(--accent)',
-                color: '#000',
-                fontSize: '13px',
-              }}
+              style={chipStyle}
             >
               {role}
               <button
                 type="button"
                 onClick={() => removeRole(index)}
                 style={{
-                  background: 'none',
                   border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text)',
                   cursor: 'pointer',
-                  color: '#000',
-                  fontSize: '16px',
-                  padding: '0px 2px',
-                  lineHeight: '1',
+                  padding: '0',
+                  fontSize: '12px',
+                  lineHeight: 1,
                 }}
               >
                 ×
@@ -363,19 +395,13 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
             value={rolesInput}
             onChange={(e) => setRolesInput(e.target.value)}
             onKeyDown={handleRolesKeyDown}
-            style={{
-              border: 'none',
-              outline: 'none',
-              backgroundColor: 'transparent',
-              color: 'var(--text)',
-              fontSize: '14px',
-              flex: 1,
-              minWidth: '100px',
-              padding: '4px 0px',
+            style={tagInputStyle}
+            onFocus={(e) => {
+              e.currentTarget.style.boxShadow = 'none';
             }}
           />
         </div>
-        <p style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '6px' }}>
+        <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--muted)' }}>
           Press Enter or comma to add a role. Press Backspace to remove the last one.
         </p>
       </div>
@@ -384,21 +410,11 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
       <button
         onClick={handleSubmit}
         disabled={loading}
-        className="w-full font-medium text-sm transition-opacity"
-        style={{
-          backgroundColor: 'var(--accent)',
-          color: '#000',
-          borderRadius: '10px',
-          padding: '12px 16px',
-          border: 'none',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          opacity: loading ? 0.6 : 1,
-        }}
+        style={buttonStyle}
       >
         {loading ? (
-          <span className="inline-flex items-center gap-2">
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#000' }}>
             <svg
-              className="animate-spin"
               width="16"
               height="16"
               viewBox="0 0 24 24"
@@ -419,12 +435,14 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
       {/* Success Message */}
       {success && (
         <div
-          className="mt-6 p-4 rounded-lg text-sm transition-opacity"
           style={{
-            backgroundColor: 'rgba(34, 197, 94, 0.1)',
-            border: '1px solid rgba(34, 197, 94, 0.3)',
+            marginTop: '16px',
+            borderRadius: 'var(--radius)',
+            border: '1px solid rgba(34,197,94,0.3)',
+            background: 'rgba(34,197,94,0.08)',
+            padding: '12px 16px',
             color: '#22c55e',
-            opacity: success ? 1 : 0,
+            fontSize: '13px',
           }}
         >
           Profile saved successfully
@@ -434,11 +452,14 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
       {/* Error Message */}
       {error && (
         <div
-          className="mt-6 p-4 rounded-lg text-sm"
           style={{
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
+            marginTop: '16px',
+            borderRadius: 'var(--radius)',
+            border: '1px solid rgba(239,68,68,0.3)',
+            background: 'rgba(239,68,68,0.08)',
+            padding: '12px 16px',
             color: '#ef4444',
+            fontSize: '13px',
           }}
         >
           {error}
