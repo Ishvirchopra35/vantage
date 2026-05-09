@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import ProfileForm from '@/components/ProfileForm';
 
 export const metadata = {
-  title: 'Profile — Vantage',
+  title: 'Profile - Vantage',
   description: 'Complete your profile for better AI outputs',
 };
 
