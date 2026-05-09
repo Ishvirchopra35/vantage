@@ -24,11 +24,18 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Enable RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+-- RLS Policy: Users can INSERT their own profile
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+CREATE POLICY "Users can insert own profile" ON public.profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
 -- RLS Policy: Users can SELECT their own profile
+DROP POLICY IF EXISTS "Users can select own profile" ON public.profiles;
 CREATE POLICY "Users can select own profile" ON public.profiles
   FOR SELECT USING (auth.uid() = id);
 
 -- RLS Policy: Users can UPDATE their own profile
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
 
@@ -37,7 +44,8 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id, email)
-  VALUES (new.id, new.email);
+  VALUES (NEW.id, NEW.email)
+  ON CONFLICT (id) DO NOTHING;
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

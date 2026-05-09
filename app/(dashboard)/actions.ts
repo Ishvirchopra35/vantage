@@ -48,8 +48,9 @@ export async function updateProfile(userId: string, data: Partial<Profile>) {
         target_roles: data.target_roles,
         linkedin_url: data.linkedin_url,
         updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId);
+      }, {
+        onConflict: 'id',
+      });
 
     if (error) {
       return { success: false, error: error.message };
