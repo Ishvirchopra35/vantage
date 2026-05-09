@@ -24,7 +24,7 @@ interface ProfileFormProps {
 export default function ProfileForm({ initialProfile }: ProfileFormProps) {
   const [fullName, setFullName] = useState(initialProfile?.full_name || '');
   const [university, setUniversity] = useState(initialProfile?.university || '');
-  const [graduationYear, setGraduationYear] = useState(initialProfile?.graduation_year || 2025);
+  const [graduationYear, setGraduationYear] = useState(initialProfile?.graduation_year || 2026);
   const [yearsExperience, setYearsExperience] = useState(initialProfile?.years_experience || 0);
   const [linkedinUrl, setLinkedinUrl] = useState(initialProfile?.linkedin_url || '');
   const [skills, setSkills] = useState<string[]>(initialProfile?.skills || []);
@@ -263,7 +263,7 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
               e.currentTarget.style.boxShadow = 'none';
             }}
           >
-            {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((year) => (
+            {[2026, 2027, 2028, 2029, 2030, 2031, 2032].map((year) => (
               <option key={year} value={year}>
                 {year}
               </option>
