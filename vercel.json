@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/auto-fill.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
+}
