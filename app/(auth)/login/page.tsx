@@ -57,21 +57,21 @@ export default function LoginPage() {
           backgroundColor: 'var(--card)',
           border: '1px solid var(--border)',
           borderRadius: '14px',
-          padding: '32px',
+          padding: '40px 32px',
         }}
       >
         {/* Wordmark */}
-        <h1 className="text-center text-2xl font-bold mb-8" style={{ color: 'var(--text)' }}>
+        <h1 className="text-center text-2xl font-bold mb-10" style={{ color: 'var(--text)' }}>
           Vantage
         </h1>
 
         {/* Heading */}
-        <h2 className="text-xl font-semibold mb-6" style={{ color: 'var(--text)' }}>
+        <h2 className="text-xl font-semibold mb-8" style={{ color: 'var(--text)' }}>
           Welcome back
         </h2>
 
         {/* Email Input */}
-        <div className="mb-4">
+        <div className="mb-5">
           <input
             type="email"
             placeholder="Email"
@@ -82,7 +82,7 @@ export default function LoginPage() {
               width: '100%',
               border: '1px solid var(--border)',
               borderRadius: '10px',
-              padding: '10px 12px',
+              padding: '12px 14px',
               backgroundColor: 'var(--bg)',
               color: 'var(--text)',
               fontSize: '14px',
@@ -99,7 +99,7 @@ export default function LoginPage() {
         </div>
 
         {/* Password Input */}
-        <div className="mb-6 relative">
+        <div className="mb-8 relative">
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'}
@@ -111,8 +111,8 @@ export default function LoginPage() {
                 width: '100%',
                 border: '1px solid var(--border)',
                 borderRadius: '10px',
-                padding: '10px 12px',
-                paddingRight: '40px',
+                padding: '12px 14px',
+                paddingRight: '44px',
                 backgroundColor: 'var(--bg)',
                 color: 'var(--text)',
                 fontSize: '14px',
@@ -166,7 +166,7 @@ export default function LoginPage() {
             backgroundColor: 'var(--accent)',
             color: '#000',
             borderRadius: '10px',
-            padding: '10px 16px',
+            padding: '12px 16px',
             border: 'none',
             cursor: loading ? 'not-allowed' : 'pointer',
             opacity: loading ? 0.6 : 1,
@@ -196,7 +196,7 @@ export default function LoginPage() {
         {/* Error Message */}
         {error && (
           <div
-            className="mt-4 p-3 rounded-lg text-sm"
+            className="mt-6 p-4 rounded-lg text-sm"
             style={{
               backgroundColor: 'rgba(239, 68, 68, 0.1)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
@@ -208,7 +208,7 @@ export default function LoginPage() {
         )}
 
         {/* Sign Up Link */}
-        <p className="text-center text-sm mt-6" style={{ color: 'var(--muted)' }}>
+        <p className="text-center text-sm mt-8" style={{ color: 'var(--muted)' }}>
           Don't have an account?{' '}
           <Link href="/signup" className="underline" style={{ color: 'var(--accent)' }}>
             Sign up
