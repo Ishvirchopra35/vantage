@@ -15,7 +15,7 @@ export default function Sidebar() {
   return (
     <aside style={{ position: 'fixed', left: 0, top: 0, width: '220px', height: '100vh', background: 'var(--card)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>Vantage</div>
+        <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)' }}>Vantage</div>
         <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--muted)' }}>Job application platform</div>
       </div>
 

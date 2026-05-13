@@ -1,0 +1,6 @@
+
+date: 2026-05-13
+type: Feature
+title: Add PDF resume parsing API route
+- app/api/parse-resume/route.ts created: POST endpoint that fetches a PDF from a Supabase Storage URL, parses it with pdf-parse, and returns extracted text + page count
+- packages installed: pdf-parse, @types/pdf-parse
