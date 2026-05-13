@@ -103,11 +103,11 @@ export async function POST(request: Request): Promise<Response> {
     return serverError(new Error(dbError.message));
   }
 
-  supabase.from('events').insert({
+  void Promise.resolve(supabase.from('events').insert({
     user_id: user.id,
     event_name: 'parsed_job',
     properties: { title: parsed.title, company: parsed.company },
-  }).catch(() => {});
+  })).catch(() => {});
 
   await logRoute('/api/parse-job', user.id, Date.now() - start, 200);
   return ok({ job });
