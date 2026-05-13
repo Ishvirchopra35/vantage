@@ -4,7 +4,6 @@ import { ok, err, serverError } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
 import { withTimeout } from '@/lib/withTimeout';
 type PdfResult = { text: string; numpages: number };
-const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<PdfResult>;
 
 export async function POST(request: Request): Promise<Response> {
   const start = Date.now();
@@ -31,6 +30,7 @@ export async function POST(request: Request): Promise<Response> {
 
   let pdfData: PdfResult;
   try {
+    const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<PdfResult>;
     const buffer = Buffer.from(arrayBuffer);
     pdfData = await pdfParse(buffer);
   } catch (e) {
