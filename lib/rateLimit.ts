@@ -13,6 +13,8 @@ export const LIMITS = {
   interview: 5,
 } as const;
 
+export const FREE_LIMITS = LIMITS;
+
 type Feature = keyof typeof LIMITS;
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;

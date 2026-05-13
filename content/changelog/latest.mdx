@@ -9,3 +9,9 @@ date: 2026-05-13
 type: Feature
 title: Add job posting parser API route
 - app/api/parse-job/route.ts created: POST { url } — fetches job page via Jina.ai reader, extracts structured data (title, company, skills, keywords, etc.) with Groq, saves to jobs table
+
+date: 2026-05-13
+type: Feature
+title: Add remaining-uses endpoint and FREE_LIMITS export
+- app/api/remaining-uses/route.ts created: GET endpoint returning remaining quota for all features, Cache-Control: private, max-age=60
+- lib/rateLimit.ts: export FREE_LIMITS alias for LIMITS so AI routes can reference accurate limit values in rateLimited() messages
