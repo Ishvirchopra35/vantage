@@ -4,3 +4,8 @@ type: Feature
 title: Add PDF resume parsing API route
 - app/api/parse-resume/route.ts created: POST endpoint that fetches a PDF from a Supabase Storage URL, parses it with pdf-parse, and returns extracted text + page count
 - packages installed: pdf-parse, @types/pdf-parse
+
+date: 2026-05-13
+type: Feature
+title: Add job posting parser API route
+- app/api/parse-job/route.ts created: POST { url } — fetches job page via Jina.ai reader, extracts structured data (title, company, skills, keywords, etc.) with Groq, saves to jobs table
