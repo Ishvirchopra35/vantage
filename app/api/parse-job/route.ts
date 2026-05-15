@@ -1,5 +1,4 @@
 import { requireAuth } from '@/lib/requireAuth';
-import { validateBody } from '@/lib/validateRequest';
 import { ok, err, serverError } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
 import { withTimeout } from '@/lib/withTimeout';
@@ -46,23 +45,30 @@ export async function POST(request: Request): Promise<Response> {
   const { user } = auth;
 
   const body = await request.json();
-  const validation = validateBody<{ url: string }>(body, ['url']);
-  if (!validation.valid) return err(validation.error, 400);
-  const { url } = validation.data;
+  const url = typeof body?.url === 'string' && body.url.trim() ? body.url.trim() : '';
+  const pastedText = typeof body?.rawText === 'string' && body.rawText.trim() ? body.rawText.trim() : '';
+
+  if (!url && !pastedText) {
+    return err('Either url or rawText is required', 400);
+  }
 
   let rawText: string;
-  try {
-    const response = await withTimeout(
-      fetch('https://r.jina.ai/' + encodeURIComponent(url), { headers: { Accept: 'text/markdown' } }),
-      10000,
-      'Jina fetch'
-    );
-    if (!response.ok) {
+  if (pastedText) {
+    rawText = pastedText;
+  } else {
+    try {
+      const response = await withTimeout(
+        fetch('https://r.jina.ai/' + encodeURIComponent(url), { headers: { Accept: 'text/markdown' } }),
+        10000,
+        'Jina fetch'
+      );
+      if (!response.ok) {
+        return err('Could not fetch that job posting. Try pasting the job description directly.', 400);
+      }
+      rawText = await response.text();
+    } catch {
       return err('Could not fetch that job posting. Try pasting the job description directly.', 400);
     }
-    rawText = await response.text();
-  } catch {
-    return err('Could not fetch that job posting. Try pasting the job description directly.', 400);
   }
 
   let parsed: ParsedJob;

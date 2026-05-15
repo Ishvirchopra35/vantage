@@ -25,3 +25,10 @@ date: 2026-05-15
 type: Feature
 title: Add POST /api/generate-cover-letter endpoint
 - app/api/generate-cover-letter/route.ts created: POST { jobId } — builds user context, calls Groq with a 3-paragraph structure and banned-phrases guard, saves to documents table as cover_letter type
+
+date: 2026-05-15
+type: Feature
+title: Add TailorPage — 3-step resume tailoring UI
+- app/(dashboard)/tailor/page.tsx: full 3-step client component — URL/paste job parse, ATS check + tailor + cover letter actions, tabbed results with score visualisation, inline application logging
+- app/api/parse-job/route.ts: add rawText body field as alternative to url so the paste textarea works without a separate route
+- app/globals.css: add --score-red, --score-amber, --score-green CSS variables and @keyframes spin
