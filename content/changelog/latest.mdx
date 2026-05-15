@@ -20,3 +20,8 @@ date: 2026-05-15
 type: Feature
 title: Add POST /api/tailor-resume endpoint for AI resume tailoring
 - app/api/tailor-resume/route.ts created: POST { jobId } — fetches job and base resume, calls Groq to reorder/rephrase bullets and weave in ATS keywords, parses SKILL_GAPS line, saves to documents table, then immediately runs ATS scoring inline and saves to ats_scores table
+
+date: 2026-05-15
+type: Feature
+title: Add POST /api/generate-cover-letter endpoint
+- app/api/generate-cover-letter/route.ts created: POST { jobId } — builds user context, calls Groq with a 3-paragraph structure and banned-phrases guard, saves to documents table as cover_letter type
