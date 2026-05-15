@@ -30,7 +30,7 @@ export async function POST(request: Request): Promise<Response> {
 
   let pdfData: PdfResult;
   try {
-    const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<PdfResult>;
+    const pdfParse = require('pdf-parse/lib/pdf-parse.js') as (buffer: Buffer) => Promise<PdfResult>;
     const buffer = Buffer.from(arrayBuffer);
     pdfData = await pdfParse(buffer);
   } catch (e) {

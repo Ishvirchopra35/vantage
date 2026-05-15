@@ -1,4 +1,5 @@
 import { requireAuth } from '@/lib/requireAuth';
+import { validateBody } from '@/lib/validateRequest';
 import { ok, err, serverError } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
 import { withTimeout } from '@/lib/withTimeout';
@@ -20,6 +21,15 @@ interface ParsedJob {
 
 const SYSTEM_PROMPT =
   'You are a precise job description parser. Extract structured information from job postings. Return ONLY valid JSON with no other text, no markdown formatting, no explanation.';
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 
 function buildUserPrompt(content: string): string {
   return `Parse this job description and return a JSON object with EXACTLY these fields:
@@ -45,20 +55,35 @@ export async function POST(request: Request): Promise<Response> {
   const { user } = auth;
 
   const body = await request.json();
-  const url = typeof body?.url === 'string' && body.url.trim() ? body.url.trim() : '';
-  const pastedText = typeof body?.rawText === 'string' && body.rawText.trim() ? body.rawText.trim() : '';
+  const validation = validateBody<{ url?: string; rawText?: string }>(body, []);
+  if (!validation.valid) {
+    return err(validation.error, 400);
+  }
+
+  const url = typeof validation.data.url === 'string' && validation.data.url.trim()
+    ? validation.data.url.trim()
+    : '';
+  const pastedText = typeof validation.data.rawText === 'string' && validation.data.rawText.trim()
+    ? validation.data.rawText.trim()
+    : '';
 
   if (!url && !pastedText) {
     return err('Either url or rawText is required', 400);
   }
 
+  const parsedAsUrl = url ? isHttpUrl(url) : false;
+  const inputKind: 'rawText' | 'url' = pastedText || !parsedAsUrl ? 'rawText' : 'url';
+
+  // Treat non-URL `url` field values as raw pasted descriptions.
+  const directText = pastedText || (url && !parsedAsUrl ? url : '');
+
   let rawText: string;
-  if (pastedText) {
-    rawText = pastedText;
+  if (inputKind === 'rawText') {
+    rawText = directText;
   } else {
     try {
       const response = await withTimeout(
-        fetch('https://r.jina.ai/' + encodeURIComponent(url), { headers: { Accept: 'text/markdown' } }),
+        fetch('https://r.jina.ai/' + url, { headers: { Accept: 'text/markdown' } }),
         10000,
         'Jina fetch'
       );
@@ -66,6 +91,11 @@ export async function POST(request: Request): Promise<Response> {
         return err('Could not fetch that job posting. Try pasting the job description directly.', 400);
       }
       rawText = await response.text();
+
+      // Guard against scraper-block pages or empty extracts that produce downstream parse failures.
+      if (!rawText.trim() || rawText.trim().length < 80) {
+        return err('Could not fetch usable job posting content. Try pasting the full job description directly.', 400);
+      }
     } catch {
       return err('Could not fetch that job posting. Try pasting the job description directly.', 400);
     }
@@ -79,6 +109,9 @@ export async function POST(request: Request): Promise<Response> {
       'parse-job'
     );
   } catch {
+    if (inputKind === 'rawText') {
+      return err('Could not extract structured data from the pasted text. Please paste the full job description.', 422);
+    }
     return err('Could not extract structured data from this job posting. The page may require login or have unusual formatting.', 422);
   }
 
@@ -88,7 +121,7 @@ export async function POST(request: Request): Promise<Response> {
     .from('jobs')
     .insert({
       user_id: user.id,
-      url,
+      url: url || null,
       raw_text: rawText,
       title: parsed.title,
       company: parsed.company,

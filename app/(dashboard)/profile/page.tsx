@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import ProfileForm from '@/components/ProfileForm';
+import ResumeUpload from '@/components/ResumeUpload';
 
 export const metadata = {
   title: 'Profile - Vantage',
@@ -51,7 +52,7 @@ export default async function ProfilePage({
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
-      <div className="max-w-2xl mx-auto px-4 py-12">
+      <div className="flex w-full flex-col px-4 py-12">
         {/* Welcome Banner */}
         {isNew && (
           <div
@@ -66,8 +67,15 @@ export default async function ProfilePage({
           </div>
         )}
 
+        {/* Resume Upload */}
+        <div className="mb-8 w-full">
+          <ResumeUpload />
+        </div>
+
         {/* Profile Form */}
-        <ProfileForm initialProfile={profile} />
+        <div className="w-full">
+          <ProfileForm initialProfile={profile} />
+        </div>
       </div>
     </div>
   );

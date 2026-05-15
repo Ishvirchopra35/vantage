@@ -1,175 +1,232 @@
 'use client'
-import { useState, useRef, DragEvent } from 'react'
+
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-interface ResumeUploadProps {
-  userId: string
-  existingFileName?: string | null
-  onUploadComplete: (fileUrl: string, rawText: string) => void
+interface ResumeInfo {
+  id: string
+  file_name: string
+  created_at: string
 }
 
-export default function ResumeUpload({ userId, existingFileName, onUploadComplete }: ResumeUploadProps) {
-  const [isDragging, setIsDragging] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [progress, setProgress] = useState(0)
+const spinnerStyle: React.CSSProperties = {
+  display: 'inline-block',
+  width: '13px',
+  height: '13px',
+  border: '2px solid currentColor',
+  borderTopColor: 'transparent',
+  borderRadius: '50%',
+  animation: 'spin 0.6s linear infinite',
+  flexShrink: 0,
+}
+
+export default function ResumeUpload() {
+  const [current, setCurrent] = useState<ResumeInfo | null>(null)
+  const [fetching, setFetching] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClient()
+  const [success, setSuccess] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setIsDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) validateAndSet(file)
-  }
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setFetching(false); return }
 
-  const validateAndSet = (file: File) => {
-    if (file.type !== 'application/pdf') {
-      setError('Only PDF files are accepted')
+      const { data } = await supabase
+        .from('resumes')
+        .select('id, file_name, created_at')
+        .eq('user_id', user.id)
+        .eq('is_base', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (data) setCurrent(data as ResumeInfo)
+      setFetching(false)
+    }
+    load()
+  }, [])
+
+  async function handleFile(file: File) {
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      setError('Only PDF files are supported.')
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError('File must be under 5MB')
+      setError('File must be under 5MB.')
       return
     }
-    setError(null)
-    setSelectedFile(file)
-  }
 
-  const handleUpload = async () => {
-    if (!selectedFile) return
-    setUploading(true)
     setError(null)
-    setProgress(0)
+    setSuccess(false)
+    setLoading(true)
 
     try {
-      const filePath = `${userId}/resume-${Date.now()}.pdf`
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const path = `${user.id}/${Date.now()}-${safeName}`
+
       const { error: uploadError } = await supabase.storage
         .from('resumes')
-        .upload(filePath, selectedFile, { upsert: true })
-      if (uploadError) throw uploadError
-      setProgress(50)
+        .upload(path, file, { contentType: 'application/pdf', upsert: false })
 
+      if (uploadError) throw new Error(uploadError.message)
+
+      // Use a short-lived signed URL just for parsing — we store the path, not this URL
       const { data: signedData, error: signedError } = await supabase.storage
         .from('resumes')
-        .createSignedUrl(filePath, 300)
-      if (signedError || !signedData?.signedUrl) throw signedError ?? new Error('Failed to get signed URL')
-      const signedUrl = signedData.signedUrl
-      setProgress(65)
+        .createSignedUrl(path, 120)
+
+      if (signedError || !signedData?.signedUrl) {
+        throw new Error('Failed to generate download URL')
+      }
 
       const parseRes = await fetch('/api/parse-resume', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileUrl: signedUrl }),
+        body: JSON.stringify({ fileUrl: signedData.signedUrl }),
       })
-      if (!parseRes.ok) throw new Error('Failed to parse resume')
-      const { text: rawText } = await parseRes.json()
-      setProgress(85)
+      const parseJson = await parseRes.json()
+      if (!parseRes.ok) throw new Error(parseJson.error || 'Failed to extract text from PDF')
 
-      const { error: dbError } = await supabase
-        .from('resumes')
-        .upsert({ user_id: userId, file_url: signedUrl, file_name: selectedFile.name, raw_text: rawText, is_base: true })
-      if (dbError) throw dbError
-      setProgress(100)
+      // Store the storage path as file_url so we can regenerate signed URLs on demand
+      const saveRes = await fetch('/api/save-resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileUrl: path, fileName: file.name, rawText: parseJson.text }),
+      })
+      const saveJson = await saveRes.json()
+      if (!saveRes.ok) throw new Error(saveJson.error || 'Failed to save resume')
 
-      setUploading(false)
-      setSelectedFile(null)
-      onUploadComplete(signedUrl, rawText)
+      setCurrent({ id: saveJson.resume.id, file_name: file.name, created_at: new Date().toISOString() })
+      setSuccess(true)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Upload failed')
-      setUploading(false)
-      setProgress(0)
+      setError(e instanceof Error ? e.message : 'Upload failed. Please try again.')
+    } finally {
+      setLoading(false)
+      if (fileRef.current) fileRef.current.value = ''
     }
   }
 
   return (
     <div
-      onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-      onDragLeave={() => setIsDragging(false)}
-      onDrop={handleDrop}
       style={{
-        border: `2px dashed ${isDragging ? 'var(--accent)' : 'var(--border)'}`,
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
         borderRadius: 'var(--radius)',
-        padding: '32px',
-        textAlign: 'center',
-        cursor: 'pointer',
-        transition: 'border-color 0.2s'
+        padding: '24px',
       }}
-      onClick={() => { if (!uploading && !(!selectedFile && existingFileName)) inputRef.current?.click() }}
     >
-      <input ref={inputRef} type="file" accept=".pdf" style={{ display: 'none' }}
-        onChange={(e) => e.target.files?.[0] && validateAndSet(e.target.files[0])} />
+      <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
+        Base Resume
+      </h2>
+      <p style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '20px', lineHeight: 1.5 }}>
+        Upload your master resume (PDF). All tailoring, ATS scoring, and cover letters start from this file.
+      </p>
 
-      {/* Success state — existing resume on file */}
-      {!selectedFile && !uploading && existingFileName && (
-        <div>
-          <p style={{ color: 'var(--success, #22c55e)', marginBottom: 8, fontSize: 14 }}>
-            ✓ {existingFileName}
-          </p>
-          <button
-            onClick={(e) => { e.stopPropagation(); inputRef.current?.click() }}
-            style={{ fontSize: 13, color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-          >
-            Replace
-          </button>
-        </div>
-      )}
+      {fetching ? (
+        <div style={{ fontSize: '14px', color: 'var(--muted)' }}>Loading...</div>
+      ) : (
+        <>
+          {current && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '10px 14px',
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+                borderRadius: '10px',
+                marginBottom: '14px',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--score-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span style={{ fontSize: '13px', color: 'var(--text)', flex: 1 }}>{current.file_name}</span>
+              <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                {new Date(current.created_at).toLocaleDateString()}
+              </span>
+            </div>
+          )}
 
-      {/* File selected, ready to upload */}
-      {selectedFile && !uploading && (
-        <div onClick={(e) => e.stopPropagation()}>
-          <p style={{ fontSize: 14, marginBottom: 12 }}>{selectedFile.name}</p>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".pdf"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (file) handleFile(file)
+            }}
+          />
+
           <button
-            onClick={handleUpload}
-            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+            disabled={loading}
             style={{
-              background: 'var(--primary)',
-              color: 'var(--primary-foreground)',
-              border: 'none',
-              borderRadius: 'var(--radius)',
-              padding: '8px 20px',
-              cursor: 'pointer',
+              background: 'transparent',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              padding: '10px 18px',
+              fontSize: '14px',
               fontWeight: 500,
-              fontSize: 14,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              opacity: loading ? 0.6 : 1,
             }}
           >
-            Upload
+            {loading ? (
+              <>
+                <span style={spinnerStyle} />
+                Uploading...
+              </>
+            ) : (
+              current ? 'Replace resume' : 'Upload PDF'
+            )}
           </button>
-        </div>
-      )}
 
-      {/* Progress bar while uploading */}
-      {uploading && (
-        <div>
-          <p style={{ fontSize: 14, color: 'var(--muted-foreground)', marginBottom: 12 }}>
-            {progress < 50 ? 'Uploading…' : progress < 85 ? 'Parsing resume…' : 'Saving…'}
-          </p>
-          <div style={{ background: 'var(--border)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
-            <div style={{
-              background: 'var(--primary)',
-              height: '100%',
-              width: `${progress}%`,
-              transition: 'width 0.3s ease',
-            }} />
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 8 }}>{progress}%</p>
-        </div>
-      )}
+          {error && (
+            <div
+              style={{
+                marginTop: '12px',
+                padding: '10px 14px',
+                background: 'rgba(239,68,68,0.08)',
+                border: '1px solid rgba(239,68,68,0.2)',
+                borderRadius: '10px',
+                color: 'var(--score-red)',
+                fontSize: '13px',
+              }}
+            >
+              {error}
+            </div>
+          )}
 
-      {/* Idle — no file, no existing resume */}
-      {!selectedFile && !uploading && !existingFileName && (
-        <div>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>
-            Drag and drop your resume here, or{' '}
-            <span style={{ color: 'var(--primary)', textDecoration: 'underline' }}>browse</span>
-          </p>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: 12, marginTop: 4 }}>PDF only · max 5MB</p>
-        </div>
-      )}
-
-      {error && (
-        <p style={{ color: 'var(--destructive)', fontSize: 13, marginTop: 8 }}>{error}</p>
+          {success && (
+            <div
+              style={{
+                marginTop: '12px',
+                padding: '10px 14px',
+                background: 'rgba(34,197,94,0.08)',
+                border: '1px solid rgba(34,197,94,0.2)',
+                borderRadius: '10px',
+                color: 'var(--score-green)',
+                fontSize: '13px',
+              }}
+            >
+              Resume uploaded. You can now tailor it to any job.
+            </div>
+          )}
+        </>
       )}
     </div>
   )

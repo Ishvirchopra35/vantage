@@ -115,7 +115,8 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
   }, []);
 
   const cardStyle = {
-    maxWidth: '600px',
+    maxWidth: 'none',
+    width: '100%',
     background: 'var(--card)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius)',

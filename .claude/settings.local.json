@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(Select-String \"pdf\")"
+      "Bash(Select-String \"pdf\")",
+      "Bash(npx tsc *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }

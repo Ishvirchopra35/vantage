@@ -122,9 +122,12 @@ export async function generateJSON<T = unknown>(systemPrompt: string, userPrompt
   const raw = await generateText(jsonSystem, userPrompt, 2000);
 
   try {
-    // Trim anything before first brace or bracket to be forgiving
-    const first = raw.search(/[\{\[]/);
-    const candidate = first >= 0 ? raw.slice(first) : raw;
+    // Strip markdown code fences (```json ... ``` or ``` ... ```)
+    let candidate = raw.trim();
+    candidate = candidate.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
+    // Find the first { or [ in case there is still leading text
+    const first = candidate.search(/[\{\[]/);
+    if (first > 0) candidate = candidate.slice(first);
     return JSON.parse(candidate) as T;
   } catch (err: any) {
     const snippet = String(raw).slice(0, 200);

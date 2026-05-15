@@ -279,6 +279,10 @@ export default function TailorPage() {
   async function tailorResume() {
     if (!parsedJob) return
     setActionError(null)
+    if (!baseResumeId) {
+      setActionError('No base resume found. Upload your resume on the Profile page first.')
+      return
+    }
     setLoading(l => ({ ...l, tailor: true }))
     const { data, error } = await apiFetch<{
       document: Doc
@@ -406,6 +410,21 @@ export default function TailorPage() {
               </button>
             </div>
 
+            {/* LinkedIn / Google Jobs hint */}
+            {!useTextarea && jobUrl && (jobUrl.includes('linkedin.com') || jobUrl.includes('jobs.google.com') || jobUrl.includes('google.com/about/careers')) && (
+              <div style={{
+                marginTop: '10px',
+                padding: '10px 14px',
+                background: 'rgba(245,158,11,0.08)',
+                border: '1px solid rgba(245,158,11,0.2)',
+                borderRadius: '10px',
+                color: 'var(--score-amber)',
+                fontSize: '13px',
+              }}>
+                LinkedIn and Google Jobs block automated access. Click "Paste the description directly" below and copy-paste the job text instead.
+              </div>
+            )}
+
             {/* Toggle paste mode */}
             <button
               onClick={() => setUseTextarea(!useTextarea)}
@@ -506,6 +525,25 @@ export default function TailorPage() {
                 </div>
               )}
             </div>
+
+            {/* No resume warning */}
+            {!baseResumeId && (
+              <div style={{
+                padding: '14px 16px',
+                background: 'rgba(245,158,11,0.08)',
+                border: '1px solid rgba(245,158,11,0.2)',
+                borderRadius: '10px',
+                marginBottom: '16px',
+                fontSize: '14px',
+                color: 'var(--text)',
+              }}>
+                <strong style={{ color: 'var(--score-amber)' }}>No resume on file.</strong>{' '}
+                <a href="/profile" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
+                  Go to Profile
+                </a>{' '}
+                to upload your base resume before tailoring.
+              </div>
+            )}
 
             {/* Three action buttons */}
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
