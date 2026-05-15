@@ -15,3 +15,8 @@ type: Feature
 title: Add remaining-uses endpoint and FREE_LIMITS export
 - app/api/remaining-uses/route.ts created: GET endpoint returning remaining quota for all features, Cache-Control: private, max-age=60
 - lib/rateLimit.ts: export FREE_LIMITS alias for LIMITS so AI routes can reference accurate limit values in rateLimited() messages
+
+date: 2026-05-15
+type: Feature
+title: Add POST /api/tailor-resume endpoint for AI resume tailoring
+- app/api/tailor-resume/route.ts created: POST { jobId } — fetches job and base resume, calls Groq to reorder/rephrase bullets and weave in ATS keywords, parses SKILL_GAPS line, saves to documents table, then immediately runs ATS scoring inline and saves to ats_scores table
