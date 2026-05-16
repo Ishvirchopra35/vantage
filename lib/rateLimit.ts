@@ -19,9 +19,9 @@ type Feature = keyof typeof LIMITS;
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-type ServiceClient = ReturnType<typeof createServiceClient>;
+type ServiceClient = any;
 
-function serviceClient() {
+function serviceClient(): any {
   if (!SUPABASE_URL || !SERVICE_KEY) throw new Error('Missing Supabase service credentials');
   return createServiceClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 }
@@ -39,7 +39,7 @@ async function ensureSubscriptionRow(svc: ServiceClient, userId: string) {
       user_id: userId,
       plan: 'free',
     };
-    const { data: created } = await svc.from('subscriptions').insert(insert).select().single();
+    const { data: created } = await (svc.from('subscriptions') as any).insert(insert).select().single();
     return created;
   } catch {
     return null;
@@ -61,8 +61,7 @@ async function resetMonthlyIfNeeded(
   const now = new Date();
   if (daysBetween(monthlyReset, now) >= 30) {
     try {
-      await svc
-        .from('subscriptions')
+      await (svc.from('subscriptions') as any)
         .update({
           tailoring_uses: 0,
           cover_letter_uses: 0,
@@ -88,8 +87,7 @@ async function incrementCounterAtomic(svc: ServiceClient, userId: string, column
       const current = data ? Number(data[column]) || 0 : 0;
       if (current >= limit) return { success: false, remaining: 0 };
 
-      const { data: updated } = await svc
-        .from('subscriptions')
+      const { data: updated } = await (svc.from('subscriptions') as any)
         .update({ [column]: current + 1 })
         .eq('user_id', userId)
         .eq(column, current)
