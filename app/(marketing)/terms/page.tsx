@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const dynamic = 'force-static';
 
 export const metadata = {
@@ -661,7 +663,7 @@ export default function TermsPage() {
             fontSize: '0.95rem',
           }}
         >
-          Questions about these terms? Contact us at hello@vantage.app.
+          Questions about these terms? Contact us at ishvir.chopra@gmail.com or on the <Link href="/contact" style={{ textDecoration: 'underline', color: 'var(--text)' }}>contact</Link> page.
         </p>
       </section>
     </div>

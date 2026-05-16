@@ -57,7 +57,7 @@ export default function ContactPage() {
             textDecoration: 'none',
           }}
         >
-          ishvir.alt@gmail.com
+          ishvir.chopra@gmail.com
         </a>
         <span
           style={{
