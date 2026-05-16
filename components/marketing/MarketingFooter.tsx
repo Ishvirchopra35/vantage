@@ -107,6 +107,7 @@ export default function MarketingFooter() {
             <FooterColumn
               title="Resources"
               links={[
+                { label: 'Docs', href: '/docs' },
                 { label: 'Blog', href: '/blog' },
                 { label: 'Changelog', href: '/changelog' },
               ]}
