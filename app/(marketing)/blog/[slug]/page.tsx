@@ -64,47 +64,7 @@ export default async function BlogPostPage({
     .slice(0, 3)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* Nav */}
-      <nav style={{ borderBottom: '1px solid var(--border)', height: 56 }}>
-        <div
-          style={{
-            maxWidth: 900,
-            margin: '0 auto',
-            padding: '0 24px',
-            display: 'flex',
-            alignItems: 'center',
-            height: '100%',
-          }}
-        >
-          <Link href="/" style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', textDecoration: 'none', marginRight: 24 }}>
-            Vantage
-          </Link>
-          <Link href="/blog" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none', marginRight: 16 }}>
-            Blog
-          </Link>
-          <Link href="/changelog" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>
-            Changelog
-          </Link>
-          <Link
-            href="/login"
-            style={{
-              marginLeft: 'auto',
-              fontSize: 13,
-              color: 'var(--text)',
-              textDecoration: 'none',
-              border: '1px solid var(--border)',
-              borderRadius: 20,
-              padding: '5px 14px',
-            }}
-          >
-            Sign in
-          </Link>
-        </div>
-      </nav>
-
-      {/* Content */}
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '48px 24px' }}>
+    <div style={{ maxWidth: 680, margin: '0 auto', padding: '48px 24px' }}>
         {/* Back link */}
         <Link
           href="/blog"
@@ -188,7 +148,6 @@ export default async function BlogPostPage({
             ))}
           </div>
         )}
-      </div>
     </div>
   )
 }

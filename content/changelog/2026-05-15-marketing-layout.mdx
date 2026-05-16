@@ -1,0 +1,23 @@
+---
+date: 2026-05-15
+type: Feature
+title: Shared marketing layout with nav, footer, and dark/light mode toggle
+summary: Added a sticky frosted-glass nav, responsive footer, and persistent dark/light mode toggle across all public marketing pages.
+---
+
+## What's included
+
+- Shared `app/(marketing)/layout.tsx` wraps all public pages (blog, changelog, landing page) with a consistent nav and footer.
+- Sticky nav with frosted-glass background (`blur(8px)`), center links, Sign in, Get started button, and theme toggle.
+- Dark/light mode toggle persists to `localStorage` under `vantage-theme`. Inline script in root `<head>` applies theme before first paint to prevent flash.
+- Mobile responsive: center links and controls collapse into a slide-down drawer at 768px. Drawer traps focus and closes on Escape or outside tap.
+- Footer with wordmark, tagline, four link columns (Product, Resources, Company, Legal), copyright, attribution, and social text links.
+- Removed duplicate embedded nav bars from `blog/page.tsx`, `blog/[slug]/page.tsx`, and `changelog/page.tsx`.
+
+## Files
+
+- `app/(marketing)/layout.tsx` created: server component, wraps children with MarketingNav and MarketingFooter
+- `components/marketing/MarketingNav.tsx` created: client component — sticky nav, usePathname active detection, localStorage theme toggle, mobile drawer with focus trap
+- `components/marketing/MarketingFooter.tsx` created: server component — footer with four link columns and social links
+- `app/layout.tsx` updated: added `<head>` with inline FOUC-prevention script and `suppressHydrationWarning` on `<html>`
+- `app/globals.css` updated: added `--nav-bg` / `--nav-border` CSS variables for both themes, added `.mkt-nav-*` and `.mkt-footer-link` utility classes with responsive breakpoint

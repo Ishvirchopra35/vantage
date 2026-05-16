@@ -13,6 +13,8 @@
   --score-red: #ef4444;
   --score-amber: #f59e0b;
   --score-green: #22c55e;
+  --nav-bg: rgba(10, 10, 10, 0.85);
+  --nav-border: rgba(255, 255, 255, 0.05);
 }
 
 @keyframes spin {
@@ -27,6 +29,8 @@ html[data-theme="light"] {
   --muted: #6b7280;
   --border: #e5e7eb;
   --accent: #111111;
+  --nav-bg: rgba(250, 250, 250, 0.85);
+  --nav-border: rgba(0, 0, 0, 0.08);
 }
 
 :root {
@@ -371,4 +375,62 @@ body {
   border: none;
   padding: 0;
   border-radius: 0;
+}
+
+/* Marketing layout — nav + footer utility classes */
+.mkt-nav-center {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.mkt-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.mkt-hamburger {
+  display: none;
+}
+
+.mkt-nav-link {
+  font-size: 14px;
+  color: var(--text);
+  text-decoration: none;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.mkt-nav-link[data-active] {
+  opacity: 1;
+}
+
+.mkt-nav-link:hover {
+  opacity: 0.85;
+}
+
+.mkt-footer-link {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.mkt-footer-link:hover {
+  color: var(--text);
+}
+
+@media (max-width: 767px) {
+  .mkt-nav-center {
+    display: none;
+  }
+
+  .mkt-nav-right {
+    display: none;
+  }
+
+  .mkt-hamburger {
+    display: flex;
+    align-items: center;
+  }
 }

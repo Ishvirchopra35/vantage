@@ -1,6 +1,6 @@
-import Link from 'next/link'
 import { getBlogPosts } from '@/lib/mdx'
 import BlogClient from './BlogClient'
+import Link from 'next/link'
 
 export const dynamic = 'force-static'
 
@@ -14,47 +14,7 @@ export default async function BlogPage() {
   const featured = posts[0] ?? null
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* Nav */}
-      <nav style={{ borderBottom: '1px solid var(--border)', height: 56 }}>
-        <div
-          style={{
-            maxWidth: 900,
-            margin: '0 auto',
-            padding: '0 24px',
-            display: 'flex',
-            alignItems: 'center',
-            height: '100%',
-          }}
-        >
-          <Link href="/" style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', textDecoration: 'none', marginRight: 24 }}>
-            Vantage
-          </Link>
-          <Link href="/blog" style={{ fontSize: 13, color: 'var(--text)', textDecoration: 'none', marginRight: 16 }}>
-            Blog
-          </Link>
-          <Link href="/changelog" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>
-            Changelog
-          </Link>
-          <Link
-            href="/login"
-            style={{
-              marginLeft: 'auto',
-              fontSize: 13,
-              color: 'var(--text)',
-              textDecoration: 'none',
-              border: '1px solid var(--border)',
-              borderRadius: 20,
-              padding: '5px 14px',
-            }}
-          >
-            Sign in
-          </Link>
-        </div>
-      </nav>
-
-      {/* Content */}
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px' }}>
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px' }}>
         {/* Heading */}
         <h1 style={{ fontSize: 36, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Blog</h1>
         <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 32 }}>
@@ -110,7 +70,6 @@ export default async function BlogPage() {
 
         {/* Category tabs + post list */}
         <BlogClient posts={posts} />
-      </div>
     </div>
   )
 }

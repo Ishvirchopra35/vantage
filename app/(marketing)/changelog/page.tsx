@@ -54,71 +54,30 @@ export default async function ChangelogPage() {
   const entries = await getChangelog()
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* Nav */}
-      <nav style={{ borderBottom: '1px solid var(--border)', height: 56 }}>
-        <div
-          style={{
-            maxWidth: 900,
-            margin: '0 auto',
-            padding: '0 24px',
-            display: 'flex',
-            alignItems: 'center',
-            height: '100%',
-          }}
-        >
-          <Link href="/" style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', textDecoration: 'none', marginRight: 24 }}>
-            Vantage
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px' }}>
+      {/* Page header */}
+      <div style={{ marginBottom: 48 }}>
+        <h1 style={{ fontSize: 36, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+          Changelog
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 20 }}>
+          Latest improvements, features, and fixes.
+        </p>
+        <div style={{ display: 'flex', gap: 16 }}>
+          <Link href="/signup" style={{ fontSize: 13, color: 'var(--text)', textDecoration: 'none' }}>
+            Get started →
           </Link>
-          <Link href="/blog" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none', marginRight: 16 }}>
-            Blog
-          </Link>
-          <Link href="/changelog" style={{ fontSize: 13, color: 'var(--text)', textDecoration: 'none' }}>
-            Changelog
-          </Link>
-          <Link
-            href="/login"
-            style={{
-              marginLeft: 'auto',
-              fontSize: 13,
-              color: 'var(--text)',
-              textDecoration: 'none',
-              border: '1px solid var(--border)',
-              borderRadius: 20,
-              padding: '5px 14px',
-            }}
-          >
-            Sign in
+          <Link href="/docs" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>
+            Docs
           </Link>
         </div>
-      </nav>
+      </div>
 
-      {/* Content */}
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px' }}>
-        {/* Page header */}
-        <div style={{ marginBottom: 48 }}>
-          <h1 style={{ fontSize: 36, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-            Changelog
-          </h1>
-          <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 20 }}>
-            Latest improvements, features, and fixes.
-          </p>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Link href="/signup" style={{ fontSize: 13, color: 'var(--text)', textDecoration: 'none' }}>
-              Get started →
-            </Link>
-            <Link href="/docs" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>
-              Docs
-            </Link>
-          </div>
-        </div>
-
-        {/* Timeline */}
-        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr' }}>
-          {entries.map((entry, i) => (
-            <EntryRow key={i} entry={entry} />
-          ))}
-        </div>
+      {/* Timeline */}
+      <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr' }}>
+        {entries.map((entry, i) => (
+          <EntryRow key={i} entry={entry} />
+        ))}
       </div>
     </div>
   )
