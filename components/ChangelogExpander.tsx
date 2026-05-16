@@ -30,14 +30,16 @@ export default function ChangelogExpander({ children, preview = 5 }: Props) {
         <button
           onClick={() => setExpanded(e => !e)}
           style={{
-            cursor: 'pointer',
+            fontSize: 12,
             color: 'var(--muted)',
+            cursor: 'pointer',
             background: 'none',
             border: 'none',
-            fontSize: 13,
-            padding: '8px 0 0 0',
-            display: 'block',
+            padding: 0,
+            marginTop: 12,
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted)')}
         >
           {expanded ? 'Show less' : `Show more (${hiddenCount} more changes)`}
         </button>

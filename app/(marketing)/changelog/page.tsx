@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import type { ComponentPropsWithoutRef } from 'react'
 import { MDXRemote } from 'next-mdx-remote/rsc'
 import { getChangelog } from '@/lib/mdx'
@@ -15,13 +14,13 @@ const mdxComponents = {
   h2: ({ children }: ComponentPropsWithoutRef<'h2'>) => (
     <h2
       style={{
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: 700,
         textTransform: 'uppercase' as const,
-        letterSpacing: '0.07em',
+        letterSpacing: '0.1em',
         color: 'var(--muted)',
         marginTop: 20,
-        marginBottom: 8,
+        marginBottom: 10,
       }}
     >
       {children}
@@ -38,15 +37,31 @@ const mdxComponents = {
     </p>
   ),
   ul: ({ children }: ComponentPropsWithoutRef<'ul'>) => (
-    <ul style={{ paddingLeft: 18, marginBottom: 10 }}>{children}</ul>
+    <ul style={{ listStyle: 'none', paddingLeft: 0, marginBottom: 10 }}>{children}</ul>
   ),
   ol: ({ children }: ComponentPropsWithoutRef<'ol'>) => (
-    <ol style={{ paddingLeft: 18, marginBottom: 10 }}>{children}</ol>
+    <ol style={{ listStyle: 'none', paddingLeft: 0, marginBottom: 10 }}>{children}</ol>
   ),
   li: ({ children }: ComponentPropsWithoutRef<'li'>) => (
-    <li style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 3 }}>
+    <li style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, marginBottom: 6, paddingLeft: 16, position: 'relative' }}>
+      <span style={{ position: 'absolute', left: 0, color: 'var(--muted)' }}>•</span>
       {children}
     </li>
+  ),
+  code: ({ children }: ComponentPropsWithoutRef<'code'>) => (
+    <code
+      style={{
+        background: 'var(--bg)',
+        border: '1px solid var(--border)',
+        borderRadius: 4,
+        padding: '1px 6px',
+        fontSize: 12,
+        fontFamily: 'monospace',
+        color: 'var(--text)',
+      }}
+    >
+      {children}
+    </code>
   ),
 }
 
@@ -54,117 +69,77 @@ export default async function ChangelogPage() {
   const entries = await getChangelog()
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px' }}>
+    <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px' }}>
       {/* Page header */}
-      <div style={{ marginBottom: 48 }}>
+      <div style={{ marginBottom: 32 }}>
         <h1 style={{ fontSize: 36, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
           Changelog
         </h1>
-        <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 20 }}>
+        <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 32 }}>
           Latest improvements, features, and fixes.
         </p>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <Link href="/signup" style={{ fontSize: 13, color: 'var(--text)', textDecoration: 'none' }}>
-            Get started →
-          </Link>
-          <Link href="/docs" style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}>
-            Docs
-          </Link>
-        </div>
       </div>
 
-      {/* Timeline */}
-      <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr' }}>
+      {/* Changelog entries as cards */}
+      <div>
         {entries.map((entry, i) => (
-          <EntryRow key={i} entry={entry} />
+          <EntryCard key={i} entry={entry} />
         ))}
       </div>
     </div>
   )
 }
 
-async function EntryRow({
+async function EntryCard({
   entry,
 }: {
   entry: Awaited<ReturnType<typeof getChangelog>>[number]
 }) {
   return (
-    <>
-      {/* Date cell */}
-      <div
-        style={{
-          paddingRight: 24,
-          paddingBottom: 48,
-          paddingTop: 3,
-          textAlign: 'right',
-          fontSize: 11,
-          color: 'var(--muted)',
-          lineHeight: 1.4,
-        }}
-      >
-        {formatDate(entry.date)}
-      </div>
-
-      {/* Content cell — border-left is the continuous vertical timeline line */}
-      <div
-        style={{
-          paddingLeft: 28,
-          paddingBottom: 48,
-          borderLeft: '2px solid var(--border)',
-          position: 'relative',
-        }}
-      >
-        {/* Dot on the timeline line */}
-        <div
+    <div
+      style={{
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 14,
+        padding: 32,
+        marginBottom: 16,
+      }}
+    >
+      {/* Header row: Type badge + Date */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <span
           style={{
-            position: 'absolute',
-            left: -5,
-            top: 6,
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: 'var(--border)',
+            background: 'var(--accent)',
+            color: 'var(--bg)',
+            fontSize: 11,
+            fontWeight: 700,
+            padding: '4px 10px',
+            borderRadius: 20,
           }}
-        />
-
-        {/* Type badge + version */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: entry.type === 'Major Release' ? 700 : 500,
-              color: 'var(--muted)',
-              border: '1px solid var(--border)',
-              borderRadius: 4,
-              padding: '2px 7px',
-            }}
-          >
-            {entry.type}
-          </span>
-          {entry.version && (
-            <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'monospace' }}>
-              {entry.version}
-            </span>
-          )}
-        </div>
-
-        {/* Title */}
-        <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 6, lineHeight: 1.3 }}>
-          {entry.title}
-        </h3>
-
-        {/* Summary */}
-        <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 14 }}>
-          {entry.summary}
-        </p>
-
-        {/* MDX content wrapped in expander */}
-        {entry.content.trim() && (
-          <ChangelogExpander preview={5}>
-            <MDXRemote source={entry.content} components={mdxComponents} />
-          </ChangelogExpander>
-        )}
+        >
+          {entry.type}
+        </span>
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+          {formatDate(entry.date)}
+        </span>
       </div>
-    </>
+
+      {/* Title */}
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+        {entry.title}
+      </h2>
+
+      {/* Description/Summary */}
+      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>
+        {entry.summary}
+      </p>
+
+      {/* MDX content wrapped in expander */}
+      {entry.content.trim() && (
+        <ChangelogExpander preview={5}>
+          <MDXRemote source={entry.content} components={mdxComponents} />
+        </ChangelogExpander>
+      )}
+    </div>
   )
 }

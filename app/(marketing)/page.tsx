@@ -165,7 +165,7 @@ export default function LandingPage() {
             <Link href="/signup" style={{ width: '100%', marginTop: 24, display: 'block', background: 'var(--accent)', color: 'var(--bg)', padding: '12px 20px', borderRadius: 10, fontWeight: 600, fontSize: '0.95rem', textDecoration: 'none', textAlign: 'center' }}>Get started free</Link>
           </div>
 
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 28 }}>
+          <div style={{ background: 'var(--card)', border: '2px solid rgba(255,255,255,0.4)', boxShadow: '0 0 0 1px rgba(255,255,255,0.1), 0 8px 32px rgba(255,255,255,0.06)', borderRadius: 14, padding: 28 }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 8 }}>Pro</div>
             <div style={{ fontSize: '2.4rem', fontWeight: 700, marginBottom: 20, color: 'var(--text)' }}>$8 <span style={{ fontSize: '1rem', color: 'var(--muted)' }}>/month</span></div>
 
