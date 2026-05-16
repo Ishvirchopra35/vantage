@@ -1,0 +1,23 @@
+---
+date: 2026-05-15
+type: Feature
+title: App landing page at / with full marketing sections
+summary: Built the Vantage landing page with hero, problem, how-it-works, features, stats, pricing, and final CTA sections — fully static, inherits marketing layout.
+---
+
+## What's included
+
+- Full landing page at `/` covering all seven marketing sections.
+- Hero: outcome-focused headline based on real validation data (75% of users got less than 5% response rate), dual CTAs, social proof line.
+- Problem section: three data-backed pain point cards.
+- How it works: three-step flow with connector line on desktop, collapses vertically on mobile.
+- Features: 4-column grid of all eight product features, 2-column on tablet, single column on mobile.
+- Stats: three validated data points rendered as large number cards.
+- Pricing: two-column Free vs Pro layout at max-width 560px, Pro card uses `--pro-border` CSS variable for theme-aware highlight.
+- Final CTA: centered section with primary button.
+
+## Files
+
+- `app/(marketing)/page.tsx` created: static server component, all seven sections, no interactivity needed
+- `app/page.tsx` deleted: removed conflicting boilerplate root page (route group page takes precedence)
+- `app/globals.css` updated: added `--pro-border` CSS variable, `scroll-behavior: smooth`, and all `.lp-*` responsive utility classes
