@@ -156,9 +156,7 @@ export default function LandingPage() {
             color: '#fff',
           }}
         >
-          Apply smarter.
-          <br />
-          Get hired faster.
+          Applied to 100 jobs. <br/> Head back from 1. <br/> There's a better way.
         </h1>
 
         <p

@@ -14,6 +14,8 @@ const SUBJECTS = [
   'Other',
 ] as const;
 
+type Subject = (typeof SUBJECTS)[number];
+
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -21,7 +23,7 @@ function isValidEmail(email: string): boolean {
 export default function ContactForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [subject, setSubject] = useState(SUBJECTS[0]);
+  const [subject, setSubject] = useState<Subject>(SUBJECTS[0]);
   const [message, setMessage] = useState('');
   const [state, setState] = useState<FormState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
@@ -49,9 +51,23 @@ export default function ContactForm() {
   async function handleSubmit() {
     setErrorMsg('');
 
-    if (!name.trim()) { setErrorMsg('Name is required.'); setState('error'); return; }
-    if (!email.trim() || !isValidEmail(email)) { setErrorMsg('A valid email address is required.'); setState('error'); return; }
-    if (!message.trim() || message.trim().length < 20) { setErrorMsg('Message must be at least 20 characters.'); setState('error'); return; }
+    if (!name.trim()) {
+      setErrorMsg('Name is required.');
+      setState('error');
+      return;
+    }
+
+    if (!email.trim() || !isValidEmail(email)) {
+      setErrorMsg('A valid email address is required.');
+      setState('error');
+      return;
+    }
+
+    if (!message.trim() || message.trim().length < 20) {
+      setErrorMsg('Message must be at least 20 characters.');
+      setState('error');
+      return;
+    }
 
     setState('loading');
 
@@ -59,10 +75,15 @@ export default function ContactForm() {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), subject, message: message.trim() }),
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          subject,
+          message: message.trim(),
+        }),
       });
 
-      const data = await res.json() as { error?: string };
+      const data = (await res.json()) as { error?: string };
 
       if (!res.ok) {
         setErrorMsg(data.error ?? 'Something went wrong. Please try again.');
@@ -125,12 +146,14 @@ export default function ContactForm() {
         <label style={labelStyle}>Subject</label>
         <select
           value={subject}
-          onChange={e => setSubject(e.target.value)}
+          onChange={e => setSubject(e.target.value as Subject)}
           style={{ ...inputStyle, cursor: 'pointer' }}
           disabled={state === 'loading'}
         >
           {SUBJECTS.map(s => (
-            <option key={s} value={s}>{s}</option>
+            <option key={s} value={s}>
+              {s}
+            </option>
           ))}
         </select>
       </div>
@@ -142,7 +165,12 @@ export default function ContactForm() {
           onChange={e => setMessage(e.target.value)}
           placeholder="What's on your mind?"
           rows={5}
-          style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6 }}
+          style={{
+            ...inputStyle,
+            resize: 'vertical',
+            fontFamily: 'inherit',
+            lineHeight: 1.6,
+          }}
           disabled={state === 'loading'}
         />
       </div>
