@@ -49,7 +49,7 @@ export async function POST(request: Request): Promise<Response> {
   if ('error' in auth) return auth.error;
   const { user } = auth;
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   const validation = validateBody<{ jobId: string }>(body, ['jobId']);
   if (!validation.valid) return err(validation.error, 400);
   const { jobId } = validation.data;

@@ -1,4 +1,5 @@
 import { requireAuth } from '@/lib/requireAuth';
+import { validateBody } from '@/lib/validateRequest';
 import { ok, notFound, serverError } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
 import { createClient } from '@/lib/supabase/server';
@@ -8,11 +9,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
   const start = Date.now();
-  const { id } = await params;
 
   const auth = await requireAuth();
   if ('error' in auth) return auth.error;
   const { user } = auth;
+  const { id } = await params;
 
   try {
     const supabase = await createClient();
@@ -30,13 +31,29 @@ export async function PATCH(
       return notFound('Application');
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    const validation = validateBody<{
+      status?: string;
+      notes?: string;
+      resume_doc_id?: string;
+      cover_letter_doc_id?: string;
+      ats_score_id?: string;
+    }>(body, []);
+    if (!validation.valid) {
+      return new Response(JSON.stringify({ error: validation.error }), { status: 400 });
+    }
+
+    const validBody = validation.data;
     const updates: Record<string, unknown> = {};
-    if (body.status !== undefined) updates.status = body.status;
-    if (body.notes !== undefined) updates.notes = body.notes;
-    if (body.resume_doc_id !== undefined) updates.resume_doc_id = body.resume_doc_id;
-    if (body.cover_letter_doc_id !== undefined) updates.cover_letter_doc_id = body.cover_letter_doc_id;
-    if (body.ats_score_id !== undefined) updates.ats_score_id = body.ats_score_id;
+    if (validBody.status !== undefined) updates.status = validBody.status;
+    if (validBody.notes !== undefined) updates.notes = validBody.notes;
+    if (validBody.resume_doc_id !== undefined) updates.resume_doc_id = validBody.resume_doc_id;
+    if (validBody.cover_letter_doc_id !== undefined) updates.cover_letter_doc_id = validBody.cover_letter_doc_id;
+    if (validBody.ats_score_id !== undefined) updates.ats_score_id = validBody.ats_score_id;
+
+    if (Object.keys(updates).length === 0) {
+      return new Response(JSON.stringify({ error: 'No updatable fields were provided' }), { status: 400 });
+    }
 
     const { data: updatedRow, error: updateError } = await supabase
       .from('applications')
@@ -50,12 +67,6 @@ export async function PATCH(
 
     if (updateError || !updatedRow) {
       await logRoute('/api/applications/[id]', user.id, Date.now() - start, 500);
-      console.error('Failed to update application', {
-        updateError,
-        applicationId: id,
-        userId: user.id,
-        updates,
-      });
       return serverError(new Error(updateError?.message ?? 'Failed to update application'));
     }
 
@@ -85,11 +96,10 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
-  const { id } = await params;
-
   const auth = await requireAuth();
   if ('error' in auth) return auth.error;
   const { user } = auth;
+  const { id } = await params;
 
   try {
     const supabase = await createClient();
@@ -113,11 +123,6 @@ export async function DELETE(
       .eq('user_id', user.id);
 
     if (updateError) {
-      console.error('Failed to soft delete application', {
-        updateError,
-        applicationId: id,
-        userId: user.id,
-      });
       return serverError(new Error(updateError.message));
     }
 

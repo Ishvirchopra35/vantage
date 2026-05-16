@@ -124,6 +124,7 @@ const primaryBtn = {
   alignItems: 'center',
   gap: '8px',
   transition: 'opacity 0.15s',
+  minHeight: '44px',
 }
 
 const secondaryBtn = {
@@ -139,6 +140,7 @@ const secondaryBtn = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '8px',
+  minHeight: '44px',
 }
 
 const badge = {
@@ -386,7 +388,7 @@ export default function TailorPage() {
             </p>
 
             {/* Input row */}
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="tailor-input-row">
               {!useTextarea && (
                 <input
                   type="url"
@@ -546,7 +548,7 @@ export default function TailorPage() {
             )}
 
             {/* Three action buttons */}
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <div className="tailor-actions">
               <button
                 onClick={checkAts}
                 disabled={loading.ats}

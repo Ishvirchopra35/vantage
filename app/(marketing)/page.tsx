@@ -1,444 +1,643 @@
-import Link from 'next/link'
+import Link from 'next/link';
 
-export const dynamic = 'force-static'
+export const dynamic = 'force-static';
+
+function getFeatureIcon(featureName: string) {
+  const iconProps = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8 };
+  
+  switch (featureName) {
+    case 'Resume tailoring':
+      return <svg {...iconProps}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
+    case 'ATS scoring':
+      return <svg {...iconProps}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
+    case 'Cover letters':
+      return <svg {...iconProps}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>;
+    case 'Application tracking':
+      return <svg {...iconProps}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
+    case 'Strategy feedback':
+      return <svg {...iconProps}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
+    case 'Networking assistant':
+      return <svg {...iconProps}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+    case 'Interview prep':
+      return <svg {...iconProps}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
+    case 'Auto-apply engine':
+      return <svg {...iconProps}><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg>;
+    default:
+      return <svg {...iconProps}><path d="M2 10h16M10 2v16" /></svg>;
+  }
+}
 
 function CheckIcon() {
   return (
     <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ flexShrink: 0, marginTop: 2 }}
-      aria-hidden="true"
     >
-      <polyline points="2 7 5.5 10.5 12 3.5" />
+      <polyline points="2 8 6 12 14 3" />
     </svg>
-  )
+  );
 }
 
-const PROBLEMS = [
-  {
-    title: 'You apply to 100 jobs with the same resume.',
-    context: 'Most applicants never tailor. ATS systems filter them out before a human sees their name.',
-  },
-  {
-    title: 'You spend 45 minutes on one application.',
-    context: 'Writing cover letters, filling forms, answering questions. For every single job.',
-  },
-  {
-    title: "You have no idea what's working.",
-    context: 'No data. No patterns. No feedback. Just silence.',
-  },
-]
+const PAIN_POINTS = [
+  'You apply to 50 jobs with the same resume and hear back from 2',
+  'You spend 45 minutes tailoring one resume and run out of energy by job 3',
+  'You have no idea why you\'re getting rejected or what to fix',
+];
 
 const FEATURES = [
-  { name: 'Resume tailoring', description: 'Your resume rewritten for every job posting in under 60 seconds. Keyword-matched to the actual ATS.' },
-  { name: 'ATS scoring', description: "See your score before you apply. Know exactly which keywords you're missing." },
-  { name: 'Cover letters', description: 'Generated from your real experience. Sounds like you, not a template.' },
-  { name: 'Application tracking', description: 'Every application logged. Response rate calculated. Status updated in one click.' },
-  { name: 'Auto-apply', description: 'Pre-fills application forms automatically. You review and submit.' },
-  { name: 'Strategy feedback', description: "After 15 applications, see which roles you're competitive for and what's holding you back." },
-  { name: 'Networking assistant', description: 'Find the right people at target companies. Outreach messages written for you.' },
-  { name: 'Interview prep', description: 'Practice with voice. AI listens, scores your answer, flags filler words.' },
-]
-
-const FREE_FEATURES = [
-  '10 resume tailorings per month',
-  '10 cover letters per month',
-  '20 auto-apply credits per month',
-  'Track up to 150 applications',
-  '2 strategy feedback reports per month',
-  '15 networking message drafts per month',
-  '5 interview prep sessions per month',
-  'Email support',
-]
-
-const PRO_FEATURES = [
-  'Everything in Free, unlimited',
-  'Priority support',
-]
-
-const STATS = [
-  { stat: '75%', label: 'of students got less than 5% response rate before Vantage' },
-  { stat: '87.5%', label: 'of students said auto-tailoring would change how they apply' },
-  { stat: '60s', label: 'to tailor your resume to any job posting' },
-]
+  { name: 'Resume tailoring', description: 'Automatically rewritten for every job posting.' },
+  { name: 'ATS scoring', description: 'See your score before you apply.' },
+  { name: 'Cover letters', description: 'Generated from your real experience.' },
+  { name: 'Application tracking', description: 'Every application logged and tracked.' },
+  { name: 'Strategy feedback', description: 'Learn what\'s working and what isn\'t.' },
+  { name: 'Networking assistant', description: 'Find the right people at target companies.' },
+  { name: 'Interview prep', description: 'Practice with voice feedback.' },
+  { name: 'Auto-apply engine', description: 'Pre-fills applications automatically.' },
+];
 
 const STEPS = [
   {
     n: 1,
-    title: 'Upload your resume once.',
-    text: 'Vantage learns your experience, skills, and target roles. One upload, used everywhere.',
+    title: 'Build your profile',
+    description: 'Upload your resume once. Set your target roles and goals.',
   },
   {
     n: 2,
-    title: 'Paste any job URL.',
-    text: 'We parse the job description, extract every ATS keyword, and tailor your resume in under 60 seconds.',
+    title: 'Paste any job',
+    description: 'Drop in a job URL or paste the description. We parse it and tailor everything instantly.',
   },
   {
     n: 3,
-    title: 'Apply smarter, not harder.',
-    text: 'Track every application. See your ATS score. Get strategy feedback after 15+ applications.',
+    title: 'Apply and improve',
+    description: 'Track results. The platform learns what works for you.',
   },
-]
+];
+
+const FREE_FEATURES = [
+  '10 resume tailorings/month',
+  '10 cover letters/month',
+  '20 auto-apply credits/month',
+  'Track up to 150 applications',
+  '2 strategy reports/month',
+  'Email support',
+];
+
+const PRO_FEATURES = [
+  'Everything in Free, unlimited',
+  'Priority support',
+  'Early access to new features',
+];
 
 export default function LandingPage() {
   return (
     <>
-      {/* 1. Hero */}
-      <section className="lp-hero-section">
-        <div style={{ maxWidth: 680, margin: '0 auto' }}>
-          <h1 className="lp-hero-title" style={{ marginBottom: 20 }}>
-            Applied to 100 jobs.<br />
-            Heard back from 3.<br />
-            {"There's a better way."}
-          </h1>
-          <p className="lp-hero-sub" style={{ marginBottom: 36 }}>
-            Vantage tailors your resume to every job posting, scores it against ATS systems, and tracks every application — in one workspace.
-          </p>
-          <div className="lp-cta-row" style={{ marginBottom: 28 }}>
-            <Link
-              href="/signup"
-              style={{
-                background: 'var(--accent)',
-                color: 'var(--bg)',
-                borderRadius: 10,
-                padding: '12px 28px',
-                fontSize: 15,
-                fontWeight: 600,
-                textDecoration: 'none',
-              }}
-            >
-              Get started free
-            </Link>
-            <Link
-              href="#how-it-works"
-              style={{
-                background: 'transparent',
-                color: 'var(--text)',
-                border: '1px solid var(--border)',
-                borderRadius: 10,
-                padding: '12px 28px',
-                fontSize: 15,
-                fontWeight: 500,
-                textDecoration: 'none',
-              }}
-            >
-              See how it works
-            </Link>
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
-            Built at the University of Waterloo · Used by students at [X] universities
-          </p>
-        </div>
-      </section>
-
-      {/* 2. Problem */}
-      <section style={{ padding: '80px 24px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <h2 className="lp-section-heading" style={{ marginBottom: 40, textAlign: 'center' }}>
-            The job search is broken.
-          </h2>
-          <div className="lp-problem-grid">
-            {PROBLEMS.map((p, i) => (
-              <div
-                key={i}
-                style={{
-                  background: 'var(--card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  padding: 24,
-                }}
-              >
-                <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 10, lineHeight: 1.4 }}>
-                  {p.title}
-                </p>
-                <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.65 }}>
-                  {p.context}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 3. How it works */}
-      <section
-        id="how-it-works"
+      {/* Background */}
+      <div
         style={{
-          padding: '80px 24px',
-          background: 'var(--card)',
-          borderTop: '1px solid var(--border)',
-          borderBottom: '1px solid var(--border)',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background:
+            'radial-gradient(950px 420px at 15% -10%, rgba(255,255,255,0.1), transparent 55%), radial-gradient(850px 420px at 95% 0%, rgba(255,255,255,0.07), transparent 60%), #0a0a0a',
+          zIndex: -1,
+          pointerEvents: 'none',
         }}
-      >
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <h2 className="lp-section-heading" style={{ marginBottom: 56, textAlign: 'center' }}>
-            How Vantage works.
-          </h2>
-          <div className="lp-steps-row">
-            {STEPS.map(step => (
-              <div key={step.n} style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 16px' }}>
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    background: 'var(--bg)',
-                    border: '1px solid var(--border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: 'var(--text)',
-                    margin: '0 auto 20px',
-                  }}
-                >
-                  {step.n}
-                </div>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
-                  {step.title}
-                </h3>
-                <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.65 }}>
-                  {step.text}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      />
 
-      {/* 4. Features */}
-      <section id="features" style={{ padding: '80px 24px' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <h2 className="lp-section-heading" style={{ marginBottom: 40, textAlign: 'center' }}>
-            Everything you need to get hired.
-          </h2>
-          <div className="lp-features-grid">
-            {FEATURES.map((f, i) => (
-              <div
-                key={i}
-                style={{
-                  background: 'var(--card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  padding: 20,
-                }}
-              >
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                  {f.name}
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.55 }}>
-                  {f.description}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 5. Stats */}
+      {/* Hero Section */}
       <section
         style={{
-          padding: '80px 24px',
-          background: 'var(--card)',
-          borderTop: '1px solid var(--border)',
-          borderBottom: '1px solid var(--border)',
+          maxWidth: '1120px',
+          margin: '0 auto',
+          padding: '88px 24px 96px',
         }}
       >
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <h2 className="lp-section-heading" style={{ marginBottom: 48, textAlign: 'center' }}>
-            {"The numbers don't lie."}
-          </h2>
-          <div className="lp-stats-grid">
-            {STATS.map((s, i) => (
-              <div
-                key={i}
-                style={{
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  padding: '36px 24px',
-                  textAlign: 'center',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 56,
-                    fontWeight: 800,
-                    color: 'var(--text)',
-                    lineHeight: 1,
-                    marginBottom: 14,
-                    letterSpacing: '-0.02em',
-                  }}
-                >
-                  {s.stat}
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.55 }}>
-                  {s.label}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.09)',
+            color: '#d6d6d6',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '0.83rem',
+            marginBottom: '22px',
+          }}
+        >
+          <div
+            style={{
+              width: '7px',
+              height: '7px',
+              borderRadius: '50%',
+              background: '#f2f2f2',
+              flexShrink: 0,
+            }}
+          />
+          Built for students in recruiting season
         </div>
-      </section>
 
-      {/* 6. Pricing */}
-      <section id="pricing" style={{ padding: '80px 24px' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <h2 className="lp-section-heading" style={{ marginBottom: 40, textAlign: 'center' }}>
-            Simple pricing.
-          </h2>
-          <div className="lp-pricing-grid">
-            {/* Free */}
-            <div
-              style={{
-                background: 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                padding: 28,
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Free</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 36, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>$0</span>
-                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>/month</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28, flex: 1 }}>
-                {FREE_FEATURES.map((f, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', color: 'var(--muted)' }}>
-                    <CheckIcon />
-                    <span style={{ fontSize: 13, lineHeight: 1.5 }}>{f}</span>
-                  </div>
-                ))}
-              </div>
-              <Link
-                href="/signup"
-                style={{
-                  display: 'block',
-                  textAlign: 'center',
-                  background: 'transparent',
-                  color: 'var(--text)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 10,
-                  padding: '10px 20px',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                }}
-              >
-                Get started free
-              </Link>
-            </div>
+        <h1
+          style={{
+            fontSize: 'clamp(2.2rem, 6vw, 4.6rem)',
+            lineHeight: 1.02,
+            letterSpacing: '-0.04em',
+            maxWidth: '840px',
+            margin: '0 0 20px 0',
+            color: '#fff',
+          }}
+        >
+          Apply smarter.
+          <br />
+          Get hired faster.
+        </h1>
 
-            {/* Pro */}
-            <div
-              style={{
-                background: 'var(--card)',
-                border: '1px solid var(--pro-border)',
-                borderRadius: 'var(--radius)',
-                padding: 28,
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Pro</span>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: '0.06em',
-                      color: 'var(--text)',
-                      background: 'var(--border)',
-                      borderRadius: 4,
-                      padding: '2px 6px',
-                    }}
-                  >
-                    POPULAR
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 36, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>$8</span>
-                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>/month</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28, flex: 1 }}>
-                {PRO_FEATURES.map((f, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', color: 'var(--muted)' }}>
-                    <CheckIcon />
-                    <span style={{ fontSize: 13, lineHeight: 1.5 }}>{f}</span>
-                  </div>
-                ))}
-              </div>
-              <Link
-                href="/signup"
-                style={{
-                  display: 'block',
-                  textAlign: 'center',
-                  background: 'var(--accent)',
-                  color: 'var(--bg)',
-                  borderRadius: 10,
-                  padding: '10px 20px',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                }}
-              >
-                Get started
-              </Link>
-            </div>
-          </div>
-          <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)', marginTop: 20 }}>
-            No credit card required. Cancel anytime.
-          </p>
-        </div>
-      </section>
+        <p
+          style={{
+            marginTop: '20px',
+            color: '#b9bcc4',
+            maxWidth: '560px',
+            fontSize: '1.1rem',
+            lineHeight: 1.6,
+          }}
+        >
+          Vantage tailors your resume to every job, scores it against ATS systems, and tracks every application in one workspace.
+        </p>
 
-      {/* 7. Final CTA */}
-      <section
-        style={{
-          padding: '100px 24px',
-          textAlign: 'center',
-          background: 'var(--card)',
-          borderTop: '1px solid var(--border)',
-        }}
-      >
-        <div style={{ maxWidth: 560, margin: '0 auto' }}>
-          <h2 className="lp-section-heading" style={{ marginBottom: 16 }}>
-            Stop sending the same resume to every job.
-          </h2>
-          <p style={{ fontSize: 16, color: 'var(--muted)', marginBottom: 36, lineHeight: 1.6 }}>
-            Join students who are applying smarter.
-          </p>
+        <div style={{ marginTop: '32px', display: 'flex', gap: '12px', alignItems: 'center' }}>
           <Link
             href="/signup"
             style={{
-              display: 'inline-block',
-              background: 'var(--accent)',
-              color: 'var(--bg)',
-              borderRadius: 10,
-              padding: '13px 32px',
-              fontSize: 15,
+              background: '#f2f2f2',
+              color: '#000',
+              padding: '12px 20px',
+              borderRadius: '10px',
               fontWeight: 600,
+              fontSize: '0.95rem',
               textDecoration: 'none',
             }}
           >
             Get started free
           </Link>
+          <a
+            href="#how-it-works"
+            style={{
+              background: 'transparent',
+              border: '1px solid #313131',
+              color: '#e8e8e8',
+              padding: '12px 20px',
+              borderRadius: '10px',
+              fontWeight: 600,
+              fontSize: '0.95rem',
+              textDecoration: 'none',
+              display: 'inline-block',
+            }}
+          >
+            See how it works
+          </a>
+        </div>
+
+        <p style={{ marginTop: '14px', color: '#8b919d', fontSize: '0.88rem' }}>
+          Built at the University of Waterloo · Free for early users · No credit card required
+        </p>
+      </section>
+
+      {/* Pain Points Section */}
+      <section
+        id="sound-familiar"
+        style={{
+          maxWidth: '1120px',
+          margin: '0 auto',
+          padding: '90px 24px',
+        }}
+      >
+        <div
+          style={{
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.16em',
+            color: '#d8d8d8',
+            marginBottom: '20px',
+          }}
+        >
+          SOUND FAMILIAR?
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '16px',
+          }}
+        >
+          {PAIN_POINTS.map((text, i) => (
+            <div
+              key={i}
+              style={{
+                background: '#111111',
+                border: '1px solid #212121',
+                borderRadius: '14px',
+                padding: '22px',
+                color: '#d1d5db',
+                fontSize: '0.98rem',
+                lineHeight: 1.65,
+              }}
+            >
+              {text}
+            </div>
+          ))}
         </div>
       </section>
+
+      {/* Features Section */}
+      <section
+        id="features"
+        style={{
+          maxWidth: '1120px',
+          margin: '0 auto',
+          padding: '90px 24px',
+        }}
+      >
+        <div
+          style={{
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.16em',
+            color: '#d8d8d8',
+            marginBottom: '20px',
+          }}
+        >
+          EVERYTHING YOU NEED TO GET HIRED
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '16px',
+          }}
+        >
+          {FEATURES.map((feature, i) => (
+            <div
+              key={i}
+              style={{
+                background: '#111111',
+                border: '1px solid #212121',
+                borderRadius: '14px',
+                padding: '22px',
+              }}
+            >
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  background: 'rgba(255,255,255,0.06)',
+                  borderRadius: '8px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  marginBottom: '14px',
+                  color: '#9ca3af',
+                }}
+              >
+                {getFeatureIcon(feature.name)}
+              </div>
+              <div
+                style={{
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  marginBottom: '6px',
+                  color: '#fff',
+                }}
+              >
+                {feature.name}
+              </div>
+              <div style={{ fontSize: '0.88rem', color: '#9ca3af', lineHeight: 1.6 }}>
+                {feature.description}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section
+        id="how-it-works"
+        style={{
+          maxWidth: '1120px',
+          margin: '0 auto',
+          padding: '90px 24px',
+        }}
+      >
+        <div
+          style={{
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.16em',
+            color: '#d8d8d8',
+            marginBottom: '20px',
+          }}
+        >
+          HOW IT WORKS
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '16px',
+          }}
+        >
+          {STEPS.map((step, i) => (
+            <div
+              key={i}
+              style={{
+                background: '#111111',
+                border: '1px solid #212121',
+                borderRadius: '14px',
+                padding: '28px',
+              }}
+            >
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  border: '1px solid #333',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: '0.8rem',
+                  color: '#9ca3af',
+                  marginBottom: '16px',
+                }}
+              >
+                {step.n}
+              </div>
+              <div
+                style={{
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  marginBottom: '8px',
+                  color: '#fff',
+                }}
+              >
+                {step.title}
+              </div>
+              <div style={{ fontSize: '0.88rem', color: '#9ca3af', lineHeight: 1.6 }}>
+                {step.description}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section
+        id="pricing"
+        style={{
+          maxWidth: '1120px',
+          margin: '0 auto',
+          padding: '90px 24px',
+        }}
+      >
+        <div
+          style={{
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.16em',
+            color: '#d8d8d8',
+            marginBottom: '20px',
+            textAlign: 'center',
+          }}
+        >
+          SIMPLE PRICING
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            maxWidth: '780px',
+            margin: '0 auto',
+            gap: '16px',
+          }}
+        >
+          {/* Free Plan */}
+          <div
+            style={{
+              background: '#111111',
+              border: '1px solid #212121',
+              borderRadius: '14px',
+              padding: '28px',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: '#9ca3af',
+                marginBottom: '8px',
+              }}
+            >
+              Free
+            </div>
+            <div
+              style={{
+                fontSize: '2.4rem',
+                fontWeight: 700,
+                marginBottom: '20px',
+                color: '#fff',
+              }}
+            >
+              $0
+              <span style={{ fontSize: '1rem', color: '#9ca3af' }}>/month</span>
+            </div>
+
+            <ul
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              {FREE_FEATURES.map((feature, i) => (
+                <li
+                  key={i}
+                  style={{
+                    fontSize: '0.9rem',
+                    color: '#d1d5db',
+                    paddingLeft: '20px',
+                    position: 'relative',
+                  }}
+                >
+                  <span style={{ color: '#22c55e', position: 'absolute', left: 0 }}>✓</span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+
+            <Link
+              href="/signup"
+              style={{
+                width: '100%',
+                marginTop: '24px',
+                display: 'block',
+                background: '#f2f2f2',
+                color: '#000',
+                padding: '12px 20px',
+                borderRadius: '10px',
+                fontWeight: 600,
+                fontSize: '0.95rem',
+                textDecoration: 'none',
+                textAlign: 'center',
+              }}
+            >
+              Get started free
+            </Link>
+          </div>
+
+          {/* Pro Plan */}
+          <div
+            style={{
+              background: '#111111',
+              border: '1px solid #333',
+              borderRadius: '14px',
+              padding: '28px',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: '#9ca3af',
+                marginBottom: '8px',
+              }}
+            >
+              Pro
+            </div>
+            <div
+              style={{
+                fontSize: '2.4rem',
+                fontWeight: 700,
+                marginBottom: '20px',
+                color: '#fff',
+              }}
+            >
+              $8
+              <span style={{ fontSize: '1rem', color: '#9ca3af' }}>/month</span>
+            </div>
+
+            <ul
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              {PRO_FEATURES.map((feature, i) => (
+                <li
+                  key={i}
+                  style={{
+                    fontSize: '0.9rem',
+                    color: '#d1d5db',
+                    paddingLeft: '20px',
+                    position: 'relative',
+                  }}
+                >
+                  <span style={{ color: '#22c55e', position: 'absolute', left: 0 }}>✓</span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+
+            <Link
+              href="/signup"
+              style={{
+                width: '100%',
+                marginTop: '24px',
+                display: 'block',
+                background: '#f2f2f2',
+                color: '#000',
+                padding: '12px 20px',
+                borderRadius: '10px',
+                fontWeight: 600,
+                fontSize: '0.95rem',
+                textDecoration: 'none',
+                textAlign: 'center',
+              }}
+            >
+              Get started free
+            </Link>
+          </div>
+        </div>
+
+        <p style={{ fontSize: '0.88rem', color: '#9ca3af', textAlign: 'center', marginTop: '16px' }}>
+          Free for the first 50 users during early access
+        </p>
+      </section>
+
+      {/* Final CTA Section */}
+      <section
+        style={{
+          maxWidth: '1120px',
+          margin: '0 auto',
+          padding: '80px 24px',
+          textAlign: 'center',
+        }}
+      >
+        <h2
+          style={{
+            fontSize: 'clamp(1.8rem, 4vw, 2.8rem)',
+            fontWeight: 700,
+            letterSpacing: '-0.03em',
+            marginBottom: '12px',
+            color: '#fff',
+          }}
+        >
+          Stop sending the same resume to every job.
+        </h2>
+        <p style={{ color: '#9ca3af', fontSize: '1rem', marginBottom: '32px' }}>
+          Join students who are applying smarter.
+        </p>
+        <Link
+          href="/signup"
+          style={{
+            background: '#f2f2f2',
+            color: '#000',
+            padding: '12px 20px',
+            borderRadius: '10px',
+            fontWeight: 600,
+            fontSize: '0.95rem',
+            textDecoration: 'none',
+            display: 'inline-block',
+          }}
+        >
+          Get started free
+        </Link>
+      </section>
+
     </>
-  )
+  );
 }

@@ -19,13 +19,14 @@ type Feature = keyof typeof LIMITS;
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+type ServiceClient = ReturnType<typeof createServiceClient>;
 
 function serviceClient() {
   if (!SUPABASE_URL || !SERVICE_KEY) throw new Error('Missing Supabase service credentials');
   return createServiceClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 }
 
-async function ensureSubscriptionRow(svc: any, userId: string) {
+async function ensureSubscriptionRow(svc: ServiceClient, userId: string) {
   try {
     const { data } = await svc.from('subscriptions').select('*').eq('user_id', userId).limit(1).single();
     if (data) return data;
@@ -51,7 +52,10 @@ function daysBetween(a: string | Date, b: Date) {
   return (db - da) / (1000 * 60 * 60 * 24);
 }
 
-async function resetMonthlyIfNeeded(svc: any, subRow: any) {
+async function resetMonthlyIfNeeded(
+  svc: ServiceClient,
+  subRow: { monthly_reset_at?: string | null; user_id?: string | null } | null
+) {
   if (!subRow) return;
   const monthlyReset = subRow.monthly_reset_at ? new Date(subRow.monthly_reset_at) : new Date(0);
   const now = new Date();
@@ -75,7 +79,7 @@ async function resetMonthlyIfNeeded(svc: any, subRow: any) {
   }
 }
 
-async function incrementCounterAtomic(svc: any, userId: string, column: string, limit: number) {
+async function incrementCounterAtomic(svc: ServiceClient, userId: string, column: string, limit: number) {
   // Attempt read and conditional update with optimistic locking (retry few times)
   const maxAttempts = 3;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {

@@ -6,6 +6,7 @@ import { getRemainingLimits } from './rateLimit';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+type ServiceClient = ReturnType<typeof createServiceClient>;
 
 function serviceClient() {
   if (!SUPABASE_URL || !SERVICE_KEY) throw new Error('Missing Supabase service credentials');
@@ -50,7 +51,7 @@ export interface UserContext {
   remainingLimits?: Record<string, number> | null;
 }
 
-async function fetchProfile(svc: any, userId: string) {
+async function fetchProfile(svc: ServiceClient, userId: string) {
   try {
     const { data } = await svc.from('profiles').select('full_name, email, university, graduation_year, years_experience, skills, target_roles, linkedin_url').eq('user_id', userId).limit(1).single();
     return data;
@@ -59,7 +60,7 @@ async function fetchProfile(svc: any, userId: string) {
   }
 }
 
-async function fetchBaseResume(svc: any, userId: string) {
+async function fetchBaseResume(svc: ServiceClient, userId: string) {
   try {
     const { data } = await svc.from('resumes').select('raw_text').eq('user_id', userId).eq('is_base', true).order('created_at', { ascending: false }).limit(1).single();
     return data;
@@ -68,7 +69,7 @@ async function fetchBaseResume(svc: any, userId: string) {
   }
 }
 
-async function fetchApplicationHistory(svc: any, userId: string) {
+async function fetchApplicationHistory(svc: ServiceClient, userId: string) {
   try {
     const { count: total } = await svc.from('applications').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('deleted', false);
 
@@ -110,7 +111,7 @@ async function fetchApplicationHistory(svc: any, userId: string) {
   }
 }
 
-async function fetchAtsPerformance(svc: any, userId: string) {
+async function fetchAtsPerformance(svc: ServiceClient, userId: string) {
   try {
     const { data: scores } = await svc.from('ats_scores').select('overall_score, keyword_score, missing_keywords').eq('user_id', userId);
     const scoresData = (scores || []) as Array<{ overall_score?: number; keyword_score?: number; missing_keywords?: string[] }>;
@@ -157,7 +158,7 @@ async function fetchAtsPerformance(svc: any, userId: string) {
   }
 }
 
-async function fetchSubscription(svc: any, userId: string) {
+async function fetchSubscription(svc: ServiceClient, userId: string) {
   try {
     const { data } = await svc.from('subscriptions').select('plan').eq('user_id', userId).limit(1).single();
     return data;

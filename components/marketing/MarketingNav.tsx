@@ -141,13 +141,13 @@ export default function MarketingNav() {
           {/* Wordmark */}
           <Link
             href="/"
-            style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', textDecoration: 'none', flexShrink: 0 }}
+            style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', textDecoration: 'none', flexShrink: 0, letterSpacing: '-0.02em' }}
           >
             Vantage
           </Link>
 
           {/* Center nav — hidden on mobile via CSS class */}
-          <div className="mkt-nav-center" style={{ marginLeft: 40 }}>
+          <div className="mkt-nav-center" style={{ marginLeft: 32 }}>
             {NAV_LINKS.map(link => (
               <Link
                 key={link.href}

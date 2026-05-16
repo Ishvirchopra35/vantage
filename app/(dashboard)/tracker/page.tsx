@@ -71,11 +71,6 @@ async function apiFetch<T>(
     })
     const json = await res.json()
     if (!res.ok) {
-      console.error('API request failed', {
-        url,
-        status: res.status,
-        body: json,
-      })
       return { data: null, error: json.error ?? `Error ${res.status}` }
     }
     return { data: json as T, error: null }
@@ -139,6 +134,7 @@ const primaryBtn = {
   alignItems: 'center',
   gap: '8px',
   transition: 'opacity 0.15s',
+  minHeight: '44px',
 }
 
 const secondaryBtn = {
@@ -154,6 +150,7 @@ const secondaryBtn = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '8px',
+  minHeight: '44px',
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -375,7 +372,7 @@ export default function TrackerPage() {
             <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '14px' }}>
               Log an application
             </div>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div className="tracker-log-form">
               <div style={{ flex: '1 1 160px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Company</div>
                 <input
@@ -445,12 +442,7 @@ export default function TrackerPage() {
 
         {/* ── Stats bar ──────────────────────────────────────────────────── */}
         {!loading && applications.length > 0 && (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '12px',
-            marginBottom: '20px',
-          }}>
+          <div className="tracker-stats-grid">
             {[
               { label: 'Total', value: total.toString() },
               { label: 'Response rate', value: responseRate },
@@ -533,7 +525,7 @@ export default function TrackerPage() {
 
         {/* ── Table ──────────────────────────────────────────────────────── */}
         {!loading && applications.length > 0 && (
-          <div style={{ ...card, padding: 0, overflow: 'visible' }}>
+          <div className="tracker-table-wrapper" style={{ ...card, padding: 0 }}>
             {/* columns: company(flex) | role(flex) | status(100px) | since(52px) | ats(52px) | delete(32px) */}
             <div style={{
               display: 'grid',
@@ -542,16 +534,17 @@ export default function TrackerPage() {
               borderBottom: '1px solid var(--border)',
               gap: '12px',
               alignItems: 'center',
+              minWidth: 'min-content',
             }}>
               {[
-                { label: 'Company', align: 'left' },
-                { label: 'Role',    align: 'left' },
-                { label: 'Status',  align: 'left' },
-                { label: 'Since',   align: 'center' },
-                { label: 'ATS',     align: 'center' },
-                { label: '',        align: 'right' },
-              ].map(({ label, align }) => (
-                <div key={label} style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: align as 'left' | 'center' | 'right' }}>
+                { label: 'Company', align: 'left', className: '' },
+                { label: 'Role',    align: 'left', className: '' },
+                { label: 'Status',  align: 'left', className: '' },
+                { label: 'Since',   align: 'center', className: 'tracker-table-col-since' },
+                { label: 'ATS',     align: 'center', className: '' },
+                { label: '',        align: 'right', className: '' },
+              ].map(({ label, align, className }) => (
+                <div key={label} className={className} style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: align as 'left' | 'center' | 'right' }}>
                   {label}
                 </div>
               ))}
@@ -572,6 +565,7 @@ export default function TrackerPage() {
                     borderBottom: idx < applications.length - 1 ? '1px solid var(--border)' : 'none',
                     gap: '12px',
                     alignItems: 'center',
+                    minHeight: '48px',
                     opacity: row.id.startsWith('temp-') || isDeleting ? 0.5 : 1,
                     transition: 'opacity 0.15s',
                     overflow: 'visible',
@@ -656,7 +650,7 @@ export default function TrackerPage() {
                   </div>
 
                   {/* Days since — centered */}
-                  <div style={{ fontSize: '13px', color: 'var(--muted)', fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}>
+                  <div className="tracker-table-col-since" style={{ fontSize: '13px', color: 'var(--muted)', fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}>
                     {daysSince(row.applied_date)}
                   </div>
 

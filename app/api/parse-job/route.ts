@@ -1,7 +1,8 @@
 import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
-import { ok, err, serverError } from '@/lib/apiResponse';
+import { ok, err, serverError, rateLimited } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
+import { checkLimit, LIMITS } from '@/lib/rateLimit';
 import { withTimeout } from '@/lib/withTimeout';
 import { generateJSON } from '@/lib/ai';
 import { createClient } from '@/lib/supabase/server';
@@ -54,7 +55,13 @@ export async function POST(request: Request): Promise<Response> {
   if ('error' in auth) return auth.error;
   const { user } = auth;
 
-  const body = await request.json();
+  const limitCheck = await checkLimit(user.id, 'tailoring');
+  if (!limitCheck.allowed) {
+    await logRoute('/api/parse-job', user.id, Date.now() - start, 429);
+    return rateLimited('job parsing', LIMITS.tailoring, 30);
+  }
+
+  const body = await request.json().catch(() => null);
   const validation = validateBody<{ url?: string; rawText?: string }>(body, []);
   if (!validation.valid) {
     return err(validation.error, 400);

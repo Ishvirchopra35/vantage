@@ -32,3 +32,27 @@ title: Blog pages with MDX rendering, search, and category filtering
 - components/mdx/MDXComponents.tsx created: custom renderers for h1 h2 h3 p code pre ul ol blockquote using CSS variables
 - app/globals.css updated: added @plugin "@tailwindcss/typography" and .blog-prose overrides for CSS variable color integration
 - new packages: @tailwindcss/typography, next-mdx-remote
+
+---
+date: 2026-05-15
+type: Feature
+title: Admin analytics dashboard
+---
+
+- c:\Users\ishvi\OneDrive\Desktop\Code\Projects\Vantage\vantage\app\admin\page.tsx was created as a dynamic server component that checked the current user against ADMIN_USER_ID, redirected non-admin users to /dashboard, and rendered revenue, user, retention, product usage, growth, recent events, and route performance metrics with the Supabase service-role client.
+- c:\Users\ishvi\OneDrive\Desktop\Code\Projects\Vantage\vantage\.env.local was updated with an ADMIN_USER_ID placeholder required for local admin access.
+- c:\Users\ishvi\OneDrive\Desktop\Code\Projects\Vantage\vantage\content\changelog\latest.mdx was appended with this entry.
+- No new database tables, columns, or indexes were added.
+- No npm packages were installed.
+
+---
+date: 2026-05-15
+type: Feature
+title: Contact page with public form and rate-limited API route
+
+- app/(marketing)/contact/page.tsx created: server component, 560px centered layout, heading + subtext, renders ContactForm, shows email and location below a border
+- components/marketing/ContactForm.tsx created: 'use client' form with name/email/subject/message fields, client-side validation, loading/success/error states, spinner in button while submitting
+- app/api/contact/route.ts created: public POST route (no auth), validateBody, server-side email format check, service-role Supabase insert into contact_submissions, per-email hourly rate limit via SELECT count check
+- new DB table: contact_submissions (id uuid pk, name text, email text, subject text, message text, created_at timestamptz) — no RLS, insert public, reads service-role only
+- no new env vars
+- no npm packages installed

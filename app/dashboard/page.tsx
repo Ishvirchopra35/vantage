@@ -209,13 +209,6 @@ export default async function DashboardPage() {
   const recentScores = atsScores.slice(0, 3);
   const recentDocs = documents.slice(0, 5);
 
-  const statsGridStyle: CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '12px',
-    marginBottom: '16px',
-  };
-
   const statCardStyle: CSSProperties = {
     background: 'var(--card)',
     border: '1px solid var(--border)',
@@ -339,7 +332,7 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      <div style={statsGridStyle}>
+      <div className="stats-grid">
         <div style={statCardStyle}>
           <div style={statValueStyle}>{totalApplications}</div>
           <div style={statLabelStyle}>Total Applications</div>

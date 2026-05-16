@@ -103,7 +103,7 @@ function ThemeToggle() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
-    const stored = window.localStorage.getItem('theme');
+    const stored = window.localStorage.getItem('vantage-theme');
     const current = (stored === 'dark' || stored === 'light')
       ? stored
       : (document.documentElement.getAttribute('data-theme') as 'dark' | 'light' | null) ?? 'dark';
@@ -113,7 +113,7 @@ function ThemeToggle() {
   function toggleTheme() {
     const next = theme === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
-    window.localStorage.setItem('theme', next);
+    window.localStorage.setItem('vantage-theme', next);
     setTheme(next);
   }
 
@@ -231,7 +231,20 @@ export default function Sidebar({
       }}
     >
       <div style={{ padding: '18px 16px 14px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.01em' }}>Vantage</div>
+        <Link
+          href="/"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            fontSize: '17px',
+            fontWeight: 700,
+            color: 'var(--text)',
+            textDecoration: 'none',
+            letterSpacing: '0.01em',
+          }}
+        >
+          Vantage
+        </Link>
       </div>
 
       <nav style={{ display: 'flex', flexDirection: 'column', paddingTop: '12px', gap: '12px', flex: 1 }}>
@@ -351,7 +364,17 @@ export default function Sidebar({
         >
           <MenuIcon />
         </button>
-        <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>Vantage</div>
+        <Link
+          href="/"
+          style={{
+            fontSize: '17px',
+            fontWeight: 700,
+            color: 'var(--text)',
+            textDecoration: 'none',
+          }}
+        >
+          Vantage
+        </Link>
         <div style={{ width: '36px', height: '36px' }} />
       </div>
 
@@ -359,7 +382,17 @@ export default function Sidebar({
 
       <div className={`mobile-drawer ${mobileOpen ? 'open' : ''}`}>
         <div style={{ padding: '18px 16px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>Vantage</div>
+          <Link
+            href="/"
+            style={{
+              fontSize: '17px',
+              fontWeight: 700,
+              color: 'var(--text)',
+              textDecoration: 'none',
+            }}
+          >
+            Vantage
+          </Link>
           <button
             type="button"
             onClick={() => setMobileOpen(false)}

@@ -5,7 +5,11 @@
       "Bash(npx tsc *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "PowerShell(git push *)",
+      "PowerShell(git add *)"
     ]
   }
 }

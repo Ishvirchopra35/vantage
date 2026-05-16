@@ -12,7 +12,7 @@ export async function POST(request: Request): Promise<Response> {
   if ('error' in auth) return auth.error;
   const { user } = auth;
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   const validation = validateBody<{ fileUrl: string }>(body, ['fileUrl']);
   if (!validation.valid) return err(validation.error, 400);
   const { fileUrl } = validation.data;

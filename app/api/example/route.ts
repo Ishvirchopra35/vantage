@@ -1,23 +1,32 @@
 import { NextRequest } from 'next/server';
-import { ok, err, serverError } from '@/lib/apiResponse';
+import { ok, err, serverError, rateLimited } from '@/lib/apiResponse';
 import { validateBody } from '@/lib/validateRequest';
 import requireAuth from '@/lib/requireAuth';
 import { withTimeout } from '@/lib/withTimeout';
 import logRoute from '@/lib/logger';
+import { checkLimit, LIMITS } from '@/lib/rateLimit';
 import { generateText } from '@/lib/ai';
 
 export async function POST(req: NextRequest) {
   const start = Date.now();
   try {
-    const body = await req.json().catch(() => null);
-
-    const validated = validateBody<{ prompt: string }>(body, ['prompt']);
-    if (!validated.valid) return err(validated.error, 400);
-
     const auth = await requireAuth();
     if ('error' in auth) return auth.error;
 
     const userId = auth.user?.id ?? null;
+
+    if (userId) {
+      const limitCheck = await checkLimit(userId, 'tailoring');
+      if (!limitCheck.allowed) {
+        await logRoute('/api/example', userId, Date.now() - start, 429).catch(() => {});
+        return rateLimited('AI usage', LIMITS.tailoring, 30);
+      }
+    }
+
+    const body = await req.json().catch(() => null);
+
+    const validated = validateBody<{ prompt: string }>(body, ['prompt']);
+    if (!validated.valid) return err(validated.error, 400);
 
     // Call AI with a timeout of 30s
     const text = await withTimeout(

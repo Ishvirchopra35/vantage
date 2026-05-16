@@ -13,13 +13,22 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function isRateLimitError(err: any) {
+function isRateLimitError(err: unknown) {
   if (!err) return false;
-  const status = err?.status || err?.statusCode;
+  const typed = err as { status?: number; statusCode?: number; message?: string; toString?: () => string };
+  const status = typed.status || typed.statusCode;
   if (status === 429) return true;
-  const msg = String(err?.message || err?.toString()).toLowerCase();
+  const msg = String(typed.message || typed.toString?.() || err).toLowerCase();
   return msg.includes('rate limit') || msg.includes('too many requests');
 }
+
+type GroqResponse =
+  | string
+  | {
+      output_text?: string;
+      choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
+      output?: Array<{ content?: string | Array<{ text?: string }> } | string>;
+    };
 
 async function callGroq(systemPrompt: string, userPrompt: string, maxTokens = 2000): Promise<string> {
   if (!process.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY is not set');
@@ -34,45 +43,46 @@ async function callGroq(systemPrompt: string, userPrompt: string, maxTokens = 20
       // The groq-sdk API surface may differ; we attempt a common pattern
       // that many LLM SDKs follow. If this needs adjustment for the
       // official Groq SDK, update the call accordingly.
-      const res: any = await client.chat.completions.create({
+      const res = (await client.chat.completions.create({
         model: DEFAULT_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
         max_tokens: maxTokens,
-      });
+      })) as GroqResponse;
 
       // Try common fields where model output might live
       const textCandidates = [];
       if (typeof res === 'string') textCandidates.push(res);
-      if (res?.output_text) textCandidates.push(res.output_text);
-      // Groq chat/completions shape: { choices: [{ message: { content: '...' } }] }
-      if (res?.choices?.length) {
-        for (const choice of res.choices) {
-          if (choice?.message?.content) textCandidates.push(choice.message.content);
-          if (choice?.message?.content?.text) textCandidates.push(choice.message.content.text);
-          if (Array.isArray(choice?.message?.content)) {
-            for (const c of choice.message.content) {
-              if (typeof c === 'string') textCandidates.push(c);
-              if (c?.text) textCandidates.push(c.text);
-            }
-          }
-        }
-      }
-      if (res?.output?.length) {
-        for (const item of res.output) {
-          if (typeof item === 'string') textCandidates.push(item);
-          if (item?.content) {
-            if (typeof item.content === 'string') textCandidates.push(item.content);
-            if (Array.isArray(item.content)) {
-              for (const c of item.content) {
-                if (typeof c === 'string') textCandidates.push(c);
+      else {
+        if (res.output_text) textCandidates.push(res.output_text);
+        // Groq chat/completions shape: { choices: [{ message: { content: '...' } }] }
+        if (res.choices?.length) {
+          for (const choice of res.choices) {
+            const content = choice?.message?.content;
+            if (typeof content === 'string') textCandidates.push(content);
+            if (Array.isArray(content)) {
+              for (const c of content) {
                 if (c?.text) textCandidates.push(c.text);
               }
             }
           }
         }
+        if (res.output?.length) {
+          for (const item of res.output) {
+            if (typeof item === 'string') textCandidates.push(item);
+            else if (item?.content) {
+              if (typeof item.content === 'string') textCandidates.push(item.content);
+              if (Array.isArray(item.content)) {
+                for (const c of item.content) {
+                  if (c?.text) textCandidates.push(c.text);
+                }
+              }
+            }
+          }
+        }
+      }
       }
 
       const text = textCandidates.find(Boolean) || '';
@@ -82,7 +92,7 @@ async function callGroq(systemPrompt: string, userPrompt: string, maxTokens = 20
       }
 
       return text.trim();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (isRateLimitError(err) && attempt < MAX_RETRIES) {
         const delay = delays[attempt] ?? 4000;
         attempt += 1;
@@ -91,7 +101,7 @@ async function callGroq(systemPrompt: string, userPrompt: string, maxTokens = 20
       }
 
       const provider = 'groq';
-      throw new Error(`AI (${provider}) call failed: ${err?.message ?? err}`);
+      throw new Error(`AI (${provider}) call failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 }
@@ -129,7 +139,7 @@ export async function generateJSON<T = unknown>(systemPrompt: string, userPrompt
     const first = candidate.search(/[\{\[]/);
     if (first > 0) candidate = candidate.slice(first);
     return JSON.parse(candidate) as T;
-  } catch (err: any) {
+  } catch (err: unknown) {
     const snippet = String(raw).slice(0, 200);
     throw new Error(`Failed to parse JSON from ${provider} response. Raw (first 200 chars): ${snippet}`);
   }

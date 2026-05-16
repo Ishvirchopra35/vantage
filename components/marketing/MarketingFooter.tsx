@@ -10,6 +10,35 @@ interface FooterColumnProps {
   links: FooterLink[]
 }
 
+function LinkedInIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+      <rect x="2" y="9" width="4" height="12" />
+      <circle cx="4" cy="4" r="2" />
+    </svg>
+  )
+}
+
+function InstagramIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  )
+}
+
+function YouTubeIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58a2.78 2.78 0 0 0 1.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.96A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+      <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="var(--bg)" />
+    </svg>
+  )
+}
+
 function FooterColumn({ title, links }: FooterColumnProps) {
   return (
     <div>
@@ -116,38 +145,59 @@ export default function MarketingFooter() {
                 Made by Ishvir Chopra at the University of Waterloo
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 20 }}>
+            <div className="mkt-social-links">
               <a
-                href="https://x.com"
+                href="https://www.linkedin.com/in/ishvir-chopra-23758b2a8/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mkt-footer-link"
-                style={{ fontSize: 12 }}
+                aria-label="LinkedIn"
+                className="mkt-social-link"
               >
-                X
+                <LinkedInIcon />
               </a>
               <a
-                href="https://linkedin.com"
+                href="https://www.instagram.com/ishvirchopra/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mkt-footer-link"
-                style={{ fontSize: 12 }}
+                aria-label="Instagram"
+                className="mkt-social-link"
               >
-                LinkedIn
+                <InstagramIcon />
               </a>
               <a
-                href="https://instagram.com"
+                href="https://www.youtube.com/@Ishvirchopra35"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mkt-footer-link"
-                style={{ fontSize: 12 }}
+                aria-label="YouTube"
+                className="mkt-social-link"
               >
-                Instagram
+                <YouTubeIcon />
               </a>
             </div>
           </div>
         </div>
       </div>
+
+      <style>{`
+        .mkt-social-links {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .mkt-social-link {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #9ca3af;
+          text-decoration: none;
+          transition: color 0.15s ease;
+        }
+
+        .mkt-social-link:hover {
+          color: #ffffff;
+        }
+      `}</style>
     </footer>
   )
 }
