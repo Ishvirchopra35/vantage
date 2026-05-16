@@ -22,14 +22,15 @@ type NavItem = {
   href: string;
   label: string;
   locked?: boolean;
+  comingSoon?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/jobs', label: 'Jobs' },
+  { href: '/jobs', label: 'Jobs', comingSoon: true },
   { href: '/tailor', label: 'Tailor + ATS' },
   { href: '/tracker', label: 'Applications' },
-  { href: '/strategy', label: 'Strategy' },
+  { href: '/strategy', label: 'Strategy', comingSoon: true },
   { href: '/profile', label: 'Profile' },
 ];
 
@@ -187,6 +188,48 @@ export default function Sidebar({
   function NavLink({ item, mobile = false }: { item: NavItem; mobile?: boolean }) {
     const active = isActivePath(pathname, item.href);
     const locked = item.locked && !canSeeStrategy;
+    const comingSoon = item.comingSoon ?? false;
+
+    const baseStyle = {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      minHeight: '36px',
+      padding: '0 16px',
+      paddingLeft: active ? '13px' : '16px',
+      borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',
+      textDecoration: 'none' as const,
+      fontSize: '13px',
+      lineHeight: 1,
+    };
+
+    if (comingSoon) {
+      return (
+        <span
+          style={{
+            ...baseStyle,
+            color: 'var(--muted)',
+            cursor: 'not-allowed',
+            fontWeight: 400,
+          }}
+        >
+          <span style={{ flex: 1 }}>{item.label}</span>
+          <span
+            style={{
+              fontSize: '10px',
+              color: 'var(--muted)',
+              border: '1px solid var(--border)',
+              borderRadius: '4px',
+              padding: '1px 6px',
+              marginLeft: '8px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Soon
+          </span>
+        </span>
+      );
+    }
 
     return (
       <Link
@@ -194,18 +237,9 @@ export default function Sidebar({
         onClick={() => mobile && setMobileOpen(false)}
         aria-disabled={locked}
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          minHeight: '36px',
-          padding: '0 16px',
-          paddingLeft: active ? '13px' : '16px',
-          borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',
-          textDecoration: 'none',
+          ...baseStyle,
           color: active ? 'var(--text)' : 'var(--muted)',
-          fontSize: '13px',
           fontWeight: active ? 600 : 400,
-          lineHeight: 1,
           cursor: locked ? 'default' : 'pointer',
           opacity: locked ? 0.72 : 1,
         }}
