@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* Design System CSS Variables - Dark Mode (Default) */
 :root {
@@ -26,6 +27,24 @@ html[data-theme="light"] {
   --muted: #6b7280;
   --border: #e5e7eb;
   --accent: #111111;
+}
+
+:root {
+  --status-applied-bg: rgba(59, 130, 246, 0.12);
+  --status-applied-border: rgba(59, 130, 246, 0.35);
+  --status-applied-text: #93c5fd;
+  --status-interviewing-bg: rgba(245, 158, 11, 0.12);
+  --status-interviewing-border: rgba(245, 158, 11, 0.35);
+  --status-interviewing-text: #fbbf24;
+  --status-offer-bg: rgba(34, 197, 94, 0.12);
+  --status-offer-border: rgba(34, 197, 94, 0.35);
+  --status-offer-text: #86efac;
+  --status-rejected-bg: rgba(148, 163, 184, 0.12);
+  --status-rejected-border: rgba(148, 163, 184, 0.35);
+  --status-rejected-text: #cbd5e1;
+  --status-ghosted-bg: rgba(148, 163, 184, 0.08);
+  --status-ghosted-border: rgba(148, 163, 184, 0.22);
+  --status-ghosted-text: #94a3b8;
 }
 
 @theme inline {
@@ -75,4 +94,281 @@ body {
   .dashboard-main-inner {
     padding: 24px 16px 48px;
   }
+}
+
+.dashboard-home {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dashboard-home-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  background: rgba(59, 130, 246, 0.06);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.dashboard-home-banner a {
+  color: #93c5fd;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.dashboard-home-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-home-title {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--text);
+}
+
+.dashboard-home-subtitle {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.dashboard-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dashboard-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+.dashboard-stat-value {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+}
+
+.dashboard-stat-label {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dashboard-onboarding {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dashboard-secondary-link {
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.dashboard-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dashboard-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.dashboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  text-decoration: none;
+  color: inherit;
+}
+
+.dashboard-list-main {
+  min-width: 0;
+}
+
+.dashboard-list-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-list-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-list-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.dashboard-inline-meta {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: capitalize;
+}
+
+.status-applied {
+  background: var(--status-applied-bg);
+  border-color: var(--status-applied-border);
+  color: var(--status-applied-text);
+}
+
+.status-interviewing {
+  background: var(--status-interviewing-bg);
+  border-color: var(--status-interviewing-border);
+  color: var(--status-interviewing-text);
+}
+
+.status-offer {
+  background: var(--status-offer-bg);
+  border-color: var(--status-offer-border);
+  color: var(--status-offer-text);
+}
+
+.status-rejected {
+  background: var(--status-rejected-bg);
+  border-color: var(--status-rejected-border);
+  color: var(--status-rejected-text);
+}
+
+.status-ghosted {
+  background: var(--status-ghosted-bg);
+  border-color: var(--status-ghosted-border);
+  color: var(--status-ghosted-text);
+}
+
+.dashboard-document-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 767px) {
+  .dashboard-home-header,
+  .dashboard-onboarding,
+  .dashboard-list-item,
+  .dashboard-section-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Blog prose — override typography plugin defaults with CSS variables */
+.blog-prose {
+  color: var(--text);
+  --tw-prose-body: var(--text);
+  --tw-prose-headings: var(--text);
+  --tw-prose-lead: var(--muted);
+  --tw-prose-links: var(--text);
+  --tw-prose-bold: var(--text);
+  --tw-prose-counters: var(--muted);
+  --tw-prose-bullets: var(--muted);
+  --tw-prose-hr: var(--border);
+  --tw-prose-quotes: var(--muted);
+  --tw-prose-quote-borders: var(--border);
+  --tw-prose-captions: var(--muted);
+  --tw-prose-code: var(--text);
+  --tw-prose-pre-code: var(--text);
+  --tw-prose-pre-bg: var(--card);
+  --tw-prose-th-borders: var(--border);
+  --tw-prose-td-borders: var(--border);
+}
+
+/* Prevent double-styling when code is nested inside pre */
+.blog-prose pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
 }

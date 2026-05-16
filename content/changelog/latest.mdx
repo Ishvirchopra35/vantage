@@ -1,60 +1,34 @@
+---
+date: 2026-05-15
+version: v0.1.0
+type: Major Release
+title: Launch 1 - ATS-first job search workspace
+summary: Launch 1 shipped ATS scoring, resume tailoring, cover letters, application tracking, and the first blog content system in one integrated workflow.
+---
 
-date: 2026-05-13
-type: Feature
-title: Add PDF resume parsing API route
-- app/api/parse-resume/route.ts created: POST endpoint that fetches a PDF from a Supabase Storage URL, parses it with pdf-parse, and returns extracted text + page count
-- packages installed: pdf-parse, @types/pdf-parse
+Launch 1 brings the core workflow from job discovery to tracked applications.
 
-date: 2026-05-13
-type: Feature
-title: Add job posting parser API route
-- app/api/parse-job/route.ts created: POST { url } — fetches job page via Jina.ai reader, extracts structured data (title, company, skills, keywords, etc.) with Groq, saves to jobs table
+## Included in this release
 
-date: 2026-05-13
-type: Feature
-title: Add remaining-uses endpoint and FREE_LIMITS export
-- app/api/remaining-uses/route.ts created: GET endpoint returning remaining quota for all features, Cache-Control: private, max-age=60
-- lib/rateLimit.ts: export FREE_LIMITS alias for LIMITS so AI routes can reference accurate limit values in rateLimited() messages
+- ATS scoring for base and tailored resumes with score history and improvement tracking.
+- Resume tailoring powered by job parsing and structured optimization suggestions.
+- Cover letter generation aligned to job context and profile data.
+- Application tracking dashboard with status updates and activity metrics.
+- Blog content foundation with MDX support and frontmatter-based loaders.
+
+## Notes for future updates
+
+This file is the current top changelog entry and is intended to be appended by the changelog Copilot prompt after each build step.
+
+---
 
 date: 2026-05-15
 type: Feature
-title: Add POST /api/tailor-resume endpoint for AI resume tailoring
-- app/api/tailor-resume/route.ts created: POST { jobId } — fetches job and base resume, calls Groq to reorder/rephrase bullets and weave in ATS keywords, parses SKILL_GAPS line, saves to documents table, then immediately runs ATS scoring inline and saves to ats_scores table
+title: Blog pages with MDX rendering, search, and category filtering
 
-date: 2026-05-15
-type: Feature
-title: Add POST /api/generate-cover-letter endpoint
-- app/api/generate-cover-letter/route.ts created: POST { jobId } — builds user context, calls Groq with a 3-paragraph structure and banned-phrases guard, saves to documents table as cover_letter type
-
-date: 2026-05-15
-type: Feature
-title: Add TailorPage — 3-step resume tailoring UI
-- app/(dashboard)/tailor/page.tsx: full 3-step client component — URL/paste job parse, ATS check + tailor + cover letter actions, tabbed results with score visualisation, inline application logging
-- app/api/parse-job/route.ts: add rawText body field as alternative to url so the paste textarea works without a separate route
-- app/globals.css: add --score-red, --score-amber, --score-green CSS variables and @keyframes spin
-
-date: 2026-05-15
-type: Fix
-title: Fix job parsing failures for URLs and pasted descriptions
-- app/api/parse-job/route.ts: remove encodeURIComponent from Jina.ai fetch URL (was breaking all URL scraping); pass null instead of empty string for url when parsing pasted text
-- lib/ai.ts: strip trailing markdown code fences (``` ```) from generateJSON responses — Groq sometimes wraps output despite being told not to, causing JSON.parse to fail
-
-date: 2026-05-15
-type: Feature
-title: Add tracker page (application tracking UI)
-- app/(dashboard)/tracker/page.tsx created: full application tracker with optimistic status updates (badge click cycles success path via STATUS_NEXT lookup, reverts on failure), stats bar (total, response rate, active interviews, avg ATS score), Days Since column (d/w/m format), inline log-application form with optimistic prepend and revert, soft-delete per row
-
-date: 2026-05-15
-type: Feature
-title: Add applications CRUD API routes
-- app/api/applications/route.ts created: GET returns all non-deleted applications with jobs and ats_scores joins (job_title, job_company, overall_score), plus atLimit flag when free-tier cap reached; POST inserts a new application with freemium gate, tracks logged_application event
-- app/api/applications/[id]/route.ts created: PATCH updates only provided fields (status, notes, resume_doc_id, cover_letter_doc_id, ats_score_id) with ownership check, tracks updated_app_status event on status change; DELETE soft-deletes via deleted_at timestamp, returns 204
-- ApplicationRow interface exported from route.ts with all applications columns plus joined job_title, job_company, overall_score fields
-
-date: 2026-05-15
-type: Feature
-title: Add resume upload to Profile page
-- app/api/save-resume/route.ts created: POST { fileUrl, fileName, rawText } — demotes previous base resume, inserts new row in resumes table with is_base true
-- components/ResumeUpload.tsx rewritten: uploads PDF to Supabase Storage (resumes bucket), uses signed URL to call parse-resume, saves via save-resume API; shows current resume name on load
-- app/(dashboard)/profile/page.tsx: add ResumeUpload section above ProfileForm
-- app/(dashboard)/tailor/page.tsx: add LinkedIn/Google URL detection hint; add no-resume warning banner in step 2 with link to Profile; add client-side baseResumeId guard on Tailor button
+- app/(marketing)/blog/page.tsx created: server component, featured 2-up card layout, passes all posts to BlogClient
+- app/(marketing)/blog/BlogClient.tsx created: client component handling newsletter signup, category filter, search, and post list
+- app/(marketing)/blog/[slug]/page.tsx created: server component with generateStaticParams, generateMetadata, MDXRemote rendering, and "More from [category]" section
+- components/mdx/MDXComponents.tsx created: custom renderers for h1 h2 h3 p code pre ul ol blockquote using CSS variables
+- app/globals.css updated: added @plugin "@tailwindcss/typography" and .blog-prose overrides for CSS variable color integration
+- new packages: @tailwindcss/typography, next-mdx-remote

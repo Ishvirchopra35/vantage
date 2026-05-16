@@ -123,20 +123,31 @@ function ThemeToggle() {
       onClick={toggleTheme}
       aria-label="Toggle theme"
       style={{
-        width: '28px',
-        height: '28px',
+        width: '30px',
+        height: '30px',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: '999px',
-        border: '1px solid var(--border)',
+        borderRadius: '8px',
+        border: 'none',
         background: 'transparent',
-        color: 'var(--text)',
+        color: 'var(--muted)',
         cursor: 'pointer',
+        padding: 0,
       }}
     >
       <SunMoonIcon theme={theme} />
     </button>
+  );
+}
+
+function SignOutIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M10 17L15 12L10 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M15 12H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M21 3V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
   );
 }
 
@@ -235,7 +246,7 @@ export default function Sidebar({
         */}
       </nav>
 
-      <div style={{ borderTop: '1px solid var(--border)', padding: '16px' }}>
+      <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', fontSize: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div
             style={{
@@ -244,11 +255,10 @@ export default function Sidebar({
               borderRadius: '999px',
               background: 'var(--border)',
               color: 'var(--text)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              display: 'grid',
+              placeItems: 'center',
               fontSize: '11px',
-              fontWeight: 700,
+              fontWeight: 600,
               flexShrink: 0,
             }}
           >
@@ -290,22 +300,25 @@ export default function Sidebar({
           </button>
         )}
 
-        <div style={{ display: 'flex', gap: '8px', marginTop: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '10px', alignItems: 'center' }}>
           <button
             type="button"
             onClick={handleSignOut}
             style={{
-              flex: 1,
-              padding: '6px 10px',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 0',
+              borderRadius: '0',
+              border: 'none',
               background: 'transparent',
-              color: 'var(--text)',
+              color: 'var(--muted)',
               fontSize: '12px',
               fontWeight: 500,
               cursor: 'pointer',
             }}
           >
+            <SignOutIcon />
             Sign out
           </button>
           <ThemeToggle />
@@ -382,7 +395,7 @@ export default function Sidebar({
           */}
         </nav>
 
-        <div style={{ borderTop: '1px solid var(--border)', padding: '16px' }}>
+        <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', fontSize: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div
               style={{
@@ -391,11 +404,10 @@ export default function Sidebar({
                 borderRadius: '999px',
                 background: 'var(--border)',
                 color: 'var(--text)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                display: 'grid',
+                placeItems: 'center',
                 fontSize: '11px',
-                fontWeight: 700,
+                fontWeight: 600,
                 flexShrink: 0,
               }}
             >
@@ -437,22 +449,25 @@ export default function Sidebar({
             </button>
           )}
 
-          <div style={{ display: 'flex', gap: '8px', marginTop: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '10px', alignItems: 'center' }}>
             <button
               type="button"
               onClick={handleSignOut}
               style={{
-                flex: 1,
-                padding: '6px 10px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 0',
+                borderRadius: '0',
+                border: 'none',
                 background: 'transparent',
-                color: 'var(--text)',
+                color: 'var(--muted)',
                 fontSize: '12px',
                 fontWeight: 500,
                 cursor: 'pointer',
               }}
             >
+              <SignOutIcon />
               Sign out
             </button>
             <ThemeToggle />
