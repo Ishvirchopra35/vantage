@@ -104,7 +104,7 @@ export default function LandingPage() {
           <a href="#how-it-works" style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text)', padding: '12px 20px', borderRadius: 10, fontWeight: 600, fontSize: '0.95rem', textDecoration: 'none', display: 'inline-block' }}>See how it works</a>
         </div>
 
-        <p style={{ marginTop: 14, color: 'var(--muted)', fontSize: '0.88rem' }}>Built at the University of Waterloo · Free for early users · No credit card required</p>
+        <p style={{ marginTop: 14, color: 'var(--muted)', fontSize: '0.88rem' }}>Free for early users · No credit card required</p>
       </section>
 
       <section id="sound-familiar" style={{ maxWidth: 1120, margin: '0 auto', padding: '90px 24px' }}>
