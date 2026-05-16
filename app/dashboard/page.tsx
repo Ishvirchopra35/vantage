@@ -360,7 +360,7 @@ export default async function DashboardPage() {
           </div>
           <Link href="/tailor" style={{
             background: 'var(--accent)',
-            color: '#000',
+            color: 'var(--bg)',
             border: 'none',
             borderRadius: '10px',
             padding: '8px 16px',

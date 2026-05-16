@@ -29,7 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/jobs', label: 'Jobs' },
   { href: '/tailor', label: 'Tailor + ATS' },
   { href: '/tracker', label: 'Applications' },
-  { href: '/strategy', label: 'Strategy', locked: true },
+  { href: '/strategy', label: 'Strategy' },
   { href: '/profile', label: 'Profile' },
 ];
 
@@ -234,8 +234,9 @@ export default function Sidebar({
         <Link
           href="/"
           style={{
-            display: 'inline-flex',
+            display: 'flex',
             alignItems: 'center',
+            gap: '8px',
             fontSize: '17px',
             fontWeight: 700,
             color: 'var(--text)',
@@ -243,6 +244,7 @@ export default function Sidebar({
             letterSpacing: '0.01em',
           }}
         >
+          <img src="/logo.png" width={24} height={24} style={{ borderRadius: '5px', objectFit: 'cover' }} alt="Vantage logo" />
           Vantage
         </Link>
       </div>
@@ -367,12 +369,16 @@ export default function Sidebar({
         <Link
           href="/"
           style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
             fontSize: '17px',
             fontWeight: 700,
             color: 'var(--text)',
             textDecoration: 'none',
           }}
         >
+          <img src="/logo.png" width={24} height={24} style={{ borderRadius: '5px', objectFit: 'cover' }} alt="Vantage logo" />
           Vantage
         </Link>
         <div style={{ width: '36px', height: '36px' }} />
@@ -385,12 +391,16 @@ export default function Sidebar({
           <Link
             href="/"
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
               fontSize: '17px',
               fontWeight: 700,
               color: 'var(--text)',
               textDecoration: 'none',
             }}
           >
+            <img src="/logo.png" width={24} height={24} style={{ borderRadius: '5px', objectFit: 'cover' }} alt="Vantage logo" />
             Vantage
           </Link>
           <button

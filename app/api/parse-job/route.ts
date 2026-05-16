@@ -89,12 +89,28 @@ export async function POST(request: Request): Promise<Response> {
     rawText = directText;
   } else {
     try {
+      console.error('JINA_API_KEY present:', !!process.env.JINA_API_KEY);
+      const jinaHeaders: Record<string, string> = {
+        'Accept': 'text/markdown',
+        'X-Return-Format': 'markdown',
+      };
+      if (process.env.JINA_API_KEY) {
+        jinaHeaders['Authorization'] = `Bearer ${process.env.JINA_API_KEY}`;
+      }
+
       const response = await withTimeout(
-        fetch('https://r.jina.ai/' + url, { headers: { Accept: 'text/markdown' } }),
+        fetch('https://r.jina.ai/' + encodeURIComponent(url), { headers: jinaHeaders }),
         10000,
         'Jina fetch'
       );
       if (!response.ok) {
+        console.error(`Jina.ai response status: ${response.status}`);
+        if (response.status === 402) {
+          return err('Jina.ai token balance is empty — top up at jina.ai', 400);
+        }
+        if (response.status === 429) {
+          return err('Jina.ai rate limit hit — try again in a moment', 429);
+        }
         return err('Could not fetch that job posting. Try pasting the job description directly.', 400);
       }
       rawText = await response.text();
@@ -134,12 +150,12 @@ export async function POST(request: Request): Promise<Response> {
       company: parsed.company,
       location: parsed.location,
       employment_type: parsed.employment_type,
-      required_skills: parsed.required_skills,
-      nice_to_have_skills: parsed.nice_to_have_skills,
+      required_skills: parsed.required_skills ?? [],
+      nice_to_have_skills: parsed.nice_to_have_skills ?? [],
       years_experience_required: parsed.years_experience_required,
-      key_responsibilities: parsed.key_responsibilities,
+      key_responsibilities: parsed.key_responsibilities ?? [],
       company_description: parsed.company_description,
-      keywords: parsed.keywords,
+      keywords: parsed.keywords ?? [],
     })
     .select('id, user_id, url, title, company, location, employment_type, required_skills, nice_to_have_skills, years_experience_required, key_responsibilities, company_description, keywords')
     .single();

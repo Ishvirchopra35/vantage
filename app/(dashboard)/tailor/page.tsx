@@ -56,10 +56,13 @@ async function apiFetch<T>(
   options?: RequestInit
 ): Promise<{ data: T | null; error: string | null }> {
   try {
-    const res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json' },
+    const fetchOptions: RequestInit = {
+      headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) },
+      credentials: (options && 'credentials' in options) ? (options as any).credentials : 'include',
       ...options,
-    })
+    }
+
+    const res = await fetch(url, fetchOptions)
     const json = await res.json()
     if (!res.ok) return { data: null, error: json.error || `Error ${res.status}` }
     return { data: json as T, error: null }
@@ -170,6 +173,19 @@ const presentBadge = {
   padding: '2px 8px',
   fontSize: '12px',
   fontWeight: 500,
+}
+
+const smallSecondaryBtn = {
+  background: 'transparent',
+  color: 'var(--muted)',
+  border: '1px solid var(--border)',
+  borderRadius: '8px',
+  padding: '5px 12px',
+  fontSize: '12px',
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '8px',
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -329,6 +345,45 @@ export default function TailorPage() {
     setTimeout(() => setCopied(null), 2000)
   }
 
+  function downloadAsPDF(content: string, filename: string) {
+    const iframe = document.createElement('iframe')
+    iframe.style.display = 'none'
+    document.body.appendChild(iframe)
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document
+    if (!doc) return
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${filename}</title><style>
+      body{font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial; font-size:11pt; line-height:1.5; color:#000; background:#fff;}
+      .page{padding:40px; max-width:700px; margin:0 auto;}
+      pre{white-space:pre-wrap; font-family: inherit; font-size:11pt; line-height:1.5;}
+    </style></head><body><div class="page"><pre>${escapeHtml(content)}</pre></div></body></html>`
+
+    doc.open()
+    doc.write(html)
+    doc.close()
+
+    // Give the iframe a moment to render, then call print
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus()
+        iframe.contentWindow?.print()
+      } catch (e) {
+        // ignore
+      }
+      setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 500)
+    }, 200)
+  }
+
+  function escapeHtml(str: string) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\"/g, '&quot;')
+      .replace(/\'/g, '&#039;')
+  }
+
   async function logApplication() {
     if (!parsedJob || !logCompany.trim() || !logRole.trim()) return
     setLogLoading(true)
@@ -384,7 +439,7 @@ export default function TailorPage() {
               Tailor your resume
             </h1>
             <p style={{ color: 'var(--muted)', fontSize: '15px', marginBottom: '28px' }}>
-              Paste a job URL — we'll parse it, tailor your resume to match, score it against ATS systems, and generate a cover letter.
+              Paste a job URL. We'll parse it, tailor your resume to match, score it against ATS systems, and generate a cover letter.
             </p>
 
             {/* Input row */}
@@ -783,12 +838,25 @@ export default function TailorPage() {
                 {tailoredDoc ? (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '14px' }}>
-                      <button
-                        onClick={() => copyToClipboard(tailoredDoc.content, 'resume')}
-                        style={secondaryBtn}
-                      >
-                        {copied === 'resume' ? 'Copied!' : 'Copy'}
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                        <button
+                          onClick={() => copyToClipboard(tailoredDoc.content, 'resume')}
+                          style={smallSecondaryBtn}
+                        >
+                          {copied === 'resume' ? 'Copied!' : 'Copy'}
+                        </button>
+                        <button
+                          onClick={() => downloadAsPDF(tailoredDoc.content, `${parsedJob.company} - ${parsedJob.title} - Tailored Resume.pdf`)}
+                          style={smallSecondaryBtn}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
+                          <span style={{ marginLeft: '6px' }}>Download PDF</span>
+                        </button>
+                      </div>
                     </div>
                     <pre style={{
                       fontFamily: "'Courier New', Courier, monospace",
@@ -825,12 +893,25 @@ export default function TailorPage() {
                 {coverDoc ? (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '14px' }}>
-                      <button
-                        onClick={() => copyToClipboard(coverDoc.content, 'cover')}
-                        style={secondaryBtn}
-                      >
-                        {copied === 'cover' ? 'Copied!' : 'Copy'}
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                        <button
+                          onClick={() => copyToClipboard(coverDoc.content, 'cover')}
+                          style={smallSecondaryBtn}
+                        >
+                          {copied === 'cover' ? 'Copied!' : 'Copy'}
+                        </button>
+                        <button
+                          onClick={() => downloadAsPDF(coverDoc.content, `${parsedJob.company} - ${parsedJob.title} - Cover Letter.pdf`)}
+                          style={smallSecondaryBtn}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
+                          <span style={{ marginLeft: '6px' }}>Download PDF</span>
+                        </button>
+                      </div>
                     </div>
                     <div style={{
                       fontSize: '14px',

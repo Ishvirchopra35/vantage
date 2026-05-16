@@ -33,7 +33,7 @@ export default function BlogClient({ posts }: { posts: BlogPost[] }) {
               borderRadius: 20,
               border: activeCategory === cat ? '1px solid var(--accent)' : '1px solid var(--border)',
               background: activeCategory === cat ? 'var(--accent)' : 'transparent',
-              color: activeCategory === cat ? '#000' : 'var(--muted)',
+              color: activeCategory === cat ? 'var(--bg)' : 'var(--muted)',
               cursor: 'pointer',
             }}
           >

@@ -141,8 +141,9 @@ export default function MarketingNav() {
           {/* Wordmark */}
           <Link
             href="/"
-            style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', textDecoration: 'none', flexShrink: 0, letterSpacing: '-0.02em' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', textDecoration: 'none', flexShrink: 0, letterSpacing: '-0.02em' }}
           >
+            <img src="/logo.png" width={32} height={32} style={{ borderRadius: '6px', objectFit: 'cover' }} alt="Vantage logo" />
             Vantage
           </Link>
 

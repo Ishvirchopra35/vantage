@@ -191,7 +191,7 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
   const buttonStyle = {
     width: '100%',
     background: 'var(--accent)',
-    color: '#000',
+    color: 'var(--bg)',
     border: 'none',
     borderRadius: '10px',
     padding: '12px',
@@ -414,7 +414,7 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
         style={buttonStyle}
       >
         {loading ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#000' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--bg)' }}>
             <svg
               width="16"
               height="16"
