@@ -316,8 +316,15 @@ export default function Sidebar({
             {initials}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {profile?.full_name || 'Your profile'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {profile?.full_name || 'Your profile'}
+              </span>
+              {plan === 'pro' ? (
+                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: '#f2f2f2', color: '#000', flexShrink: 0 }}>Pro</span>
+              ) : (
+                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', flexShrink: 0 }}>Free</span>
+              )}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {profile?.email || 'No email available'}
@@ -507,8 +514,15 @@ export default function Sidebar({
               {initials}
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {profile?.full_name || 'Your profile'}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {profile?.full_name || 'Your profile'}
+                </span>
+                {plan === 'pro' ? (
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: '#f2f2f2', color: '#000', flexShrink: 0 }}>Pro</span>
+                ) : (
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', flexShrink: 0 }}>Free</span>
+                )}
               </div>
               <div style={{ fontSize: '11px', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {profile?.email || 'No email available'}
