@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -221,16 +221,34 @@ export default function TailorPage() {
 
   // Loading
   const [loading, setLoading] = useState({ parse: false, ats: false, tailor: false, cover: false })
+  const [autoLoading, setAutoLoading] = useState(false)
+
+  // ── Auto-fill from query params ──────────────────────────────────────────────
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const prefill = params.get('prefill')
+    const jobId = params.get('jobId')
+
+    if (prefill) {
+      const decoded = decodeURIComponent(prefill)
+      setJobUrl(decoded)
+      void parseJob(decoded)
+    } else if (jobId) {
+      void loadJobById(jobId)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Actions ──────────────────────────────────────────────────────────────────
 
-  async function parseJob() {
-    const input = useTextarea ? jobText.trim() : jobUrl.trim()
+  async function parseJob(overrideUrl?: string) {
+    const input = overrideUrl ?? (useTextarea ? jobText.trim() : jobUrl.trim())
     if (!input) return
     setParseError(null)
     setLoading(l => ({ ...l, parse: true }))
 
-    const body = useTextarea ? { rawText: input } : { url: input }
+    // overrideUrl is always a URL, not raw text
+    const body = (!overrideUrl && useTextarea) ? { rawText: input } : { url: input }
     const { data, error } = await apiFetch<{ job: Job }>('/api/parse-job', {
       method: 'POST',
       body: JSON.stringify(body),
@@ -245,10 +263,37 @@ export default function TailorPage() {
     setParsedJob(data.job)
   }
 
-  async function goToStep2() {
-    if (!parsedJob) return
-    setLogCompany(parsedJob.company)
-    setLogRole(parsedJob.title)
+  async function loadJobById(id: string) {
+    setAutoLoading(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: job } = await supabase
+        .from('jobs')
+        .select('id, url, title, company, location, employment_type, required_skills, nice_to_have_skills, keywords, company_description, key_responsibilities, years_experience_required')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (!job) {
+        setParseError('Job not found. Paste the URL or description below to load it.')
+        return
+      }
+
+      await goToStep2(job as Job)
+    } finally {
+      setAutoLoading(false)
+    }
+  }
+
+  async function goToStep2(jobOverride?: Job) {
+    const job = jobOverride ?? parsedJob
+    if (!job) return
+    if (jobOverride) setParsedJob(jobOverride)
+    setLogCompany(job.company)
+    setLogRole(job.title)
 
     const supabase = createClient()
     const [limitsRes, userRes] = await Promise.all([
@@ -442,6 +487,24 @@ export default function TailorPage() {
               Paste a job URL. We'll parse it, tailor your resume to match, score it against ATS systems, and generate a cover letter.
             </p>
 
+            {/* Auto-load banner for jobId flow */}
+            {autoLoading && (
+              <div style={{
+                marginBottom: '16px',
+                padding: '10px 14px',
+                background: 'rgba(99,102,241,0.08)',
+                border: '1px solid rgba(99,102,241,0.2)',
+                borderRadius: '10px',
+                fontSize: '13px',
+                color: 'var(--muted)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}>
+                <Spinner /> Loading job…
+              </div>
+            )}
+
             {/* Input row */}
             <div className="tailor-input-row">
               {!useTextarea && (
@@ -456,7 +519,7 @@ export default function TailorPage() {
                 />
               )}
               <button
-                onClick={parseJob}
+                onClick={() => void parseJob()}
                 disabled={loading.parse || (useTextarea ? !jobText.trim() : !jobUrl.trim())}
                 style={{
                   ...primaryBtn,
@@ -544,7 +607,7 @@ export default function TailorPage() {
                       {parsedJob.employment_type && ` · ${parsedJob.employment_type}`}
                     </div>
                   </div>
-                  <button onClick={goToStep2} style={primaryBtn}>Continue →</button>
+                  <button onClick={() => void goToStep2()} style={primaryBtn}>Continue →</button>
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '14px' }}>
                   {parsedJob.required_skills.slice(0, 8).map(s => (

@@ -13,7 +13,10 @@
       "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\ishvi\\\\OneDrive\\\\Desktop\\\\Code\\\\Projects\\\\Vantage\\\\vantage\\\\app\\\\api\\\\applications\\\\[id]\\\\details\")",
       "Bash(Out-Null)",
       "Bash(mkdir -p \"C:\\\\Users\\\\ishvi\\\\OneDrive\\\\Desktop\\\\Code\\\\Projects\\\\Vantage\\\\vantage\\\\app\\\\api\\\\answer-question\\\\[id]\")",
-      "Bash(mkdir -p \"C:\\\\Users\\\\ishvi\\\\OneDrive\\\\Desktop\\\\Code\\\\Projects\\\\Vantage\\\\vantage\\\\app\\\\\\(dashboard\\)\\\\apply\\\\[jobId]\")"
+      "Bash(mkdir -p \"C:\\\\Users\\\\ishvi\\\\OneDrive\\\\Desktop\\\\Code\\\\Projects\\\\Vantage\\\\vantage\\\\app\\\\\\(dashboard\\)\\\\apply\\\\[jobId]\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\),**d.get\\('devDependencies',{}\\)}; [print\\(k,v\\) for k,v in deps.items\\(\\) if 'stripe' in k.lower\\(\\)]\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('stripe:', p.dependencies.stripe, '@stripe/stripe-js:', p.dependencies['@stripe/stripe-js']\\)\")",
+      "Bash(node *)"
     ]
   }
 }

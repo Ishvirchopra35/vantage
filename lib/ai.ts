@@ -54,18 +54,13 @@ type GroqResponse =
       >;
     };
 
-async function callGroq(
+async function callGroqWithKey(
+  apiKey: string,
   systemPrompt: string,
   userPrompt: string,
   maxTokens = 2000
 ): Promise<string> {
-  if (!process.env.GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY is not set');
-  }
-
-  const client = new GroqSDK({
-    apiKey: process.env.GROQ_API_KEY,
-  });
+  const client = new GroqSDK({ apiKey });
 
   let attempt = 0;
   const delays = [1000, 2000, 4000];
@@ -173,6 +168,24 @@ async function callGroq(
   }
 }
 
+async function callGroq(
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens = 2000
+): Promise<string> {
+  if (!process.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY is not set')
+  return callGroqWithKey(process.env.GROQ_API_KEY, systemPrompt, userPrompt, maxTokens)
+}
+
+async function callGroqSecondary(
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens = 2000
+): Promise<string> {
+  if (!process.env.GROQ_API_KEY_SECONDARY) throw new Error('GROQ_API_KEY_SECONDARY is not set')
+  return callGroqWithKey(process.env.GROQ_API_KEY_SECONDARY, systemPrompt, userPrompt, maxTokens)
+}
+
 // GEMINI BRANCH — uncomment when switching providers
 // import { GoogleGenerativeAI } from '@google/generative-ai'
 // For Gemini (AI_PROVIDER='gemini'): model 'gemini-1.5-flash'
@@ -240,4 +253,35 @@ Respond ONLY with valid JSON. No markdown, no backticks, no explanation.`;
       `Failed to parse JSON from ${provider} response. Raw (first 200 chars): ${snippet}`
     );
   }
+}
+
+function parseJSONResponse<T>(raw: string, label: string): T {
+  let candidate = raw.trim()
+  candidate = candidate
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/, '')
+  const first = candidate.search(/[\{\[]/)
+  if (first > 0) candidate = candidate.slice(first)
+  try {
+    return JSON.parse(candidate) as T
+  } catch {
+    throw new Error(`Failed to parse JSON from ${label} response. Raw (first 200 chars): ${candidate.slice(0, 200)}`)
+  }
+}
+
+export async function generateTextSecondary(
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens = 2000
+): Promise<string> {
+  return callGroqSecondary(systemPrompt, userPrompt, maxTokens)
+}
+
+export async function generateJSONSecondary<T = unknown>(
+  systemPrompt: string,
+  userPrompt: string
+): Promise<T> {
+  const jsonSystem = `${systemPrompt}\n\nRespond ONLY with valid JSON. No markdown, no backticks, no explanation.`
+  const raw = await callGroqSecondary(jsonSystem, userPrompt, 2000)
+  return parseJSONResponse<T>(raw, 'groq-secondary')
 }

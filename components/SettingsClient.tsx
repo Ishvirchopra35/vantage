@@ -8,7 +8,6 @@ import ResumeUpload from '@/components/ResumeUpload'
 interface Props {
   userId: string
   email: string
-  fullName: string
 }
 
 // ─── Theme Pill ───────────────────────────────────────────────────────────────
@@ -190,14 +189,8 @@ function DeleteModal({ onClose, onConfirm, deleting }: {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function SettingsClient({ email, fullName }: Props) {
+export default function SettingsClient({ email }: Props) {
   const router = useRouter()
-
-  // Account section
-  const [name, setName] = useState(fullName)
-  const [savingName, setSavingName] = useState(false)
-  const [nameSaved, setNameSaved] = useState(false)
-  const [nameError, setNameError] = useState<string | null>(null)
 
   // Resume section
   const [resumeModalOpen, setResumeModalOpen] = useState(false)
@@ -233,46 +226,6 @@ export default function SettingsClient({ email, fullName }: Props) {
     fontSize: '13px',
     outline: 'none',
     boxSizing: 'border-box',
-  }
-
-  const primaryBtn: React.CSSProperties = {
-    padding: '8px 20px',
-    background: 'var(--accent)',
-    color: 'var(--bg)',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '13px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-  }
-
-  async function handleSaveName() {
-    if (!name.trim()) return
-    setSavingName(true)
-    setNameError(null)
-    setNameSaved(false)
-    try {
-      const res = await fetch('/api/profile/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ full_name: name.trim() }),
-      })
-      const json = await res.json()
-      if (!res.ok) {
-        setNameError(json.error ?? 'Failed to save.')
-      } else {
-        setNameSaved(true)
-        setTimeout(() => setNameSaved(false), 2500)
-        router.refresh()
-      }
-    } catch {
-      setNameError('Network error. Please try again.')
-    } finally {
-      setSavingName(false)
-    }
   }
 
   async function handleDeleteAccount() {
@@ -338,28 +291,6 @@ export default function SettingsClient({ email, fullName }: Props) {
               style={{ ...inputStyle, color: 'var(--muted)', cursor: 'default' }}
             />
           </div>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={label}>Full name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Your full name"
-              style={inputStyle}
-            />
-          </div>
-          {nameError && (
-            <div style={{ fontSize: '12px', color: '#ef4444', marginBottom: '12px' }}>{nameError}</div>
-          )}
-          <button
-            type="button"
-            onClick={handleSaveName}
-            disabled={savingName || !name.trim()}
-            style={{ ...primaryBtn, opacity: savingName || !name.trim() ? 0.6 : 1 }}
-          >
-            {savingName && <Spinner size="sm" />}
-            {nameSaved ? 'Saved!' : 'Save name'}
-          </button>
         </div>
 
         {/* ── Appearance ────────────────────────────────────────────── */}

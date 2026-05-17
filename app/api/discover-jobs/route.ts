@@ -2,7 +2,7 @@ import { requireAuth } from '@/lib/requireAuth'
 import { ok, err, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
 import { buildUserContext } from '@/lib/userContext'
-import { generateJSON } from '@/lib/ai'
+import { generateJSONSecondary } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
 import { createClient } from '@/lib/supabase/server'
 
@@ -171,7 +171,7 @@ export async function GET(request: Request): Promise<Response> {
 
         try {
           const scored = await withTimeout(
-            generateJSON<{ relevance_score: number; reason: string }>(systemPrompt, userPrompt),
+            generateJSONSecondary<{ relevance_score: number; reason: string }>(systemPrompt, userPrompt),
             20000,
             'score-job'
           )

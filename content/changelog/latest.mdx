@@ -1,4 +1,4 @@
----
+﻿---
 date: 2026-05-15
 version: v0.1.0
 type: Major Release
@@ -52,7 +52,7 @@ summary: Public contact form with server-side rate limiting and Supabase persist
 - app/(marketing)/contact/page.tsx created: server component, 560px centered layout, heading + subtext, renders ContactForm, shows email and location below a border
 - components/marketing/ContactForm.tsx created: 'use client' form with name/email/subject/message fields, client-side validation, loading/success/error states, spinner in button while submitting
 - app/api/contact/route.ts created: public POST route (no auth), validateBody, server-side email format check, service-role Supabase insert into contact_submissions, per-email hourly rate limit via SELECT count check
-- new DB table: contact_submissions (id uuid pk, name text, email text, subject text, message text, created_at timestamptz) — no RLS, insert public, reads service-role only
+- new DB table: contact_submissions (id uuid pk, name text, email text, subject text, message text, created_at timestamptz) â€” no RLS, insert public, reads service-role only
 - no new env vars
 - no npm packages installed
 
@@ -107,7 +107,7 @@ summary: Settings page with account info, theme switching, resume upload, and ac
 
 - components/Sidebar.tsx updated: added Settings link to nav after Profile
 - app/(dashboard)/settings/page.tsx created: server component that fetches user and profile, renders SettingsClient with userId, email, fullName
-- components/SettingsClient.tsx created: 'use client' component with four sections — Account (email read-only + full_name save via /api/profile/update), Appearance (Dark/Light theme pills updating data-theme attribute and localStorage), Resume (inline ResumeUpload panel toggled by button, shows success message on complete), Danger Zone (delete button opens DeleteModal with type-DELETE confirmation, calls /api/account/delete then redirects to /login)
+- components/SettingsClient.tsx created: 'use client' component with four sections â€” Account (email read-only + full_name save via /api/profile/update), Appearance (Dark/Light theme pills updating data-theme attribute and localStorage), Resume (inline ResumeUpload panel toggled by button, shows success message on complete), Danger Zone (delete button opens DeleteModal with type-DELETE confirmation, calls /api/account/delete then redirects to /login)
 - app/api/profile/update/route.ts created: POST route, requireAuth, validateBody with full_name, updates profiles.full_name for the authenticated user
 - app/api/account/delete/route.ts created: POST route, requireAuth, signs out via SSR client, deletes user via service-role client, returns ok with deleted true
 - No new database tables or columns
@@ -130,15 +130,15 @@ title: Answer application form questions with AI
 summary: AI-powered question answering for job application forms, saved per application.
 ---
 
-- app/api/answer-question/route.ts created: POST with jobId, applicationId, and question — requireAuth, validateBody, checkLimit, fetches job (ownership verified), buildUserContext, generateText with grounded-in-resume system prompt, saves to application_questions table, tracks event, returns saved question row
-- app/api/answer-question/route.ts GET with applicationId param — returns all saved questions for the given applicationId belonging to the authenticated user, ordered by created_at ASC
-- No new database tables — uses existing application_questions table
+- app/api/answer-question/route.ts created: POST with jobId, applicationId, and question â€” requireAuth, validateBody, checkLimit, fetches job (ownership verified), buildUserContext, generateText with grounded-in-resume system prompt, saves to application_questions table, tracks event, returns saved question row
+- app/api/answer-question/route.ts GET with applicationId param â€” returns all saved questions for the given applicationId belonging to the authenticated user, ordered by created_at ASC
+- No new database tables â€” uses existing application_questions table
 - No new npm packages
 
 ---
 date: 2026-05-16
 type: Feature
-title: Apply Prep page — application kit, question answerer, submit checklist
+title: Apply Prep page â€” application kit, question answerer, submit checklist
 summary: All-in-one apply prep page with document kit, AI question answering, and a submit checklist.
 ---
 
@@ -154,7 +154,7 @@ summary: All-in-one apply prep page with document kit, AI question answering, an
 ---
 date: 2026-05-16
 type: Feature
-title: Job Feed — Adzuna-powered personalized job discovery with AI relevance scoring
+title: Job Feed â€” Adzuna-powered personalized job discovery with AI relevance scoring
 summary: Personalized job feed powered by Adzuna API with AI relevance scoring and save/dismiss controls.
 ---
 
@@ -163,3 +163,37 @@ summary: Personalized job feed powered by Adzuna API with AI relevance scoring a
 - app/api/job-feed/[id]/route.ts created: PATCH with is_saved and is_dismissed fields, with ownership check
 - app/(dashboard)/jobs/page.tsx created: 'use client'; loads on mount via GET /api/discover-jobs; Refresh button; employment_type filter dropdown; 2-col desktop / 1-col mobile grid; each card shows title, company, location, ScoreBadge, employment_type badge, AI reason, View job link, Tailor resume link, heart save toggle, dismiss button; saved items pinned to top
 - components/Sidebar.tsx updated: removed comingSoon from Jobs nav item
+
+
+---
+date: 2026-05-17
+type: Feature
+title: Strategy report — data-driven job search insights
+- app/api/strategy-feedback/route.ts created: GET endpoint with auth, rate limit (2/month), 15-app minimum gate, 5-app cache invalidation threshold, analytics from applications + ats_scores tables (response rate by role, ATS correlation by outcome, top 5 missing keywords), Groq AI generation, upsert to strategy_feedback table on user_id conflict
+- app/(dashboard)/strategy/page.tsx created: server component with locked state (progress bar, 15-app target) for insufficient data, unlocked state renders StrategyReport client component
+- app/(dashboard)/strategy/StrategyReport.tsx created: client component, fetches GET /api/strategy-feedback on mount, renders key insights cards, focus/avoid role badges, ATS correlation callout, numbered next steps, skill gap amber badges with Add to profile link, last-updated footer with Refresh button (?force=true)
+- components/Sidebar.tsx updated: Strategy nav item changed from comingSoon to locked (shows lock icon when applicationCount < 15, navigable and unlocked when >= 15)
+
+---
+date: 2026-05-17
+type: Update
+title: Job feed "Tailor resume" pre-fill + secondary Groq key for job scoring
+- app/(dashboard)/jobs/page.tsx updated: "Tailor resume" Link changed from ?url= to ?prefill= so the tailor page receives the Adzuna redirect URL as a prefill param
+- app/(dashboard)/tailor/page.tsx updated: useEffect on mount reads jobId or prefill query params; parseJob() accepts optional overrideUrl to bypass state; goToStep2() accepts optional jobOverride to bypass state; loadJobById() fetches from jobs table and auto-navigates to step 2; autoLoading banner shows while fetching by jobId; ?prefill auto-triggers parse on mount; ?jobId skips parse and jumps to step 2
+- lib/ai.ts updated: callGroq() refactored into callGroqWithKey(apiKey, ...) shared implementation; callGroq() and callGroqSecondary() are thin wrappers; added generateTextSecondary() and generateJSONSecondary() that use GROQ_API_KEY_SECONDARY
+- app/api/discover-jobs/route.ts updated: generateJSON replaced with generateJSONSecondary so job feed ATS scoring uses the secondary key and does not eat into the main key rate limit
+- .env.local updated: GROQ_API_KEY_SECONDARY= added (fill in key)
+
+---
+date: 2026-05-17
+type: Feature
+title: Stripe billing — checkout, webhook, customer portal, and billing page
+- lib/stripe.ts created: singleton getStripe() helper, SERVER-SIDE ONLY
+- app/api/stripe/checkout/route.ts created: POST, requireAuth, creates Stripe Checkout Session (mode=subscription, success/cancel URLs, subscription_data.metadata.supabase_user_id)
+- app/api/stripe/webhook/route.ts created: POST, no auth (Stripe calls it), verifies signature via constructEvent, handles customer.subscription.created/updated (upsert plan=pro) and customer.subscription.deleted (plan=free, status=cancelled), returns 200 immediately
+- app/api/stripe/portal/route.ts created: POST, requireAuth, looks up stripe_customer_id from subscriptions, creates Stripe Customer Portal session, returns redirect URL
+- app/(dashboard)/billing/page.tsx created: server component showing current plan badge, renewal date, upgrade/manage buttons, per-feature usage bars (tailoring, cover letters, auto-apply, strategy, networking, interview)
+- components/BillingActions.tsx created: 'use client' UpgradeButton and ManageButton, each POSTs to the respective API route and redirects to the Stripe-hosted page
+- components/Sidebar.tsx updated: added Billing nav item after Settings
+- new env vars required: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, STRIPE_PRO_PRICE_ID, NEXT_PUBLIC_APP_URL
+- new DB columns required: ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT, ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;

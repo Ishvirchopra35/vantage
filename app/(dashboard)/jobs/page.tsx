@@ -164,7 +164,7 @@ function JobCard({
           View job ↗
         </a>
         <Link
-          href={`/tailor?url=${encodeURIComponent(job.url)}`}
+          href={`/tailor?prefill=${encodeURIComponent(job.url)}`}
           onClick={() => track('job_discovered', { job_title: job.title, company: job.company })}
           style={smallBtn}
         >

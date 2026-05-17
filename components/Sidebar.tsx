@@ -30,9 +30,10 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/jobs', label: 'Jobs' },
   { href: '/tailor', label: 'Tailor + ATS' },
   { href: '/tracker', label: 'Applications' },
-  { href: '/strategy', label: 'Strategy', comingSoon: true },
+  { href: '/strategy', label: 'Strategy' },
   { href: '/profile', label: 'Profile' },
   { href: '/settings', label: 'Settings' },
+  { href: '/billing', label: 'Billing' },
 ];
 
 function getInitials(fullName: string | null | undefined): string {
