@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { createClient as createServerClient } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 
 export const runtime = 'nodejs'
 
