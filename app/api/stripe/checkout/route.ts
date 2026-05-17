@@ -27,6 +27,7 @@ export async function POST(request: Request): Promise<Response> {
       success_url: `${appUrl}/dashboard?upgraded=true`,
       cancel_url: `${appUrl}/billing`,
       customer_email: user.email ?? undefined,
+      metadata: { supabase_user_id: user.id },
       subscription_data: {
         metadata: { supabase_user_id: user.id },
       },
