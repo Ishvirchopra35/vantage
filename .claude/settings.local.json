@@ -9,7 +9,11 @@
       "Bash(npm install *)",
       "Bash(npm run *)",
       "PowerShell(git push *)",
-      "PowerShell(git add *)"
+      "PowerShell(git add *)",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\ishvi\\\\OneDrive\\\\Desktop\\\\Code\\\\Projects\\\\Vantage\\\\vantage\\\\app\\\\api\\\\applications\\\\[id]\\\\details\")",
+      "Bash(Out-Null)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\ishvi\\\\OneDrive\\\\Desktop\\\\Code\\\\Projects\\\\Vantage\\\\vantage\\\\app\\\\api\\\\answer-question\\\\[id]\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\ishvi\\\\OneDrive\\\\Desktop\\\\Code\\\\Projects\\\\Vantage\\\\vantage\\\\app\\\\\\(dashboard\\)\\\\apply\\\\[jobId]\")"
     ]
   }
 }

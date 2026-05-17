@@ -194,11 +194,12 @@ function JobCard({
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<JobFeedItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [noTargetRoles, setNoTargetRoles] = useState(false)
   const [employmentFilter, setEmploymentFilter] = useState('all')
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
+  const [initialLoadDone, setInitialLoadDone] = useState(false)
 
   async function loadJobs(forceRefresh = false) {
     if (forceRefresh) setRefreshing(true)
@@ -212,19 +213,41 @@ export default function JobsPage() {
       if (json.noTargetRoles) {
         setNoTargetRoles(true)
         setJobs([])
+        localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles: true, jobs: [] }))
       } else {
         setNoTargetRoles(false)
-        setJobs((json.jobs ?? []) as JobFeedItem[])
+        const jobsList = (json.jobs ?? []) as JobFeedItem[]
+        setJobs(jobsList)
+        localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles: false, jobs: jobsList }))
       }
     } catch {
       // fail silently — keep existing list
     } finally {
       setLoading(false)
       setRefreshing(false)
+      setInitialLoadDone(true)
     }
   }
 
-  useEffect(() => { void loadJobs() }, [])
+  // Load cached jobs from localStorage on mount (no API call)
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem('jobFeedCache')
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (parsed.jobs && Array.isArray(parsed.jobs)) {
+          setJobs(parsed.jobs as JobFeedItem[])
+        }
+        if (parsed.noTargetRoles) {
+          setNoTargetRoles(true)
+        }
+      }
+    } catch {
+      // fail silently
+    } finally {
+      setInitialLoadDone(true)
+    }
+  }, [])
 
   async function handleSave(id: string, currentValue: boolean) {
     setSavingIds(prev => new Set([...prev, id]))
@@ -235,7 +258,9 @@ export default function JobsPage() {
         body: JSON.stringify({ is_saved: !currentValue }),
       })
       if (res.ok) {
-        setJobs(prev => prev.map(j => j.id === id ? { ...j, is_saved: !currentValue } : j))
+        const updated = jobs.map(j => j.id === id ? { ...j, is_saved: !currentValue } : j)
+        setJobs(updated)
+        localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles, jobs: updated }))
       }
     } catch {}
     finally {
@@ -244,13 +269,17 @@ export default function JobsPage() {
   }
 
   function handleDismiss(id: string) {
-    setJobs(prev => prev.map(j => j.id === id ? { ...j, is_dismissed: true } : j))
+    const updated = jobs.map(j => j.id === id ? { ...j, is_dismissed: true } : j)
+    setJobs(updated)
+    localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles, jobs: updated }))
     fetch(`/api/job-feed/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_dismissed: true }),
     }).catch(() => {
-      setJobs(prev => prev.map(j => j.id === id ? { ...j, is_dismissed: false } : j))
+      const reverted = jobs.map(j => j.id === id ? { ...j, is_dismissed: false } : j)
+      setJobs(reverted)
+      localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles, jobs: reverted }))
     })
   }
 
@@ -321,20 +350,20 @@ export default function JobsPage() {
           <button
             type="button"
             onClick={() => loadJobs(true)}
-            disabled={refreshing}
-            style={{ ...smallBtn, opacity: refreshing ? 0.6 : 1 }}
+            disabled={refreshing || loading}
+            style={{ ...smallBtn, opacity: refreshing || loading ? 0.6 : 1 }}
           >
-            {refreshing && <Spinner size="sm" />}
-            {refreshing ? 'Refreshing…' : 'Refresh'}
+            {(refreshing || loading) && <Spinner size="sm" />}
+            {refreshing || loading ? 'Fetching…' : 'Fetch New'}
           </button>
         </div>
       </div>
 
       {/* ── Content ─────────────────────────────────────────────────────── */}
-      {loading ? (
+      {!initialLoadDone ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '16px' }}>
           <Spinner size="lg" />
-          <div style={{ fontSize: '13px', color: 'var(--muted)' }}>Fetching and scoring jobs…</div>
+          <div style={{ fontSize: '13px', color: 'var(--muted)' }}>Loading…</div>
         </div>
       ) : noTargetRoles ? (
         <EmptyState
@@ -344,24 +373,60 @@ export default function JobsPage() {
           actionHref="/profile"
         />
       ) : visible.length === 0 ? (
-        <EmptyState
-          title="No jobs found"
-          description={employmentFilter !== 'all' ? 'No jobs match this filter. Try a different type.' : 'Click Refresh to fetch new listings for your target roles.'}
-          actionLabel={employmentFilter !== 'all' ? undefined : 'Refresh'}
-          actionOnClick={employmentFilter !== 'all' ? undefined : () => loadJobs(true)}
-        />
-      ) : (
-        <div className="jobs-grid">
-          {visible.map(job => (
-            <JobCard
-              key={job.id}
-              job={job}
-              onSave={handleSave}
-              onDismiss={handleDismiss}
-              saving={savingIds.has(job.id)}
-            />
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '20px' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
+              No jobs yet
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
+              {employmentFilter !== 'all' ? 'No jobs match this filter. Try a different type.' : 'Click the button below to fetch personalized jobs.'}
+            </div>
+          </div>
+          {employmentFilter === 'all' && (
+            <button
+              type="button"
+              onClick={() => loadJobs(true)}
+              disabled={loading || refreshing}
+              style={{
+                background: 'var(--accent)',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '10px 20px',
+                fontSize: '14px',
+                fontWeight: 600,
+                color: '#000',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                opacity: loading || refreshing ? 0.6 : 1,
+              }}
+            >
+              {loading || refreshing ? <Spinner size="sm" /> : null}
+              {loading || refreshing ? 'Fetching…' : 'Fetch Jobs'}
+            </button>
+          )}
         </div>
+      ) : (
+        <>
+          {loading && (
+            <div style={{ marginBottom: '20px', padding: '12px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--muted)' }}>
+              <Spinner size="sm" />
+              Fetching new jobs…
+            </div>
+          )}
+          <div className="jobs-grid">
+            {visible.map(job => (
+              <JobCard
+                key={job.id}
+                job={job}
+                onSave={handleSave}
+                onDismiss={handleDismiss}
+                saving={savingIds.has(job.id)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       <style jsx>{`
