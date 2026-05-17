@@ -16,6 +16,7 @@ interface Contact {
   linkedin_url: string | null
   relevance_reason: string
   job_relevance_score?: number
+  ai_generated?: boolean
 }
 
 interface Job {
@@ -74,6 +75,11 @@ function ContactCard({ contact, onUse }: { contact: Contact; onUse: (c: Contact)
           {contact.title} · {contact.company}
         </div>
       </div>
+      {contact.ai_generated && (
+        <span style={{ fontSize: '10px', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '4px', padding: '1px 6px', display: 'inline-block' }}>
+          AI suggested · verify manually
+        </span>
+      )}
       {contact.relevance_reason && (
         <div style={{ fontSize: '11px', color: 'var(--muted)', fontStyle: 'italic' }}>
           {contact.relevance_reason}
@@ -128,6 +134,7 @@ export default function NetworkingPage() {
   const [searchRole, setSearchRole] = useState('')
   const [searching, setSearching] = useState(false)
   const [contacts, setContacts] = useState<Contact[]>([])
+  const [contactSource, setContactSource] = useState<string | null>(null)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [searchDone, setSearchDone] = useState(false)
 
@@ -215,6 +222,7 @@ export default function NetworkingPage() {
     setSearching(true)
     setSearchError(null)
     setContacts([])
+    setContactSource(null)
     setSearchDone(false)
 
     const res = await fetch('/api/find-contacts', {
@@ -228,6 +236,7 @@ export default function NetworkingPage() {
       setSearchError(json.error ?? 'Search failed')
     } else {
       setContacts(json.contacts ?? [])
+      setContactSource(json.source ?? null)
       setSearchDone(true)
     }
     setSearching(false)
@@ -425,6 +434,12 @@ export default function NetworkingPage() {
         {searchDone && contacts.length === 0 && (
           <div style={{ marginTop: '16px', fontSize: '13px', color: 'var(--muted)' }}>
             No contacts found. Try a broader role or different company spelling.
+          </div>
+        )}
+
+        {contactSource === 'ai_generated' && contacts.length > 0 && (
+          <div style={{ marginTop: '14px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', fontSize: '12px', color: '#f59e0b' }}>
+            LinkedIn search was blocked. These are AI-suggested contacts. Search their names on LinkedIn before reaching out.
           </div>
         )}
 

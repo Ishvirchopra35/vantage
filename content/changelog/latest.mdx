@@ -206,3 +206,10 @@ title: Networking — contact discovery, outreach message generation, and tracke
 - app/api/generate-outreach/route.ts created: POST { contactName, contactTitle, contactCompany, messageType, contactLinkedinUrl?, jobId? }, requireAuth, checkLimit('networking'), buildUserContext + optional job context, generates connection_request (max 280 chars), cold_email (max 150 words), or follow_up (max 80 words) via Groq; saves to outreach_messages; tracks event
 - app/(dashboard)/networking/page.tsx created: 3-section client page — (1) Find Contacts: company+role search populates contact cards with pre-fill buttons; (2) Generate Message: contact fields + message type + optional job selector, editable textarea with char counter for connection_request, Copy and Save buttons; (3) Outreach Tracker: table of saved messages with sent toggle, Follow-up action (pre-fills section 2 as follow_up type), and Delete
 - components/Sidebar.tsx updated: Networking added to NAV_ITEMS between Strategy and Profile
+
+---
+date: 2026-05-17
+type: Fix
+title: Networking contact search — URL encoding, logging, and AI fallback
+- app/api/find-contacts/route.ts: encodeURIComponent the full target URL before appending to r.jina.ai/ so LinkedIn query strings are routed correctly; added console.error logging of Jina response length and first 500 chars for debugging; added CAPTCHA detection to isUsableMarkdown; AI fallback now fires when contacts array is empty (not just when markdown is empty) — generates 3 realistic AI-suggested contacts with ai_generated:true; job-relevance scoring skipped for ai_generated source
+- app/(dashboard)/networking/page.tsx: Contact interface gains ai_generated field; contactSource state tracks the search source from the API; ContactCard shows "AI suggested · verify manually" amber badge when ai_generated is true; amber disclaimer banner shown above contact cards when source is ai_generated

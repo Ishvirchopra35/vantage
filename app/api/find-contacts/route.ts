@@ -16,6 +16,7 @@ interface Contact {
   company: string
   linkedin_url: string | null
   relevance_reason: string
+  ai_generated?: boolean
 }
 
 interface ScoredContact extends Contact {
@@ -25,18 +26,28 @@ interface ScoredContact extends Contact {
 async function fetchViaJina(url: string): Promise<string> {
   const headers: Record<string, string> = { Accept: 'text/markdown' }
   if (process.env.JINA_API_KEY) headers['Authorization'] = `Bearer ${process.env.JINA_API_KEY}`
-  const res = await fetch(`https://r.jina.ai/${url}`, { headers })
-  if (!res.ok) throw new Error(`Jina fetch failed: ${res.status}`)
+  // Encode the full target URL so Jina's router handles query strings correctly
+  const jinaUrl = `https://r.jina.ai/${encodeURIComponent(url)}`
+  const res = await fetch(jinaUrl, { headers })
+  if (!res.ok) throw new Error(`Jina fetch failed: ${res.status} for ${jinaUrl}`)
   return res.text()
 }
 
-function isUsableMarkdown(text: string): boolean {
-  if (!text || text.length < 300) return false
-  const lower = text.toLowerCase()
-  // LinkedIn authwall / login wall detected
-  if (lower.includes('sign in') && lower.includes('join now')) return false
-  if (lower.includes('authwall') || lower.includes('checkpoint/lg/login')) return false
-  return true
+
+async function generateFallbackContacts(company: string, role: string): Promise<Contact[]> {
+  const parsed = await withTimeout(
+    generateJSON<{ contacts: Contact[] }>(
+      'You generate realistic professional contact suggestions for networking purposes. Return only valid JSON.',
+      `Generate 3 realistic professional contacts who might work at ${company} in ${role || 'recruiting or hiring'} roles. ` +
+      `Return JSON: { "contacts": [{ "name": string (realistic full name), "title": string (realistic job title), ` +
+      `"company": "${company}", "linkedin_url": null, "relevance_reason": string (why they are relevant to reach out to), ` +
+      `"ai_generated": true }] }. ` +
+      `Use common names and accurate-sounding titles for the industry. Do not invent LinkedIn URLs.`
+    ),
+    20000,
+    'find-contacts-fallback'
+  )
+  return (parsed.contacts ?? []).map(c => ({ ...c, ai_generated: true }))
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -51,11 +62,9 @@ export async function POST(request: Request): Promise<Response> {
   if (!validation.valid) return err(validation.error, 400)
   const { company, role, jobId } = validation.data
 
-  // Monthly networking limit (respects free/pro tier)
   const limit = await checkLimit(user.id, 'networking')
   if (!limit.allowed) return rateLimited('contact search', 15, 30)
 
-  // Hard daily cap: 5 searches per user per day regardless of plan
   const supabase = await createClient()
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
@@ -72,66 +81,68 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const keywords = encodeURIComponent(`${company} ${role ?? 'recruiter hiring'}`)
-    const linkedinUrl = `https://www.linkedin.com/search/results/people/?keywords=${keywords}&origin=GLOBAL_SEARCH_HEADER`
+    const roleKeyword = role || 'recruiter hiring manager'
 
-    // Step 1 — LinkedIn public search via Jina.ai
     let markdown = ''
-    let source = 'linkedin_public'
+    let source = 'google_search'
 
+    // Step 1 — Google search via Jina.ai (LinkedIn blocks Jina consistently)
+    const googleQuery = `${company} ${roleKeyword} site:linkedin.com/in`
+    const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(googleQuery)}`
     try {
-      const text = await withTimeout(fetchViaJina(linkedinUrl), 10000, 'jina-linkedin')
-      if (isUsableMarkdown(text)) markdown = text
-    } catch {
-      // fall through to Google
+      const text = await withTimeout(fetchViaJina(googleUrl), 12000, 'jina-google')
+      console.error('[find-contacts] Google Jina response length:', text?.length, '| first 500 chars:', text?.slice(0, 500))
+      if (text && text.length > 200) {
+        markdown = text
+      } else {
+        console.error('[find-contacts] Google Jina response too short:', text?.length)
+      }
+    } catch (e) {
+      console.error('[find-contacts] Google Jina fetch error:', e)
     }
 
-    // Step 2 (fallback) — Google search if LinkedIn returned an authwall or thin content
-    if (!markdown) {
-      source = 'google_fallback'
-      const googleQuery = encodeURIComponent(`${company} ${role ?? 'recruiter'} site:linkedin.com/in`)
+    let contacts: ScoredContact[] = []
+
+    if (markdown) {
+      // Step 2 — Extract contacts from scraped markdown
       try {
-        const text = await withTimeout(
-          fetchViaJina(`https://www.google.com/search?q=${googleQuery}`),
-          10000,
-          'jina-google'
+        const parsed = await withTimeout(
+          generateJSON<{ contacts: Contact[] }>(
+            'Extract professional contact information from search result text. Return only valid JSON.',
+            `From this search result, extract people who work at ${company}. ` +
+            `For each person, extract: name, title, company, linkedin_url (if visible as a full URL), relevance_reason ` +
+            `(e.g. "Recruiter at ${company}", "Engineering hiring manager"). ` +
+            `Return JSON: { "contacts": [{ "name": string, "title": string, "company": string, ` +
+            `"linkedin_url": string | null, "relevance_reason": string }] }. ` +
+            `Up to 8 contacts. If none clearly found return { "contacts": [] }.\n\nText:\n${markdown.slice(0, 4000)}`
+          ),
+          30000,
+          'find-contacts-parse'
         )
-        if (text && text.length > 100) markdown = text
-      } catch {
-        // both sources failed
+        contacts = (parsed.contacts ?? []).slice(0, 8)
+        console.error('[find-contacts] AI extracted', contacts.length, 'contacts from', source)
+      } catch (e) {
+        console.error('[find-contacts] AI extraction error:', e)
       }
     }
 
-    if (!markdown) {
-      await logRoute(ROUTE, user.id, Date.now() - start, 200)
-      return ok({ contacts: [], source: 'no_results' })
+    // Step 3 — AI fallback if Google also yielded nothing
+    if (contacts.length === 0) {
+      source = 'ai_generated'
+      console.error('[find-contacts] No real contacts found — generating AI fallback for:', company, role)
+      try {
+        contacts = await generateFallbackContacts(company, role ?? '')
+        console.error('[find-contacts] AI fallback generated', contacts.length, 'contacts')
+      } catch (e) {
+        console.error('[find-contacts] AI fallback error:', e)
+      }
     }
 
-    // Step 3 — Extract contacts from markdown with AI
-    const systemPrompt =
-      'Extract professional contact information from search result text. Return only valid JSON.'
-    const userPrompt =
-      `From this search result, extract people who work at ${company}. ` +
-      `For each person, extract: name, title, company, linkedin_url (if visible), relevance_reason ` +
-      `(e.g. "Recruiter at ${company}", "Engineering hiring manager"). ` +
-      `Return JSON: { "contacts": [{ "name": string, "title": string, "company": string, ` +
-      `"linkedin_url": string | null, "relevance_reason": string }] }. ` +
-      `Up to 8 contacts. If none found return { "contacts": [] }.\n\nText:\n${markdown.slice(0, 4000)}`
-
-    const parsed = await withTimeout(
-      generateJSON<{ contacts: Contact[] }>(systemPrompt, userPrompt),
-      30000,
-      'find-contacts-parse'
-    )
-
-    let contacts: ScoredContact[] = (parsed.contacts ?? []).slice(0, 8)
-
-    // Step 4 — Score relevance to specific job if jobId provided
-    if (jobId && contacts.length > 0) {
-      const ctx = await buildUserContext(user.id)
-      const targetRoles = (ctx.targetRoles ?? []).join(', ') || 'software engineering'
-
+    // Step 4 — Score relevance to specific job if jobId provided (best-effort)
+    if (jobId && contacts.length > 0 && source !== 'ai_generated') {
       try {
+        const ctx = await buildUserContext(user.id)
+        const targetRoles = (ctx.targetRoles ?? []).join(', ') || 'software engineering'
         const scored = await withTimeout(
           generateJSON<{ contacts: ScoredContact[] }>(
             'Score contact relevance for a job application. Return only valid JSON.',
@@ -144,7 +155,7 @@ export async function POST(request: Request): Promise<Response> {
         )
         contacts = scored.contacts ?? contacts
       } catch {
-        // scoring is best-effort — return unscored contacts rather than failing
+        // scoring is best-effort
       }
     }
 
