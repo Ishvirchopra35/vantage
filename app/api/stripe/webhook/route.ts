@@ -19,7 +19,7 @@ export async function POST(request: Request): Promise<Response> {
   console.log('[stripe/webhook] received — sig:', !!sig, 'secret:', !!secret, 'key:', !!stripeKey)
 
   if (!sig || !secret || !stripeKey) {
-    console.error('[stripe/webhook] Missing config')
+    console.error('[stripe/webhook] Missing configuration')
     return new Response('Missing configuration', { status: 400 })
   }
 
@@ -37,115 +37,119 @@ export async function POST(request: Request): Promise<Response> {
 
   const supabase = getServiceRoleClient()
 
-  // ── checkout.session.completed ────────────────────────────────────────────
-  // Primary event: metadata.supabase_user_id is on the session directly
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session
-    const userId = session.metadata?.supabase_user_id
-    const subscriptionId = session.subscription as string | null
+  switch (event.type) {
+    case 'checkout.session.completed': {
+      const session = event.data.object as Stripe.Checkout.Session
+      const userId = session.metadata?.supabase_user_id
+      const subscriptionId = session.subscription as string
+      const customerId = session.customer as string
 
-    console.log('[stripe/webhook] checkout.session.completed — userId:', userId, 'subId:', subscriptionId)
+      console.log('[stripe/webhook] checkout.session.completed — userId:', userId, 'subId:', subscriptionId)
 
-    if (!userId || !subscriptionId) {
-      console.error('[stripe/webhook] Missing userId or subscriptionId on session')
-      return new Response('ok', { status: 200 })
-    }
+      if (!userId) {
+        console.error('[stripe/webhook] No supabase_user_id in session metadata')
+        break
+      }
 
-    let sub: Stripe.Subscription
-    try {
-      sub = await stripe.subscriptions.retrieve(subscriptionId)
-    } catch (e) {
-      console.error('[stripe/webhook] Failed to retrieve subscription:', e)
-      return new Response('ok', { status: 200 })
-    }
+      let sub: Stripe.Subscription
+      try {
+        sub = await stripe.subscriptions.retrieve(subscriptionId)
+      } catch (e) {
+        console.error('[stripe/webhook] Failed to retrieve subscription:', e)
+        break
+      }
 
-    const periodEnd = sub.items.data[0]?.current_period_end
-    const { error } = await supabase.from('subscriptions').upsert(
-      {
-        user_id: userId,
-        plan: 'pro',
-        status: sub.status,
-        stripe_subscription_id: sub.id,
-        stripe_customer_id: String(sub.customer),
-        current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-      },
-      { onConflict: 'user_id' }
-    )
+      // current_period_end is on the subscription item in API 2026-04-22.dahlia
+      const periodEnd = sub.items.data[0]?.current_period_end ?? (sub as Record<string, unknown>).current_period_end as number | undefined
 
-    if (error) console.error('[stripe/webhook] upsert failed (checkout.session.completed):', error)
-    else console.log('[stripe/webhook] plan set to pro for user:', userId)
-  }
-
-  // ── customer.subscription.created / updated ───────────────────────────────
-  // Subscription metadata has supabase_user_id if set via subscription_data.metadata.
-  // If missing, fall back to matching by stripe_customer_id from a prior checkout.session.completed.
-  if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated') {
-    const sub = event.data.object as Stripe.Subscription
-    const userId = sub.metadata?.supabase_user_id
-    const periodEnd = sub.items.data[0]?.current_period_end
-    const plan = sub.status === 'active' ? 'pro' : 'free'
-
-    console.log('[stripe/webhook] subscription event — userId:', userId, 'customer:', sub.customer, 'status:', sub.status)
-
-    if (userId) {
       const { error } = await supabase.from('subscriptions').upsert(
         {
           user_id: userId,
-          plan,
-          status: sub.status,
-          stripe_subscription_id: sub.id,
-          stripe_customer_id: String(sub.customer),
+          plan: 'pro',
+          status: 'active',
+          stripe_subscription_id: subscriptionId,
+          stripe_customer_id: customerId,
           current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
         },
         { onConflict: 'user_id' }
       )
-      if (error) console.error('[stripe/webhook] upsert failed (subscription event, userId path):', error)
-      else console.log('[stripe/webhook] updated by userId:', userId, '— plan:', plan)
-    } else {
-      // Fall back: match by stripe_customer_id set during checkout.session.completed
-      const { error } = await supabase
-        .from('subscriptions')
-        .update({
-          plan,
-          status: sub.status,
-          stripe_subscription_id: sub.id,
-          current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-        })
-        .eq('stripe_customer_id', String(sub.customer))
-      if (error) console.error('[stripe/webhook] update failed (subscription event, customer fallback):', error)
-      else console.log('[stripe/webhook] updated by stripe_customer_id:', sub.customer, '— plan:', plan)
+
+      if (error) console.error('[stripe/webhook] Supabase upsert error:', error)
+      else console.log('[stripe/webhook] Successfully upgraded user to pro:', userId)
+      break
     }
-  }
 
-  // ── customer.subscription.deleted ────────────────────────────────────────
-  if (event.type === 'customer.subscription.deleted') {
-    const sub = event.data.object as Stripe.Subscription
-    const userId = sub.metadata?.supabase_user_id
+    case 'customer.subscription.updated': {
+      const sub = event.data.object as Stripe.Subscription
+      const userId = sub.metadata?.supabase_user_id
+      const periodEnd = sub.items.data[0]?.current_period_end
+      const plan = sub.status === 'active' ? 'pro' : 'free'
 
-    console.log('[stripe/webhook] subscription deleted — userId:', userId, 'customer:', sub.customer)
+      console.log('[stripe/webhook] subscription.updated — userId:', userId, 'customer:', sub.customer, 'status:', sub.status)
 
-    if (userId) {
-      const { error } = await supabase.from('subscriptions').upsert(
-        {
-          user_id: userId,
-          plan: 'free',
-          status: 'cancelled',
-          stripe_subscription_id: sub.id,
-          stripe_customer_id: String(sub.customer),
-          cancelled_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' }
-      )
-      if (error) console.error('[stripe/webhook] upsert failed (deleted, userId path):', error)
-      else console.log('[stripe/webhook] plan reset to free for user:', userId)
-    } else {
-      const { error } = await supabase
-        .from('subscriptions')
-        .update({ plan: 'free', status: 'cancelled', cancelled_at: new Date().toISOString() })
-        .eq('stripe_customer_id', String(sub.customer))
-      if (error) console.error('[stripe/webhook] update failed (deleted, customer fallback):', error)
-      else console.log('[stripe/webhook] plan reset to free by stripe_customer_id:', sub.customer)
+      if (userId) {
+        const { error } = await supabase.from('subscriptions').upsert(
+          {
+            user_id: userId,
+            plan,
+            status: sub.status,
+            stripe_subscription_id: sub.id,
+            stripe_customer_id: String(sub.customer),
+            current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+          },
+          { onConflict: 'user_id' }
+        )
+        if (error) console.error('[stripe/webhook] upsert error (updated, userId):', error)
+        else console.log('[stripe/webhook] subscription updated for user:', userId)
+      } else {
+        const { error } = await supabase
+          .from('subscriptions')
+          .update({
+            plan,
+            status: sub.status,
+            stripe_subscription_id: sub.id,
+            current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+          })
+          .eq('stripe_customer_id', String(sub.customer))
+        if (error) console.error('[stripe/webhook] update error (updated, customer fallback):', error)
+        else console.log('[stripe/webhook] subscription updated by customer:', sub.customer)
+      }
+      break
     }
+
+    case 'customer.subscription.deleted': {
+      const sub = event.data.object as Stripe.Subscription
+      const userId = sub.metadata?.supabase_user_id
+
+      console.log('[stripe/webhook] subscription.deleted — userId:', userId, 'customer:', sub.customer)
+
+      if (userId) {
+        const { error } = await supabase.from('subscriptions').upsert(
+          {
+            user_id: userId,
+            plan: 'free',
+            status: 'cancelled',
+            stripe_subscription_id: sub.id,
+            stripe_customer_id: String(sub.customer),
+            cancelled_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        )
+        if (error) console.error('[stripe/webhook] upsert error (deleted, userId):', error)
+        else console.log('[stripe/webhook] plan reset to free for user:', userId)
+      } else {
+        const { error } = await supabase
+          .from('subscriptions')
+          .update({ plan: 'free', status: 'cancelled', cancelled_at: new Date().toISOString() })
+          .eq('stripe_customer_id', String(sub.customer))
+        if (error) console.error('[stripe/webhook] update error (deleted, customer fallback):', error)
+        else console.log('[stripe/webhook] plan reset to free by customer:', sub.customer)
+      }
+      break
+    }
+
+    default:
+      console.log('[stripe/webhook] unhandled event type:', event.type)
   }
 
   return new Response('ok', { status: 200 })
