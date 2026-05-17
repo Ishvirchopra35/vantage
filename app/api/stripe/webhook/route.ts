@@ -59,8 +59,7 @@ export async function POST(request: Request): Promise<Response> {
         break
       }
 
-      // current_period_end is on the subscription item in API 2026-04-22.dahlia
-      const periodEnd = sub.items.data[0]?.current_period_end ?? (sub as Record<string, unknown>).current_period_end as number | undefined
+      const periodEnd = sub.items.data[0]?.current_period_end
 
       const { error } = await supabase.from('subscriptions').upsert(
         {
