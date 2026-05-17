@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import type { ApplicationRow } from '@/app/api/applications/route'
+import ApplicationDetailModal from '@/components/ApplicationDetailModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -162,17 +164,20 @@ export default function TrackerPage() {
   const [error, setError] = useState<string | null>(null)
 
   // Status update: track which row id is pending so the badge shows a spinner
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [rowError, setRowError] = useState<string | null>(null)
   const [openStatusId, setOpenStatusId] = useState<string | null>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null)
+  const dropdownPortalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!openStatusId) return
     function handleOutsideClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (dropdownPortalRef.current && !dropdownPortalRef.current.contains(e.target as Node)) {
         setOpenStatusId(null)
+        setDropdownPos(null)
       }
     }
     document.addEventListener('mousedown', handleOutsideClick)
@@ -222,6 +227,7 @@ export default function TrackerPage() {
   async function handleStatusSelect(row: ApplicationRow, newStatus: Status) {
     if (newStatus === row.status || updatingId || deletingId) return
     setOpenStatusId(null)
+    setDropdownPos(null)
     setUpdatingId(row.id)
     setRowError(null)
 
@@ -558,6 +564,7 @@ export default function TrackerPage() {
               return (
                 <div
                   key={row.id}
+                  onClick={() => { if (!row.id.startsWith('temp-') && !isDeleting) setSelectedAppId(row.id) }}
                   style={{
                     display: 'grid',
                     gridTemplateColumns: 'minmax(0,2fr) minmax(0,2fr) 100px 52px 52px 32px',
@@ -569,6 +576,7 @@ export default function TrackerPage() {
                     opacity: row.id.startsWith('temp-') || isDeleting ? 0.5 : 1,
                     transition: 'opacity 0.15s',
                     overflow: 'visible',
+                    cursor: row.id.startsWith('temp-') || isDeleting ? 'default' : 'pointer',
                   }}
                 >
                   {/* Company */}
@@ -581,13 +589,21 @@ export default function TrackerPage() {
                     {row.role}
                   </div>
 
-                  {/* Status badge — click opens dropdown */}
-                  <div
-                    ref={openStatusId === row.id ? dropdownRef : undefined}
-                    style={{ position: 'relative', overflow: 'visible', zIndex: openStatusId === row.id ? 20 : 1 }}
-                  >
+                  {/* Status badge — click opens portal dropdown */}
+                  <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                     <button
-                      onClick={() => !isUpdating && !isDeleting && setOpenStatusId(openStatusId === row.id ? null : row.id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (isUpdating || isDeleting) return
+                        if (openStatusId === row.id) {
+                          setOpenStatusId(null)
+                          setDropdownPos(null)
+                        } else {
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          setDropdownPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX })
+                          setOpenStatusId(row.id)
+                        }
+                      }}
                       disabled={isUpdating || isDeleting}
                       style={{
                         background: STATUS_COLOR[row.status],
@@ -610,44 +626,49 @@ export default function TrackerPage() {
                     >
                       {isUpdating ? <Spinner /> : STATUS_LABEL[row.status]}
                     </button>
+                  </div>
 
-                    {openStatusId === row.id && (
-                      <div style={{
+                  {/* Portal dropdown — renders outside the table DOM to avoid overflow clipping */}
+                  {dropdownPos && openStatusId === row.id && createPortal(
+                    <div
+                      ref={dropdownPortalRef}
+                      style={{
                         position: 'absolute',
-                        top: 'calc(100% + 4px)',
-                        left: 0,
-                        zIndex: 50,
+                        top: dropdownPos.top,
+                        left: dropdownPos.left,
                         background: 'var(--card)',
                         border: '1px solid var(--border)',
-                        borderRadius: '8px',
-                        overflow: 'visible',
-                        minWidth: '130px',
-                        boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-                      }}>
-                        {ALL_STATUSES.map(s => (
-                          <button
-                            key={s}
-                            onClick={() => handleStatusSelect(row, s)}
-                            style={{
-                              display: 'block',
-                              width: '100%',
-                              textAlign: 'left',
-                              background: s === row.status ? 'var(--border)' : 'transparent',
-                              border: 'none',
-                              padding: '8px 12px',
-                              fontSize: '13px',
-                              color: STATUS_TEXT[s],
-                              cursor: 'pointer',
-                              fontWeight: s === row.status ? 600 : 400,
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {STATUS_LABEL[s]}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                        borderRadius: '10px',
+                        zIndex: 9999,
+                        minWidth: '140px',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {ALL_STATUSES.map(s => (
+                        <button
+                          key={s}
+                          onClick={(e) => { e.stopPropagation(); handleStatusSelect(row, s) }}
+                          style={{
+                            display: 'block',
+                            width: '100%',
+                            textAlign: 'left',
+                            background: s === row.status ? 'var(--border)' : 'transparent',
+                            border: 'none',
+                            padding: '8px 12px',
+                            fontSize: '13px',
+                            color: STATUS_TEXT[s],
+                            cursor: 'pointer',
+                            fontWeight: s === row.status ? 600 : 400,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {STATUS_LABEL[s]}
+                        </button>
+                      ))}
+                    </div>,
+                    document.body
+                  )}
 
                   {/* Days since — centered */}
                   <div className="tracker-table-col-since" style={{ fontSize: '13px', color: 'var(--muted)', fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}>
@@ -670,9 +691,9 @@ export default function TrackerPage() {
                   </div>
 
                   {/* Delete — right-aligned */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
                     <button
-                      onClick={() => handleDelete(row.id)}
+                      onClick={(e) => { e.stopPropagation(); handleDelete(row.id) }}
                       disabled={isDeleting || isUpdating}
                       style={{
                         background: 'none',
@@ -697,6 +718,13 @@ export default function TrackerPage() {
           </div>
         )}
       </div>
+
+      {selectedAppId && (
+        <ApplicationDetailModal
+          applicationId={selectedAppId}
+          onClose={() => setSelectedAppId(null)}
+        />
+      )}
     </div>
   )
 }

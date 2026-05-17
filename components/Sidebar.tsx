@@ -27,11 +27,12 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/jobs', label: 'Jobs', comingSoon: true },
+  { href: '/jobs', label: 'Jobs' },
   { href: '/tailor', label: 'Tailor + ATS' },
   { href: '/tracker', label: 'Applications' },
   { href: '/strategy', label: 'Strategy', comingSoon: true },
   { href: '/profile', label: 'Profile' },
+  { href: '/settings', label: 'Settings' },
 ];
 
 function getInitials(fullName: string | null | undefined): string {
@@ -372,6 +373,20 @@ export default function Sidebar({
           </button>
           <ThemeToggle />
         </div>
+
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: '8px', paddingTop: '12px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '0 0 8px' }}>
+            <Link href="/blog" className="sidebar-footer-link">Blog</Link>
+            <Link href="/changelog" className="sidebar-footer-link">Changelog</Link>
+            <Link href="/docs" className="sidebar-footer-link">Docs</Link>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '0 0 4px' }}>
+            <Link href="/about" className="sidebar-footer-link">About</Link>
+            <Link href="/contact" className="sidebar-footer-link">Contact</Link>
+            <Link href="/privacy" className="sidebar-footer-link">Privacy</Link>
+            <Link href="/terms" className="sidebar-footer-link">Terms</Link>
+          </div>
+        </div>
       </div>
     </aside>
   );
@@ -549,10 +564,33 @@ export default function Sidebar({
             </button>
             <ThemeToggle />
           </div>
+
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: '8px', paddingTop: '12px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '0 0 8px' }}>
+              <Link href="/blog" className="sidebar-footer-link">Blog</Link>
+              <Link href="/changelog" className="sidebar-footer-link">Changelog</Link>
+              <Link href="/docs" className="sidebar-footer-link">Docs</Link>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '0 0 4px' }}>
+              <Link href="/about" className="sidebar-footer-link">About</Link>
+              <Link href="/contact" className="sidebar-footer-link">Contact</Link>
+              <Link href="/privacy" className="sidebar-footer-link">Privacy</Link>
+              <Link href="/terms" className="sidebar-footer-link">Terms</Link>
+            </div>
+          </div>
         </div>
       </div>
 
       <style jsx>{`
+        .sidebar-footer-link {
+          font-size: 11px;
+          color: var(--muted);
+          text-decoration: none;
+        }
+        .sidebar-footer-link:hover {
+          color: var(--text);
+        }
+
         .mobile-topbar {
           display: none;
         }

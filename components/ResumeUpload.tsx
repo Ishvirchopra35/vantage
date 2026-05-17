@@ -9,6 +9,10 @@ interface ResumeInfo {
   created_at: string
 }
 
+interface ResumeUploadProps {
+  onUploadComplete?: (rawText: string) => void
+}
+
 const spinnerStyle: React.CSSProperties = {
   display: 'inline-block',
   width: '13px',
@@ -20,7 +24,7 @@ const spinnerStyle: React.CSSProperties = {
   flexShrink: 0,
 }
 
-export default function ResumeUpload() {
+export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
   const [current, setCurrent] = useState<ResumeInfo | null>(null)
   const [fetching, setFetching] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -77,7 +81,6 @@ export default function ResumeUpload() {
 
       if (uploadError) throw new Error(uploadError.message)
 
-      // Use a short-lived signed URL just for parsing — we store the path, not this URL
       const { data: signedData, error: signedError } = await supabase.storage
         .from('resumes')
         .createSignedUrl(path, 120)
@@ -94,7 +97,6 @@ export default function ResumeUpload() {
       const parseJson = await parseRes.json()
       if (!parseRes.ok) throw new Error(parseJson.error || 'Failed to extract text from PDF')
 
-      // Store the storage path as file_url so we can regenerate signed URLs on demand
       const saveRes = await fetch('/api/save-resume', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,6 +106,7 @@ export default function ResumeUpload() {
       if (!saveRes.ok) throw new Error(saveJson.error || 'Failed to save resume')
 
       setCurrent({ id: saveJson.resume.id, file_name: file.name, created_at: new Date().toISOString() })
+      if (onUploadComplete) onUploadComplete(parseJson.text as string)
       setSuccess(true)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Upload failed. Please try again.')
@@ -113,121 +116,105 @@ export default function ResumeUpload() {
     }
   }
 
+  if (fetching) {
+    return <div style={{ fontSize: '13px', color: 'var(--muted)' }}>Loading...</div>
+  }
+
   return (
-    <div
-      style={{
-        background: 'var(--card)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
-        padding: '24px',
-      }}
-    >
-      <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
-        Base Resume
-      </h2>
-      <p style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '20px', lineHeight: 1.5 }}>
-        Upload your master resume (PDF). All tailoring, ATS scoring, and cover letters start from this file.
-      </p>
-
-      {fetching ? (
-        <div style={{ fontSize: '14px', color: 'var(--muted)' }}>Loading...</div>
-      ) : (
-        <>
-          {current && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 14px',
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                marginBottom: '14px',
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--score-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <span style={{ fontSize: '13px', color: 'var(--text)', flex: 1 }}>{current.file_name}</span>
-              <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                {new Date(current.created_at).toLocaleDateString()}
-              </span>
-            </div>
-          )}
-
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf"
-            style={{ display: 'none' }}
-            onChange={e => {
-              const file = e.target.files?.[0]
-              if (file) handleFile(file)
-            }}
-          />
-
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={loading}
-            style={{
-              background: 'transparent',
-              color: 'var(--text)',
-              border: '1px solid var(--border)',
-              borderRadius: '10px',
-              padding: '10px 18px',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              opacity: loading ? 0.6 : 1,
-            }}
-          >
-            {loading ? (
-              <>
-                <span style={spinnerStyle} />
-                Uploading...
-              </>
-            ) : (
-              current ? 'Replace resume' : 'Upload PDF'
-            )}
-          </button>
-
-          {error && (
-            <div
-              style={{
-                marginTop: '12px',
-                padding: '10px 14px',
-                background: 'rgba(239,68,68,0.08)',
-                border: '1px solid rgba(239,68,68,0.2)',
-                borderRadius: '10px',
-                color: 'var(--score-red)',
-                fontSize: '13px',
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div
-              style={{
-                marginTop: '12px',
-                padding: '10px 14px',
-                background: 'rgba(34,197,94,0.08)',
-                border: '1px solid rgba(34,197,94,0.2)',
-                borderRadius: '10px',
-                color: 'var(--score-green)',
-                fontSize: '13px',
-              }}
-            >
-              Resume uploaded. You can now tailor it to any job.
-            </div>
-          )}
-        </>
+    <>
+      {current && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 14px',
+            background: 'var(--bg)',
+            border: '1px solid var(--border)',
+            borderRadius: '10px',
+            marginBottom: '10px',
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--score-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <span style={{ fontSize: '13px', color: 'var(--text)', flex: 1 }}>{current.file_name}</span>
+          <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+            {new Date(current.created_at).toLocaleDateString()}
+          </span>
+        </div>
       )}
-    </div>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".pdf"
+        style={{ display: 'none' }}
+        onChange={e => {
+          const file = e.target.files?.[0]
+          if (file) handleFile(file)
+        }}
+      />
+
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={loading}
+        style={{
+          background: 'transparent',
+          color: 'var(--text)',
+          border: '1px solid var(--border)',
+          borderRadius: '10px',
+          padding: '10px 18px',
+          fontSize: '14px',
+          fontWeight: 500,
+          cursor: loading ? 'not-allowed' : 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          opacity: loading ? 0.6 : 1,
+        }}
+      >
+        {loading ? (
+          <>
+            <span style={spinnerStyle} />
+            Uploading...
+          </>
+        ) : (
+          current ? 'Replace resume' : 'Upload PDF'
+        )}
+      </button>
+
+      {error && (
+        <div
+          style={{
+            marginTop: '10px',
+            padding: '10px 14px',
+            background: 'rgba(239,68,68,0.08)',
+            border: '1px solid rgba(239,68,68,0.2)',
+            borderRadius: '10px',
+            color: 'var(--score-red)',
+            fontSize: '13px',
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div
+          style={{
+            marginTop: '10px',
+            padding: '10px 14px',
+            background: 'rgba(34,197,94,0.08)',
+            border: '1px solid rgba(34,197,94,0.2)',
+            borderRadius: '10px',
+            color: 'var(--score-green)',
+            fontSize: '13px',
+          }}
+        >
+          Resume uploaded successfully.
+        </div>
+      )}
+    </>
   )
 }

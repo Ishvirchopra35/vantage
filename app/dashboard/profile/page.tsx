@@ -52,13 +52,7 @@ export default async function ProfilePage({
   return (
     <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
       <div style={{ width: '100%', maxWidth: '600px' }}>
-        {isNew && (
-          <div className="mb-6 rounded-t-[var(--radius)] border border-[rgba(59,130,246,0.28)] border-b-0 bg-[rgba(59,130,246,0.08)] px-4 py-3 text-sm text-[#8bb8ff]">
-            Welcome to Vantage — complete your profile to get the most accurate AI outputs
-          </div>
-        )}
-
-        <ProfileForm initialProfile={profile} />
+        <ProfileForm initialData={profile} isNew={isNew} />
       </div>
     </div>
   );

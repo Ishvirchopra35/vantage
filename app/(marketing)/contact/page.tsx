@@ -65,7 +65,7 @@ export default function ContactPage() {
             fontSize: '0.92rem',
           }}
         >
-          University of Waterloo, Ontario, Canada
+          Ontario, Canada
         </span>
       </div>
     </div>

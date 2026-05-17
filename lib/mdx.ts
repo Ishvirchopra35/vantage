@@ -147,35 +147,72 @@ export async function getBlogPost(
   return { frontmatter, content: parsed.content };
 }
 
+function splitChangelogEntries(source: string): Array<{ frontmatter: string; content: string }> {
+  const lines = source.replace(/\r\n/g, '\n').split('\n');
+  const results: Array<{ frontmatter: string; content: string }> = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    if (lines[i].trim() !== '---') { i++; continue; }
+    i++; // skip opening ---
+
+    // Read frontmatter until closing ---
+    const fmLines: string[] = [];
+    while (i < lines.length && lines[i].trim() !== '---') {
+      fmLines.push(lines[i]);
+      i++;
+    }
+    i++; // skip closing ---
+
+    // Read content until next opening ---
+    const contentLines: string[] = [];
+    while (i < lines.length && lines[i].trim() !== '---') {
+      contentLines.push(lines[i]);
+      i++;
+    }
+
+    results.push({
+      frontmatter: fmLines.join('\n'),
+      content: contentLines.join('\n').trim(),
+    });
+  }
+
+  return results;
+}
+
 export async function getChangelog(): Promise<ChangelogEntry[]> {
   const files = await readMdxFiles(CHANGELOG_DIR);
+  const allEntries: ChangelogEntry[] = [];
 
-  const entries = await Promise.all(
-    files.map(async (fileName) => {
-      const fullPath = path.join(CHANGELOG_DIR, fileName);
-      const source = await fs.readFile(fullPath, 'utf8');
-      const parsed = matter(source);
+  for (const fileName of files) {
+    const fullPath = path.join(CHANGELOG_DIR, fileName);
+    const source = await fs.readFile(fullPath, 'utf8');
+    const blocks = splitChangelogEntries(source);
 
-      if (!isRecord(parsed.data)) {
-        throw new Error(`Invalid frontmatter in ${fileName}.`);
+    for (const block of blocks) {
+      try {
+        const parsed = matter(`---\n${block.frontmatter}\n---`);
+        if (!isRecord(parsed.data)) continue;
+
+        allEntries.push({
+          date: getStringField(parsed.data, 'date'),
+          version: getOptionalStringField(parsed.data, 'version'),
+          type: getEnumField(parsed.data, 'type', [
+            'Feature',
+            'Update',
+            'Fix',
+            'Improvement',
+            'Major Release',
+          ]),
+          title: getStringField(parsed.data, 'title'),
+          summary: getOptionalStringField(parsed.data, 'summary') ?? '',
+          content: block.content,
+        } satisfies ChangelogEntry);
+      } catch {
+        continue;
       }
+    }
+  }
 
-      return {
-        date: getStringField(parsed.data, 'date'),
-        version: getOptionalStringField(parsed.data, 'version'),
-        type: getEnumField(parsed.data, 'type', [
-          'Feature',
-          'Update',
-          'Fix',
-          'Improvement',
-          'Major Release',
-        ]),
-        title: getStringField(parsed.data, 'title'),
-        summary: getStringField(parsed.data, 'summary'),
-        content: parsed.content,
-      } satisfies ChangelogEntry;
-    })
-  );
-
-  return sortByDateDesc(entries);
+  return sortByDateDesc(allEntries);
 }

@@ -34,6 +34,7 @@ export async function PATCH(
     const body = await request.json().catch(() => null);
     const validation = validateBody<{
       status?: string;
+      applied_date?: string;
       notes?: string;
       resume_doc_id?: string;
       cover_letter_doc_id?: string;
@@ -46,6 +47,7 @@ export async function PATCH(
     const validBody = validation.data;
     const updates: Record<string, unknown> = {};
     if (validBody.status !== undefined) updates.status = validBody.status;
+    if (validBody.applied_date !== undefined) updates.applied_date = validBody.applied_date;
     if (validBody.notes !== undefined) updates.notes = validBody.notes;
     if (validBody.resume_doc_id !== undefined) updates.resume_doc_id = validBody.resume_doc_id;
     if (validBody.cover_letter_doc_id !== undefined) updates.cover_letter_doc_id = validBody.cover_letter_doc_id;

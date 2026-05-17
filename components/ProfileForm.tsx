@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { updateProfile } from '@/app/(dashboard)/actions';
 import { track } from '@/lib/analytics';
+import ResumeUpload from '@/components/ResumeUpload';
 
 export interface Profile {
   id: string;
@@ -18,17 +19,18 @@ export interface Profile {
 }
 
 interface ProfileFormProps {
-  initialProfile: Profile | null;
+  initialData: Profile | null;
+  isNew?: boolean;
 }
 
-export default function ProfileForm({ initialProfile }: ProfileFormProps) {
-  const [fullName, setFullName] = useState(initialProfile?.full_name || '');
-  const [university, setUniversity] = useState(initialProfile?.university || '');
-  const [graduationYear, setGraduationYear] = useState(initialProfile?.graduation_year || 2026);
-  const [yearsExperience, setYearsExperience] = useState(initialProfile?.years_experience || 0);
-  const [linkedinUrl, setLinkedinUrl] = useState(initialProfile?.linkedin_url || '');
-  const [skills, setSkills] = useState<string[]>(initialProfile?.skills || []);
-  const [targetRoles, setTargetRoles] = useState<string[]>(initialProfile?.target_roles || []);
+export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
+  const [fullName, setFullName] = useState(initialData?.full_name || '');
+  const [university, setUniversity] = useState(initialData?.university || '');
+  const [graduationYear, setGraduationYear] = useState(initialData?.graduation_year || 2026);
+  const [yearsExperience, setYearsExperience] = useState(initialData?.years_experience || 0);
+  const [linkedinUrl, setLinkedinUrl] = useState(initialData?.linkedin_url || '');
+  const [skills, setSkills] = useState<string[]>(initialData?.skills || []);
+  const [targetRoles, setTargetRoles] = useState<string[]>(initialData?.target_roles || []);
 
   const [skillsInput, setSkillsInput] = useState('');
   const [rolesInput, setRolesInput] = useState('');
@@ -39,7 +41,40 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
 
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Handle tag input for skills
+  // Sync fields when initialData changes from a server re-render, but only
+  // for fields still at their empty/default values to avoid overwriting user edits
+  useEffect(() => {
+    if (!initialData) return;
+    setFullName(prev => prev || initialData.full_name || '');
+    setUniversity(prev => prev || initialData.university || '');
+    setGraduationYear(prev => prev === 2026 ? (initialData.graduation_year || 2026) : prev);
+    setYearsExperience(prev => prev === 0 ? (initialData.years_experience ?? 0) : prev);
+    setLinkedinUrl(prev => prev || initialData.linkedin_url || '');
+    setSkills(prev => prev.length === 0 ? (initialData.skills || []) : prev);
+    setTargetRoles(prev => prev.length === 0 ? (initialData.target_roles || []) : prev);
+  }, [initialData]);
+
+  async function handleUploadComplete(rawText: string) {
+    try {
+      const res = await fetch('/api/parse-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawText }),
+      });
+      if (!res.ok) return;
+      const { profile: p } = await res.json();
+      if (p.full_name) setFullName(prev => prev || p.full_name);
+      if (p.university) setUniversity(prev => prev || p.university);
+      if (p.graduation_year) setGraduationYear(prev => prev === 2026 ? p.graduation_year : prev);
+      if (p.years_experience != null) setYearsExperience(prev => prev === 0 ? p.years_experience : prev);
+      if (p.linkedin_url) setLinkedinUrl(prev => prev || p.linkedin_url);
+      if (p.skills?.length) setSkills(prev => prev.length === 0 ? p.skills : prev);
+      if (p.target_roles?.length) setTargetRoles(prev => prev.length === 0 ? p.target_roles : prev);
+    } catch {
+      // silent — resume upload already succeeded
+    }
+  }
+
   const handleSkillsKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if ((e.key === 'Enter' || e.key === ',') && skillsInput.trim()) {
       e.preventDefault();
@@ -53,7 +88,6 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
     }
   };
 
-  // Handle tag input for roles
   const handleRolesKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if ((e.key === 'Enter' || e.key === ',') && rolesInput.trim()) {
       e.preventDefault();
@@ -84,7 +118,7 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
       clearTimeout(successTimeoutRef.current);
     }
 
-    const result = await updateProfile(initialProfile?.id || '', {
+    const result = await updateProfile(initialData?.id || '', {
       full_name: fullName,
       university: university,
       graduation_year: graduationYear || null,
@@ -203,9 +237,36 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
 
   return (
     <div style={{ ...cardStyle, width: '100%' }}>
-      <h1 style={{ marginBottom: '24px', color: 'var(--text)', fontSize: '24px', fontWeight: 600 }}>
+      <h1 style={{ marginBottom: '20px', color: 'var(--text)', fontSize: '24px', fontWeight: 600 }}>
         Profile
       </h1>
+
+      {/* Welcome banner — only on first visit */}
+      {isNew && (
+        <div
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid var(--border)',
+            borderRadius: '10px',
+            padding: '14px 18px',
+            marginBottom: '24px',
+          }}
+        >
+          <p style={{ fontSize: '13px', color: 'var(--text)', margin: 0, lineHeight: 1.5 }}>
+            Welcome to Vantage. Upload your resume to get started — we&apos;ll pre-fill your profile automatically.
+          </p>
+        </div>
+      )}
+
+      {/* Resume — always visible so users can replace it */}
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
+          Resume
+        </label>
+        <ResumeUpload onUploadComplete={handleUploadComplete} />
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--border)', marginBottom: '24px' }} />
 
       {/* Full Name */}
       <div style={{ marginBottom: '18px' }}>
@@ -218,12 +279,8 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           style={fieldStyle}
-          onFocus={(e) => {
-            e.currentTarget.style.boxShadow = focusStyle;
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.boxShadow = 'none';
-          }}
+          onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
+          onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
         />
       </div>
 
@@ -238,12 +295,8 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
           value={university}
           onChange={(e) => setUniversity(e.target.value)}
           style={fieldStyle}
-          onFocus={(e) => {
-            e.currentTarget.style.boxShadow = focusStyle;
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.boxShadow = 'none';
-          }}
+          onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
+          onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
         />
       </div>
 
@@ -257,12 +310,8 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
             value={graduationYear}
             onChange={(e) => setGraduationYear(parseInt(e.target.value))}
             style={fieldStyle}
-            onFocus={(e) => {
-              e.currentTarget.style.boxShadow = focusStyle;
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.boxShadow = 'none';
-            }}
+            onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
+            onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
           >
             {[2026, 2027, 2028, 2029, 2030, 2031, 2032].map((year) => (
               <option key={year} value={year}>
@@ -279,12 +328,8 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
             value={yearsExperience}
             onChange={(e) => setYearsExperience(parseInt(e.target.value))}
             style={fieldStyle}
-            onFocus={(e) => {
-              e.currentTarget.style.boxShadow = focusStyle;
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.boxShadow = 'none';
-            }}
+            onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
+            onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
           >
             {Array.from({ length: 16 }, (_, i) => (
               <option key={i} value={i}>
@@ -306,12 +351,8 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
           value={linkedinUrl}
           onChange={(e) => setLinkedinUrl(e.target.value)}
           style={fieldStyle}
-          onFocus={(e) => {
-            e.currentTarget.style.boxShadow = focusStyle;
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.boxShadow = 'none';
-          }}
+          onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
+          onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
         />
       </div>
 
@@ -322,23 +363,12 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
         </label>
         <div style={tagWrapStyle}>
           {skills.map((skill, index) => (
-            <div
-              key={index}
-              style={chipStyle}
-            >
+            <div key={index} style={chipStyle}>
               {skill}
               <button
                 type="button"
                 onClick={() => removeSkill(index)}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--text)',
-                  cursor: 'pointer',
-                  padding: '0',
-                  fontSize: '12px',
-                  lineHeight: 1,
-                }}
+                style={{ border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer', padding: '0', fontSize: '12px', lineHeight: 1 }}
               >
                 ×
               </button>
@@ -351,9 +381,6 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
             onChange={(e) => setSkillsInput(e.target.value)}
             onKeyDown={handleSkillsKeyDown}
             style={tagInputStyle}
-            onFocus={(e) => {
-              e.currentTarget.style.boxShadow = 'none';
-            }}
           />
         </div>
         <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--muted)' }}>
@@ -368,23 +395,12 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
         </label>
         <div style={tagWrapStyle}>
           {targetRoles.map((role, index) => (
-            <div
-              key={index}
-              style={chipStyle}
-            >
+            <div key={index} style={chipStyle}>
               {role}
               <button
                 type="button"
                 onClick={() => removeRole(index)}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--text)',
-                  cursor: 'pointer',
-                  padding: '0',
-                  fontSize: '12px',
-                  lineHeight: 1,
-                }}
+                style={{ border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer', padding: '0', fontSize: '12px', lineHeight: 1 }}
               >
                 ×
               </button>
@@ -397,9 +413,6 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
             onChange={(e) => setRolesInput(e.target.value)}
             onKeyDown={handleRolesKeyDown}
             style={tagInputStyle}
-            onFocus={(e) => {
-              e.currentTarget.style.boxShadow = 'none';
-            }}
           />
         </div>
         <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--muted)' }}>
@@ -415,14 +428,7 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
       >
         {loading ? (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--bg)' }}>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" opacity="0.25" />
               <path d="M12 2a10 10 0 0 1 10 10" opacity="1" />
             </svg>
@@ -433,7 +439,6 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
         )}
       </button>
 
-      {/* Success Message */}
       {success && (
         <div
           style={{
@@ -450,7 +455,6 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
         </div>
       )}
 
-      {/* Error Message */}
       {error && (
         <div
           style={{

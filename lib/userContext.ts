@@ -53,7 +53,7 @@ export interface UserContext {
 
 async function fetchProfile(svc: ServiceClient, userId: string) {
   try {
-    const { data } = await svc.from('profiles').select('full_name, email, university, graduation_year, years_experience, skills, target_roles, linkedin_url').eq('user_id', userId).limit(1).single();
+    const { data } = await svc.from('profiles').select('full_name, email, university, graduation_year, years_experience, skills, target_roles, linkedin_url').eq('id', userId).limit(1).single();
     return data;
   } catch {
     return null;
@@ -170,15 +170,65 @@ async function fetchSubscription(svc: ServiceClient, userId: string) {
 export async function buildUserContext(userId: string): Promise<UserContext> {
   const svc = serviceClient();
 
-  // Fetch all data in parallel
-  const [profile, resume, appHistory, ats, subscription, limits] = await Promise.all([
-    fetchProfile(svc, userId),
-    fetchBaseResume(svc, userId),
-    fetchApplicationHistory(svc, userId),
-    fetchAtsPerformance(svc, userId),
-    fetchSubscription(svc, userId),
-    getRemainingLimits(userId).catch(() => ({})),
-  ]);
+  console.log('[buildUserContext] Starting for userId:', userId);
+
+  // Fetch all data with individual error handling
+  let profile = null;
+  try {
+    console.log('[buildUserContext] Fetching profile...');
+    profile = await fetchProfile(svc, userId);
+    console.log('[buildUserContext] Profile fetched');
+  } catch (e) {
+    console.error('[buildUserContext] Profile fetch error:', e);
+  }
+
+  let resume = null;
+  try {
+    console.log('[buildUserContext] Fetching resume...');
+    resume = await fetchBaseResume(svc, userId);
+    console.log('[buildUserContext] Resume fetched');
+  } catch (e) {
+    console.error('[buildUserContext] Resume fetch error:', e);
+  }
+
+  let appHistory = null;
+  try {
+    console.log('[buildUserContext] Fetching app history...');
+    appHistory = await fetchApplicationHistory(svc, userId);
+    console.log('[buildUserContext] App history fetched');
+  } catch (e) {
+    console.error('[buildUserContext] App history fetch error:', e);
+  }
+
+  let ats = null;
+  try {
+    console.log('[buildUserContext] Fetching ATS performance...');
+    ats = await fetchAtsPerformance(svc, userId);
+    console.log('[buildUserContext] ATS performance fetched');
+  } catch (e) {
+    console.error('[buildUserContext] ATS performance fetch error:', e);
+  }
+
+  let subscription = null;
+  try {
+    console.log('[buildUserContext] Fetching subscription...');
+    subscription = await fetchSubscription(svc, userId);
+    console.log('[buildUserContext] Subscription fetched');
+  } catch (e) {
+    console.error('[buildUserContext] Subscription fetch error:', e);
+  }
+
+  let limits = {};
+  try {
+    console.log('[buildUserContext] Fetching limits...');
+    limits = await getRemainingLimits(userId);
+    console.log('[buildUserContext] Limits fetched');
+  } catch (e) {
+    console.error('[buildUserContext] Limits fetch error:', e);
+    limits = {};
+  }
+
+  console.log('[buildUserContext] All data fetched successfully');
 
   return {
     fullName: profile?.full_name,

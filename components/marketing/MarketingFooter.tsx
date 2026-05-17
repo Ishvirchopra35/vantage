@@ -143,7 +143,7 @@ export default function MarketingFooter() {
             <div>
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>© 2026 Vantage, Inc.</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>
-                Made by Ishvir Chopra at the University of Waterloo
+                Made by Ishvir Chopra
               </div>
             </div>
             <div className="mkt-social-links">

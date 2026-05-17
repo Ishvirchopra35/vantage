@@ -1,0 +1,82 @@
+import { requireAuth } from '@/lib/requireAuth'
+import { validateBody } from '@/lib/validateRequest'
+import { ok, err, serverError } from '@/lib/apiResponse'
+import { logRoute } from '@/lib/logger'
+import { generateJSON } from '@/lib/ai'
+import { withTimeout } from '@/lib/withTimeout'
+import { createClient } from '@/lib/supabase/server'
+
+interface ParsedProfile {
+  full_name: string
+  university: string | null
+  graduation_year: number | null
+  years_experience: number | null
+  linkedin_url: string | null
+  skills: string[]
+  target_roles: string[]
+}
+
+const SYSTEM_PROMPT = `You are a resume parser. Extract structured profile information from resume text. Return ONLY valid JSON.`
+
+export async function POST(request: Request): Promise<Response> {
+  const start = Date.now()
+
+  const auth = await requireAuth()
+  if ('error' in auth) return auth.error
+  const { user } = auth
+
+  const body = await request.json().catch(() => null)
+  const validation = validateBody<{ rawText: string }>(body, ['rawText'])
+  if (!validation.valid) return err(validation.error, 400)
+  const { rawText } = validation.data
+
+  const userPrompt = `Extract the following fields from this resume text and return as JSON:
+- full_name: string (the candidate's full name)
+- university: string or null
+- graduation_year: number or null (4-digit year)
+- years_experience: number or null (total years of work experience, 0 if student/no experience)
+- linkedin_url: string or null (only if explicitly present in the text)
+- skills: string[] (all technical skills, languages, frameworks, and tools mentioned)
+- target_roles: string[] (infer from job titles held and objective/summary section, max 3)
+
+Resume text:
+${rawText}`
+
+  let parsed: ParsedProfile
+  try {
+    parsed = await withTimeout(
+      generateJSON<ParsedProfile>(SYSTEM_PROMPT, userPrompt),
+      30000,
+      'parse-profile'
+    )
+  } catch (e) {
+    await logRoute('/api/parse-profile', user.id, Date.now() - start, 500)
+    return serverError(e)
+  }
+
+  // Build upsert payload — only include non-null/non-empty parsed fields
+  // so we never overwrite existing profile data with nulls
+  const upsertPayload: Record<string, unknown> = { id: user.id }
+  if (parsed.full_name) upsertPayload.full_name = parsed.full_name
+  if (parsed.university) upsertPayload.university = parsed.university
+  if (parsed.graduation_year != null) upsertPayload.graduation_year = parsed.graduation_year
+  if (parsed.years_experience != null) upsertPayload.years_experience = parsed.years_experience
+  if (parsed.linkedin_url) upsertPayload.linkedin_url = parsed.linkedin_url
+  if (parsed.skills?.length) upsertPayload.skills = parsed.skills
+  if (parsed.target_roles?.length) upsertPayload.target_roles = parsed.target_roles.slice(0, 3)
+
+  const supabase = await createClient()
+  const { data: upsertedProfile, error: upsertError } = await supabase
+    .from('profiles')
+    .upsert(upsertPayload, { onConflict: 'id' })
+    .select('id, full_name, university, graduation_year, years_experience, linkedin_url, skills, target_roles')
+    .single()
+
+  if (upsertError) {
+    await logRoute('/api/parse-profile', user.id, Date.now() - start, 500)
+    return serverError(upsertError)
+  }
+
+  await logRoute('/api/parse-profile', user.id, Date.now() - start, 200)
+  return ok({ profile: upsertedProfile })
+}

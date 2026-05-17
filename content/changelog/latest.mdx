@@ -17,10 +17,11 @@ Launch 1 brings the core workflow from job discovery to tracked applications.
 - Blog content foundation with MDX support and frontmatter-based loaders.
 
 ---
-
 date: 2026-05-15
 type: Feature
 title: Blog pages with MDX rendering, search, and category filtering
+summary: Blog infrastructure with MDX rendering, category filtering, and newsletter signup.
+---
 
 - app/(marketing)/blog/page.tsx created: server component, featured 2-up card layout, passes all posts to BlogClient
 - app/(marketing)/blog/BlogClient.tsx created: client component handling newsletter signup, category filter, search, and post list
@@ -33,18 +34,20 @@ title: Blog pages with MDX rendering, search, and category filtering
 date: 2026-05-15
 type: Feature
 title: Admin analytics dashboard
+summary: Admin-only dashboard showing revenue, user, retention, and product usage metrics.
 ---
 
-- c:\Users\ishvi\OneDrive\Desktop\Code\Projects\Vantage\vantage\app\admin\page.tsx was created as a dynamic server component that checked the current user against ADMIN_USER_ID, redirected non-admin users to /dashboard, and rendered revenue, user, retention, product usage, growth, recent events, and route performance metrics with the Supabase service-role client.
-- c:\Users\ishvi\OneDrive\Desktop\Code\Projects\Vantage\vantage\.env.local was updated with an ADMIN_USER_ID placeholder required for local admin access.
-- c:\Users\ishvi\OneDrive\Desktop\Code\Projects\Vantage\vantage\content\changelog\latest.mdx was appended with this entry.
-- No new database tables, columns, or indexes were added.
-- No npm packages were installed.
+- app/admin/page.tsx created: dynamic server component checking user against ADMIN_USER_ID, redirects non-admins to /dashboard, renders revenue, user, retention, product usage, growth, recent events, and route performance metrics via the Supabase service-role client
+- .env.local updated: ADMIN_USER_ID placeholder added for local admin access
+- No new database tables, columns, or indexes
+- No npm packages installed
 
 ---
 date: 2026-05-15
 type: Feature
 title: Contact page with public form and rate-limited API route
+summary: Public contact form with server-side rate limiting and Supabase persistence.
+---
 
 - app/(marketing)/contact/page.tsx created: server component, 560px centered layout, heading + subtext, renders ContactForm, shows email and location below a border
 - components/marketing/ContactForm.tsx created: 'use client' form with name/email/subject/message fields, client-side validation, loading/success/error states, spinner in button while submitting
@@ -52,3 +55,111 @@ title: Contact page with public form and rate-limited API route
 - new DB table: contact_submissions (id uuid pk, name text, email text, subject text, message text, created_at timestamptz) — no RLS, insert public, reads service-role only
 - no new env vars
 - no npm packages installed
+
+---
+date: 2026-05-16
+type: Feature
+title: Auto pre-fill profile from uploaded resume
+summary: Resume upload now extracts and pre-fills profile fields using AI parsing.
+---
+
+- app/api/parse-profile/route.ts created: POST route that takes rawText, calls generateJSON to extract full_name, university, graduation_year, years_experience, linkedin_url, skills, target_roles, then upserts only non-null fields into profiles table (preserves any existing values)
+- components/ResumeUpload.tsx updated: after successful upload, fires a fire-and-forget POST to /api/parse-profile; on success calls router.refresh() so the profile page re-fetches updated data
+- components/ProfileForm.tsx updated: added useEffect that syncs local field state when initialProfile prop changes, pre-filling only empty/default fields without overwriting user edits
+
+---
+date: 2026-05-16
+type: Feature
+title: Resume upload embedded in profile form with onboarding banner
+summary: Resume upload moved into the profile form with an onboarding welcome banner for new users.
+---
+
+- components/ResumeUpload.tsx updated: stripped standalone card wrapper and heading, added onUploadComplete prop that fires with rawText after a successful upload, removed internal parse-profile and router.refresh logic
+- components/ProfileForm.tsx updated: renamed prop initialProfile to initialData, added isNew prop, welcome banner inside card when isNew, Resume section always rendered above form fields with handleUploadComplete that calls /api/parse-profile and updates empty fields directly without a page refresh
+- app/(dashboard)/profile/page.tsx updated: removed standalone ResumeUpload section and old blue banner, passes initialData and isNew to ProfileForm
+
+---
+date: 2026-05-16
+type: Feature
+title: Application detail modal with ATS scores and tailored documents
+summary: Clickable application rows open a detail modal showing ATS scores, keywords, and document previews.
+---
+
+- app/api/applications/[id]/details/route.ts created: GET route that fetches the application, then uses Promise.all to fetch related documents and the latest ATS score, returns application, documents, and atsScore
+- components/ApplicationDetailModal.tsx created: modal overlay with 800px panel; fetches details on mount; shows skeleton while loading; header with company, role, status badge, applied date; ATS section with overall_score, keyword_score, missing_keywords pills, suggestions list; tabbed document viewer for Tailored Resume and Cover Letter with Copy and Download PDF buttons; Escape key and overlay click to close
+- app/(dashboard)/tracker/page.tsx updated: added selectedAppId state; each application row is now clickable; ApplicationDetailModal rendered at component root when selectedAppId is set
+
+---
+date: 2026-05-16
+type: Fix
+title: Status dropdown renders as portal to fix overflow clipping in tracker table
+summary: Status dropdown now renders in a portal to prevent clipping inside overflow containers.
+---
+
+- app/(dashboard)/tracker/page.tsx: replaced inline absolute-positioned status dropdown with a createPortal render into document.body; button onClick now calls getBoundingClientRect() to calculate absolute page position stored in dropdownPos state; dropdownPortalRef attached to the portal div for outside-click detection
+
+---
+date: 2026-05-16
+type: Feature
+title: Settings panel with account, appearance, resume, and danger zone sections
+summary: Settings page with account info, theme switching, resume upload, and account deletion.
+---
+
+- components/Sidebar.tsx updated: added Settings link to nav after Profile
+- app/(dashboard)/settings/page.tsx created: server component that fetches user and profile, renders SettingsClient with userId, email, fullName
+- components/SettingsClient.tsx created: 'use client' component with four sections — Account (email read-only + full_name save via /api/profile/update), Appearance (Dark/Light theme pills updating data-theme attribute and localStorage), Resume (inline ResumeUpload panel toggled by button, shows success message on complete), Danger Zone (delete button opens DeleteModal with type-DELETE confirmation, calls /api/account/delete then redirects to /login)
+- app/api/profile/update/route.ts created: POST route, requireAuth, validateBody with full_name, updates profiles.full_name for the authenticated user
+- app/api/account/delete/route.ts created: POST route, requireAuth, signs out via SSR client, deletes user via service-role client, returns ok with deleted true
+- No new database tables or columns
+- No new npm packages
+
+---
+date: 2026-05-16
+type: Feature
+title: Documents page with filter tabs, expandable rows, copy and download
+summary: Dedicated documents page with type filters, expandable content previews, and PDF download.
+---
+
+- app/(dashboard)/documents/page.tsx created: server component that fetches all documents with jobs join, passes to DocumentsClient
+- components/DocumentsClient.tsx created: filter tabs (All / Tailored Resume / Cover Letter), each document row shows type badge + job title/company + date + Copy and Download PDF buttons, clicking row expands inline pre block with full content; EmptyState when no documents
+
+---
+date: 2026-05-16
+type: Feature
+title: Answer application form questions with AI
+summary: AI-powered question answering for job application forms, saved per application.
+---
+
+- app/api/answer-question/route.ts created: POST with jobId, applicationId, and question — requireAuth, validateBody, checkLimit, fetches job (ownership verified), buildUserContext, generateText with grounded-in-resume system prompt, saves to application_questions table, tracks event, returns saved question row
+- app/api/answer-question/route.ts GET with applicationId param — returns all saved questions for the given applicationId belonging to the authenticated user, ordered by created_at ASC
+- No new database tables — uses existing application_questions table
+- No new npm packages
+
+---
+date: 2026-05-16
+type: Feature
+title: Apply Prep page — application kit, question answerer, submit checklist
+summary: All-in-one apply prep page with document kit, AI question answering, and a submit checklist.
+---
+
+- app/(dashboard)/apply/[jobId]/page.tsx created: 'use client' page; fetches job, documents, ats_score, and application via Supabase browser client in parallel on mount; loads existing application_questions via GET /api/answer-question
+- Section 1 (Application Kit): 3-column grid showing latest tailored resume preview, cover letter preview, and ATS ScoreBadge; each card shows a link to /tailor when the corresponding asset is missing
+- Section 2 (Question Answerer): textarea + Generate answer button; generated answers rendered in editable textareas with 500ms debounced PATCH for user_edited_answer; Saved indicator and Copy button per answer
+- Section 3 (Submit Checklist): 5 manual checkboxes; when all checked, shows Mark as Applied button that updates status to applied and applied_date to today
+- app/api/answer-question/[id]/route.ts created: PATCH route updating user_edited_answer on application_questions, ownership verified via user_id
+- app/api/applications/[id]/route.ts updated: added applied_date to the list of PATCH-able fields
+- No new database tables or columns
+- No new npm packages
+
+---
+date: 2026-05-16
+type: Feature
+title: Job Feed — Adzuna-powered personalized job discovery with AI relevance scoring
+summary: Personalized job feed powered by Adzuna API with AI relevance scoring and save/dismiss controls.
+---
+
+- .env.local updated: added ADZUNA_APP_ID and ADZUNA_API_KEY placeholders
+- app/api/discover-jobs/route.ts created: GET with optional refresh param; 24h cache check against job_feed_items; fetches from Adzuna for up to 3 target_roles (10 results each); deduplicates by external_job_id; scores all jobs in parallel with generateJSON; upserts to job_feed_items preserving is_saved and is_dismissed; returns non-dismissed items sorted by relevance_score DESC
+- app/api/job-feed/[id]/route.ts created: PATCH with is_saved and is_dismissed fields, with ownership check
+- app/(dashboard)/jobs/page.tsx created: 'use client'; loads on mount via GET /api/discover-jobs; Refresh button; employment_type filter dropdown; 2-col desktop / 1-col mobile grid; each card shows title, company, location, ScoreBadge, employment_type badge, AI reason, View job link, Tailor resume link, heart save toggle, dismiss button; saved items pinned to top
+- components/Sidebar.tsx updated: removed comingSoon from Jobs nav item

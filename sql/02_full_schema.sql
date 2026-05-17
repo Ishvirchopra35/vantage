@@ -372,6 +372,9 @@ CREATE POLICY "Users can delete own feed" ON public.job_feed_items
 
 CREATE INDEX IF NOT EXISTS idx_job_feed_items_user_id ON public.job_feed_items (user_id);
 
+-- Add unique constraint for upsert on (user_id, external_job_id)
+ALTER TABLE public.job_feed_items ADD CONSTRAINT job_feed_items_user_external_unique UNIQUE (user_id, external_job_id);
+
 -- ============================================================================
 -- 11. STRATEGY_FEEDBACK TABLE (1 per user)
 -- ============================================================================
