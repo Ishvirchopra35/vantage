@@ -197,3 +197,12 @@ title: Stripe billing — checkout, webhook, customer portal, and billing page
 - components/Sidebar.tsx updated: added Billing nav item after Settings
 - new env vars required: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, STRIPE_PRO_PRICE_ID, NEXT_PUBLIC_APP_URL
 - new DB columns required: ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT, ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+
+---
+date: 2026-05-17
+type: Feature
+title: Networking — contact discovery, outreach message generation, and tracker
+- app/api/find-contacts/route.ts created: POST { company, role?, jobId? }, requireAuth, checkLimit('networking'), 5/day hard cap via route_logs; scrapes LinkedIn via Jina.ai with authwall detection, falls back to Google site:linkedin.com/in search; generateJSON extracts up to 8 contacts; optional job-relevance scoring if jobId provided
+- app/api/generate-outreach/route.ts created: POST { contactName, contactTitle, contactCompany, messageType, contactLinkedinUrl?, jobId? }, requireAuth, checkLimit('networking'), buildUserContext + optional job context, generates connection_request (max 280 chars), cold_email (max 150 words), or follow_up (max 80 words) via Groq; saves to outreach_messages; tracks event
+- app/(dashboard)/networking/page.tsx created: 3-section client page — (1) Find Contacts: company+role search populates contact cards with pre-fill buttons; (2) Generate Message: contact fields + message type + optional job selector, editable textarea with char counter for connection_request, Copy and Save buttons; (3) Outreach Tracker: table of saved messages with sent toggle, Follow-up action (pre-fills section 2 as follow_up type), and Delete
+- components/Sidebar.tsx updated: Networking added to NAV_ITEMS between Strategy and Profile

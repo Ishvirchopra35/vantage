@@ -32,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/tailor', label: 'Tailor + ATS' },
   { href: '/tracker', label: 'Applications' },
   { href: '/strategy', label: 'Strategy' },
+  { href: '/networking', label: 'Networking' },
   { href: '/profile', label: 'Profile' },
   { href: '/settings', label: 'Settings' },
   { href: '/billing', label: 'Billing', freemiumOnly: true },
@@ -291,11 +292,6 @@ export default function Sidebar({
           <NavLink key={item.href} item={item} />
         ))}
 
-        {/* Launch 2 links kept in the DOM for later rollout
-        <NavLink item={{ href: '/apply-prep', label: 'Apply Prep' }} />
-        <NavLink item={{ href: '/networking', label: 'Networking' }} />
-        <NavLink item={{ href: '/interview-prep', label: 'Interview Prep' }} />
-        */}
       </nav>
 
       <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', fontSize: '12px' }}>
@@ -489,11 +485,6 @@ export default function Sidebar({
             <NavLink key={item.href} item={item} mobile />
           ))}
 
-          {/* Launch 2 links kept in the DOM for later rollout
-          <NavLink item={{ href: '/apply-prep', label: 'Apply Prep' }} mobile />
-          <NavLink item={{ href: '/networking', label: 'Networking' }} mobile />
-          <NavLink item={{ href: '/interview-prep', label: 'Interview Prep' }} mobile />
-          */}
         </nav>
 
         <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', fontSize: '12px' }}>
