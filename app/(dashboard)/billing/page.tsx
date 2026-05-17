@@ -47,6 +47,8 @@ function formatDate(iso: string | null): string {
 }
 
 export default async function BillingPage() {
+  if (process.env.ENABLE_FREEMIUM !== 'true') redirect('/dashboard')
+
   const auth = await requireAuth()
   if ('error' in auth) redirect('/login')
   const { user } = auth

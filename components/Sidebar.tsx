@@ -23,6 +23,7 @@ type NavItem = {
   label: string;
   locked?: boolean;
   comingSoon?: boolean;
+  freemiumOnly?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -33,7 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/strategy', label: 'Strategy' },
   { href: '/profile', label: 'Profile' },
   { href: '/settings', label: 'Settings' },
-  { href: '/billing', label: 'Billing' },
+  { href: '/billing', label: 'Billing', freemiumOnly: true },
 ];
 
 function getInitials(fullName: string | null | undefined): string {
@@ -286,7 +287,7 @@ export default function Sidebar({
       </div>
 
       <nav style={{ display: 'flex', flexDirection: 'column', paddingTop: '12px', gap: '12px', flex: 1 }}>
-        {NAV_ITEMS.map((item) => (
+        {NAV_ITEMS.filter(item => !item.freemiumOnly || enableFreemium).map((item) => (
           <NavLink key={item.href} item={item} />
         ))}
 
@@ -320,11 +321,11 @@ export default function Sidebar({
               <span style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {profile?.full_name || 'Your profile'}
               </span>
-              {plan === 'pro' ? (
+              {enableFreemium && (plan === 'pro' ? (
                 <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: '#f2f2f2', color: '#000', flexShrink: 0 }}>Pro</span>
               ) : (
                 <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', flexShrink: 0 }}>Free</span>
-              )}
+              ))}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {profile?.email || 'No email available'}
@@ -484,7 +485,7 @@ export default function Sidebar({
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', paddingTop: '12px', gap: '12px', flex: 1 }}>
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter(item => !item.freemiumOnly || enableFreemium).map((item) => (
             <NavLink key={item.href} item={item} mobile />
           ))}
 
@@ -518,11 +519,11 @@ export default function Sidebar({
                 <span style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {profile?.full_name || 'Your profile'}
                 </span>
-                {plan === 'pro' ? (
+                {enableFreemium && (plan === 'pro' ? (
                   <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: '#f2f2f2', color: '#000', flexShrink: 0 }}>Pro</span>
                 ) : (
                   <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', flexShrink: 0 }}>Free</span>
-                )}
+                ))}
               </div>
               <div style={{ fontSize: '11px', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {profile?.email || 'No email available'}
