@@ -1,14 +1,12 @@
 import Stripe from 'stripe'
-import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs'
 
-function getServiceRoleClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) throw new Error('Supabase service role env vars not set')
-  return createServerClient(url, key, { cookies: { getAll: () => [], setAll: () => {} } })
-}
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function POST(request: Request): Promise<Response> {
   const rawBody = await request.text()
@@ -35,8 +33,6 @@ export async function POST(request: Request): Promise<Response> {
 
   console.log('[stripe/webhook] event:', event.type, JSON.stringify(event.data.object, null, 2))
 
-  const supabase = getServiceRoleClient()
-
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session
@@ -61,7 +57,7 @@ export async function POST(request: Request): Promise<Response> {
 
       const periodEnd = sub.items.data[0]?.current_period_end
 
-      const { error } = await supabase.from('subscriptions').upsert(
+      const { error } = await supabaseAdmin.from('subscriptions').upsert(
         {
           user_id: userId,
           plan: 'pro',
@@ -87,7 +83,7 @@ export async function POST(request: Request): Promise<Response> {
       console.log('[stripe/webhook] subscription.updated — userId:', userId, 'customer:', sub.customer, 'status:', sub.status)
 
       if (userId) {
-        const { error } = await supabase.from('subscriptions').upsert(
+        const { error } = await supabaseAdmin.from('subscriptions').upsert(
           {
             user_id: userId,
             plan,
@@ -101,7 +97,7 @@ export async function POST(request: Request): Promise<Response> {
         if (error) console.error('[stripe/webhook] upsert error (updated, userId):', error)
         else console.log('[stripe/webhook] subscription updated for user:', userId)
       } else {
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
           .from('subscriptions')
           .update({
             plan,
@@ -123,7 +119,7 @@ export async function POST(request: Request): Promise<Response> {
       console.log('[stripe/webhook] subscription.deleted — userId:', userId, 'customer:', sub.customer)
 
       if (userId) {
-        const { error } = await supabase.from('subscriptions').upsert(
+        const { error } = await supabaseAdmin.from('subscriptions').upsert(
           {
             user_id: userId,
             plan: 'free',
@@ -137,7 +133,7 @@ export async function POST(request: Request): Promise<Response> {
         if (error) console.error('[stripe/webhook] upsert error (deleted, userId):', error)
         else console.log('[stripe/webhook] plan reset to free for user:', userId)
       } else {
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
           .from('subscriptions')
           .update({ plan: 'free', status: 'cancelled', cancelled_at: new Date().toISOString() })
           .eq('stripe_customer_id', String(sub.customer))
