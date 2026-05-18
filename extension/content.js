@@ -560,83 +560,83 @@
 
   // ── AI answer fill ────────────────────────────────────────────────────────────
 
+  function labelsMatch(elLabel, targetLabel) {
+    const clean = s => s.toLowerCase().replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+    const a = clean(elLabel);
+    const b = clean(targetLabel);
+    if (a === b) return true;
+    if (a.includes(b.substring(0, 30)) || b.includes(a.substring(0, 30))) return true;
+    if (a.substring(0, 20) === b.substring(0, 20)) return true;
+    return false;
+  }
+
   async function fillWithAIAnswers(fields) {
     let filled = 0;
 
-    for (const { label, answer } of fields) {
-      if (!answer) continue;
+    // ── Pass 1: native inputs, textareas, selects ─────────────────────────────
+    for (const { label: targetLabel, answer } of fields) {
+      if (!answer || answer === 'null') continue;
 
       const allInputs = queryShadow(document.body,
         'input:not([type=submit]):not([type=hidden]):not([type=file]), textarea, select'
       );
 
-      let matched = false;
       for (const el of allInputs) {
         if (el.disabled || el.readOnly) continue;
-        const elLabel = getLabel(el).toLowerCase();
-        const targetLabel = label.toLowerCase();
+        const elLabel = getLabel(el);
+        console.log('[Vantage] Trying to fill:', targetLabel, '| answer:', answer, '| matched el:', el?.tagName);
+        if (!labelsMatch(elLabel, targetLabel)) continue;
 
-        if (
-          elLabel.includes(targetLabel.substring(0, 20)) ||
-          targetLabel.includes(elLabel.substring(0, 20))
-        ) {
-          if (el.tagName === 'SELECT') {
-            if (fillSelect(el, answer)) filled++;
-          } else {
-            fill(el, answer);
-            filled++;
-          }
-          matched = true;
-          break;
+        if (el.tagName === 'SELECT') {
+          if (fillSelect(el, answer)) filled++;
+        } else {
+          fill(el, answer);
+          filled++;
         }
+        break;
       }
+    }
 
-      if (matched) continue;
+    // ── Pass 2: custom [role="combobox"] / React-Select dropdowns ────────────
+    for (const { label: targetLabel, answer } of fields) {
+      if (!answer || answer === 'null') continue;
 
-      // Try custom div-based dropdowns
-      const triggers = queryShadow(document.body,
-        '[role="combobox"], [class*="select__control"], [class*="SelectInput"]'
+      const dropdowns = queryShadow(document.body,
+        '[role="combobox"], [class*="select__control"]'
       );
-      for (const trigger of triggers) {
-        const container = trigger.closest('[class*="field"],[class*="question"],[class*="form-group"],[class*="application-question"]') || trigger.parentElement?.parentElement;
-        const labelEl = container?.querySelector('label, [class*="label"], legend');
-        const triggerLabel = (labelEl?.textContent || trigger.getAttribute('aria-label') || '').toLowerCase().trim();
-        const targetLabel = label.toLowerCase();
 
-        if (!triggerLabel || triggerLabel.includes('phone') || triggerLabel.includes('country')) continue;
+      for (const trigger of dropdowns) {
+        const container = trigger.closest('[class*="field"],[class*="question"],[class*="application-question"]') || trigger.parentElement?.parentElement;
+        const labelEl = container?.querySelector('label, [class*="label"]');
+        const elLabel = (labelEl?.textContent || trigger.getAttribute('aria-label') || '').trim();
 
-        if (
-          !triggerLabel.includes(targetLabel.substring(0, 20)) &&
-          !targetLabel.includes(triggerLabel.substring(0, 20))
-        ) continue;
-
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        await new Promise(r => setTimeout(r, 100));
+        if (!elLabel) continue;
+        if (elLabel.toLowerCase().includes('phone') || elLabel.toLowerCase().includes('country')) continue;
+        if (!labelsMatch(elLabel, targetLabel)) continue;
 
         trigger.click();
-        trigger.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
         await new Promise(r => setTimeout(r, 500));
 
-        const allPanels = document.querySelectorAll('[class*="select__menu"], [role="listbox"], [class*="SelectMenu"], [class*="menu--open"]');
-        const openPanel = allPanels[allPanels.length - 1];
-        if (!openPanel) continue;
+        const panel = document.querySelector('[class*="select__menu-list"], [class*="select__menu"], [role="listbox"]');
+        if (!panel) continue;
 
-        const options = queryShadow(openPanel, '[role="option"], [class*="select__option"], li');
-        if (options.length > 50) {
-          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-          continue;
-        }
+        const options = panel.querySelectorAll('[class*="select__option"], [role="option"]');
+        console.log('[Vantage] Dropdown options for', targetLabel, ':', Array.from(options).map(o => o.textContent?.trim()));
 
-        const match = options.find(o => o.textContent?.toLowerCase().includes(answer.toLowerCase()));
+        const match = Array.from(options).find(o =>
+          o.textContent?.toLowerCase().trim().includes(answer.toLowerCase())
+        );
+
         if (match) {
           match.click();
-          await new Promise(r => setTimeout(r, 300));
-          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+          console.log('[Vantage] Selected:', match.textContent?.trim());
           filled++;
-          break;
+        } else {
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         }
 
-        trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await new Promise(r => setTimeout(r, 300));
+        break;
       }
     }
 
