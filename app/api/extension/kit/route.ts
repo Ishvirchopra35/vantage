@@ -16,6 +16,7 @@ interface Kit {
   email: string | null
   phone: string | null
   linkedin: string | null
+  referralSource: string
   coverLetter: string | null
   answers: Record<string, string>
 }
@@ -109,6 +110,7 @@ export async function GET(request: Request): Promise<Response> {
     email: profile.email as string | null,
     phone: profile.phone as string | null,
     linkedin: profile.linkedin_url as string | null,
+    referralSource: 'LinkedIn',
     coverLetter,
     answers,
   }

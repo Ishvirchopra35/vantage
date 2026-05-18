@@ -34,6 +34,27 @@
     el.dispatchEvent(new Event('blur', { bubbles: true }));
   }
 
+  function fillSelect(el, value) {
+    const lowerVal = value.toLowerCase();
+    const match = Array.from(el.options).find(o => {
+      if (!o.text.trim() || o.disabled) return false;
+      const optText = o.text.toLowerCase();
+      const optValue = o.value.toLowerCase();
+      const cleanText = optText.replace(/[^a-z]/g, '');
+      return (
+        optText.includes(lowerVal) ||
+        optValue.includes(lowerVal) ||
+        (cleanText.length > 0 && lowerVal.includes(cleanText))
+      );
+    });
+    if (match) {
+      el.value = match.value;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    return !!match;
+  }
+
   // ── Shadow DOM walker ─────────────────────────────────────────────────────────
 
   function queryShadow(root, selector) {
@@ -52,22 +73,17 @@
 
   // ── Field detection ───────────────────────────────────────────────────────────
 
-  // Returns the effective label for an element by checking multiple sources
   function getFieldLabel(el) {
     const parts = [];
 
-    // placeholder
     if (el.placeholder) parts.push(el.placeholder);
 
-    // aria-label
     const ariaLabel = el.getAttribute('aria-label');
     if (ariaLabel) parts.push(ariaLabel);
 
-    // name / id
     if (el.name) parts.push(el.name);
     if (el.id) parts.push(el.id);
 
-    // <label for="..."> or wrapping <label>
     if (el.id) {
       const labelEl = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
       if (labelEl) parts.push(labelEl.textContent);
@@ -75,7 +91,6 @@
     const parentLabel = el.closest('label');
     if (parentLabel) parts.push(parentLabel.textContent);
 
-    // aria-labelledby
     const labelledBy = el.getAttribute('aria-labelledby');
     if (labelledBy) {
       labelledBy.split(' ').forEach(id => {
@@ -116,13 +131,22 @@
     return null;
   }
 
+  // ── Dropdown value resolver ───────────────────────────────────────────────────
+
+  function selectValueForLabel(label, kit) {
+    if (/comfortable|compensation|pay range|salary range/i.test(label)) return 'Yes';
+    if (/authorized to work|work authorization|legally authorized/i.test(label)) return 'Yes';
+    if (/visa sponsorship|require sponsorship|need sponsorship/i.test(label)) return 'No';
+    if (/non-compete|non-solicitation|confidentiality agreement/i.test(label)) return 'No';
+    if (/how did you hear|how did you find|referral source/i.test(label)) return kit.referralSource || 'LinkedIn';
+    return null;
+  }
+
   // ── Main fill function ────────────────────────────────────────────────────────
 
   function fillForm(kit) {
     let filled = 0;
 
-    // Full-name split helper — only use fullName if firstName/lastName not available
-    const names = { firstName: kit.firstName, lastName: kit.lastName, fullName: kit.fullName };
     const values = {
       firstName: kit.firstName || '',
       lastName: kit.lastName || '',
@@ -134,34 +158,50 @@
       ...(kit.answers || {}),
     };
 
-    // Collect all inputs (including shadow DOM)
-    const inputs = queryShadow(document, 'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="file"])');
-    const textareas = queryShadow(document, 'textarea');
+    // ── Text inputs ───────────────────────────────────────────────────────────
 
-    const filled_keys = new Set();
+    const inputs = queryShadow(document, 'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="file"])');
 
     for (const el of inputs) {
-      if (!el.offsetParent && el.offsetWidth === 0 && el.offsetHeight === 0) continue; // hidden
+      if (!el.offsetParent && el.offsetWidth === 0 && el.offsetHeight === 0) continue;
       if (el.disabled || el.readOnly) continue;
 
       const label = getFieldLabel(el);
       let key = matchKey(label, INPUT_MATCHERS) || keyForInputType(el);
 
-      // For plain "name" fields with no first/last distinction, use fullName
       if (!key && /\bname\b/i.test(label)) key = 'fullName';
-
       if (!key) continue;
 
       const value = values[key];
       if (!value) continue;
 
-      // Don't overwrite already-filled fields unless they have a placeholder value
       if (el.value && el.value !== el.placeholder) continue;
 
       setInput(el, value);
-      filled_keys.add(key);
       filled++;
     }
+
+    // ── Select / dropdown fields ──────────────────────────────────────────────
+
+    const selects = queryShadow(document, 'select');
+
+    for (const el of selects) {
+      if (el.disabled) continue;
+
+      const label = getFieldLabel(el);
+      const value = selectValueForLabel(label, kit);
+      if (!value) continue;
+
+      // Don't overwrite a user's existing selection (index 0 is usually the placeholder)
+      if (el.selectedIndex > 0) continue;
+
+      const matched = fillSelect(el, value);
+      if (matched) filled++;
+    }
+
+    // ── Textareas ─────────────────────────────────────────────────────────────
+
+    const textareas = queryShadow(document, 'textarea');
 
     for (const el of textareas) {
       if (!el.offsetParent && el.offsetWidth === 0 && el.offsetHeight === 0) continue;
@@ -177,11 +217,11 @@
       if (el.value && el.value !== el.placeholder) continue;
 
       setTextarea(el, value);
-      filled_keys.add(key);
       filled++;
     }
 
-    // Best-effort: fill application question textareas by matching question text
+    // ── Application question textareas (fuzzy match) ──────────────────────────
+
     if (kit.answers && Object.keys(kit.answers).length > 0) {
       for (const el of textareas) {
         if (el.disabled || el.readOnly) continue;
@@ -190,7 +230,6 @@
         const label = getFieldLabel(el);
         for (const [question, answer] of Object.entries(kit.answers)) {
           if (!answer) continue;
-          // Match if >50% of the question words appear in the label
           const words = question.toLowerCase().split(/\s+/).filter(w => w.length > 3);
           const hits = words.filter(w => label.includes(w)).length;
           if (words.length > 0 && hits / words.length >= 0.5) {
@@ -217,6 +256,6 @@
       sendResponse({ filled: 0, error: String(e) });
     }
 
-    return true; // keep channel open
+    return true;
   });
 })();
