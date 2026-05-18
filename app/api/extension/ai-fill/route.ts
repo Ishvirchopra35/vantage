@@ -65,14 +65,17 @@ export async function POST(request: Request): Promise<Response> {
     const contextStr = formatContextForPrompt(ctx)
     const resumeText = ctx.baseResume ?? 'No resume uploaded'
 
-    const systemPrompt = `You are helping a job applicant fill out an application form. Given their profile and resume, generate appropriate answers for each form field. Return ONLY valid JSON with no other text.
+    const systemPrompt = `You are helping a job applicant fill out an application form. Given their profile and resume, generate appropriate answers for each form field.
 
-For dropdown questions, you MUST return the answer as EXACTLY one of the provided option strings — copy it verbatim. Do not paraphrase. If the answer is "SKIP", return null instead.
+Respond with ONLY a JSON array, no wrapper object, no markdown, no explanation:
+[
+  {"label": "First Name", "answer": "John"},
+  {"label": "Email", "answer": "john@example.com"}
+]
+
+For dropdown questions, return the answer as EXACTLY one of the provided option strings — copy it verbatim. Do not paraphrase. Return null if not applicable.
 
 For demographic questions (gender, ethnicity, sexual orientation, disability, veteran status), use the user's actual profile information if available. Only choose "I don't wish to answer" as a last resort when the information is genuinely unknown.
-
-Examples:
-- gender: if the user's name or profile suggests male → pick "Male"
 - veteran: almost always "No, I am not a veteran" unless stated otherwise
 - disability: almost always "No" unless stated otherwise
 - transgender: almost always "No" unless stated otherwise`
@@ -95,14 +98,23 @@ Rules for non-dropdown fields:
 - Open-ended questions: 2-3 genuine sentences from their actual experience
 - Unknown info: null
 
-Return a JSON array — one entry per question, preserving the exact label:
+Return a bare JSON array (no wrapper object), one entry per question, preserving the exact label:
 [{ "label": "exact label text", "answer": "verbatim option or written answer or null" }]`
 
-    const fields = await withTimeout(
-      generateJSONCerebras<FieldAnswer[]>(systemPrompt, userPrompt),
+    const raw = await withTimeout(
+      generateJSONCerebras<unknown>(systemPrompt, userPrompt),
       30000,
       'extension-ai-fill'
     )
+
+    let fields: FieldAnswer[]
+    if (Array.isArray(raw)) {
+      fields = raw as FieldAnswer[]
+    } else if (raw && typeof raw === 'object' && Array.isArray((raw as Record<string, unknown>).fields)) {
+      fields = (raw as { fields: FieldAnswer[] }).fields
+    } else {
+      fields = []
+    }
 
     return ok({ fields })
   } catch (e) {
