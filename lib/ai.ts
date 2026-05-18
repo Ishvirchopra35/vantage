@@ -255,6 +255,49 @@ Respond ONLY with valid JSON. No markdown, no backticks, no explanation.`;
   }
 }
 
+// ── Cerebras (OpenAI-compatible) ─────────────────────────────────────────────
+// Used for interview prep routes — separate rate limit from Groq.
+
+async function generateTextCerebras(
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens = 1000
+): Promise<string> {
+  const apiKey = process.env.CEREBRAS_API_KEY
+  if (!apiKey) throw new Error('CEREBRAS_API_KEY is not set')
+  const res = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'llama3.1-8b',
+      max_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    }),
+  })
+  const data = await res.json() as {
+    choices?: Array<{ message?: { content?: string } }>
+    error?: { message: string }
+  }
+  if (!res.ok) throw new Error(data.error?.message ?? JSON.stringify(data))
+  const content = data.choices?.[0]?.message?.content
+  if (!content?.trim()) throw new Error('Empty response from Cerebras')
+  return content.trim()
+}
+
+export async function generateJSONCerebras<T = unknown>(
+  systemPrompt: string,
+  userPrompt: string
+): Promise<T> {
+  const jsonSystem = `${systemPrompt}\n\nRespond ONLY with valid JSON. No markdown, no backticks, no explanation.`
+  const raw = await generateTextCerebras(jsonSystem, userPrompt, 2000)
+  return parseJSONResponse<T>(raw, 'cerebras')
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function parseJSONResponse<T>(raw: string, label: string): T {
   let candidate = raw.trim()
   candidate = candidate

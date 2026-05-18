@@ -213,3 +213,14 @@ type: Fix
 title: Networking contact search — URL encoding, logging, and AI fallback
 - app/api/find-contacts/route.ts: encodeURIComponent the full target URL before appending to r.jina.ai/ so LinkedIn query strings are routed correctly; added console.error logging of Jina response length and first 500 chars for debugging; added CAPTCHA detection to isUsableMarkdown; AI fallback now fires when contacts array is empty (not just when markdown is empty) — generates 3 realistic AI-suggested contacts with ai_generated:true; job-relevance scoring skipped for ai_generated source
 - app/(dashboard)/networking/page.tsx: Contact interface gains ai_generated field; contactSource state tracks the search source from the API; ContactCard shows "AI suggested · verify manually" amber badge when ai_generated is true; amber disclaimer banner shown above contact cards when source is ai_generated
+
+---
+date: 2026-05-17
+type: Feature
+title: Cerebras AI for interview prep + full UI restyle
+- lib/ai.ts: added generateTextCerebras and generateJSONCerebras using Cerebras OpenAI-compatible API (https://api.cerebras.ai/v1, model llama-3.3-70b) — separate rate limit from Groq
+- app/api/interview-prep/generate/route.ts: switched from generateJSON (Groq) to generateJSONCerebras; removed forceSecondary logic; fixed JSON prompt format to use explicit object template; typed result as InterviewQuestions instead of any
+- app/api/interview-prep/assess/route.ts: switched to generateJSONCerebras; fixed JSON prompt format; typed assessment as Assessment interface instead of any; simplified feedback keying (uses question text directly, consistent with client); removed qHash
+- app/(dashboard)/interview/page.tsx: full restyle — landing page with Start session card and past sessions table (Company/Date/Progress columns); practice session with pill category tabs, redesigned question cards (question left, buttons right), Voice/Type toggle pills, "I don't know" link, typed textarea, assessment grid with Strengths/Improve columns and filler word badges
+- .env.local: added CEREBRAS_API_KEY placeholder
+- new env var required: CEREBRAS_API_KEY

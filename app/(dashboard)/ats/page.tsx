@@ -142,7 +142,7 @@ export default function AtsPage() {
           .order('scored_at', { ascending: false }),
         supabase
           .from('jobs')
-          .select('id, title, company')
+          .select('id, title, company, applications!inner(id)')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
@@ -173,7 +173,7 @@ export default function AtsPage() {
       }
 
       setScores((scoresRes.data ?? []) as unknown as AtsScoreRow[]);
-      setJobs((jobsRes.data ?? []) as JobRow[]);
+      setJobs((jobsRes.data ?? []).map(({ id, title, company }) => ({ id, title, company })) as JobRow[]);
       setBaseResume((baseResumeRes.data ?? null) as ResumeRow | null);
       setTailoredDocs((docsRes.data ?? []) as DocumentRow[]);
 

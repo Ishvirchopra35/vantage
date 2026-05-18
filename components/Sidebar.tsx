@@ -33,6 +33,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/tracker', label: 'Applications' },
   { href: '/strategy', label: 'Strategy' },
   { href: '/networking', label: 'Networking' },
+  { href: '/interview', label: 'Interview Prep' },
   { href: '/profile', label: 'Profile' },
   { href: '/settings', label: 'Settings' },
   { href: '/billing', label: 'Billing', freemiumOnly: true },

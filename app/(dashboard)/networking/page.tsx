@@ -170,10 +170,10 @@ export default function NetworkingPage() {
   async function loadJobs() {
     const { data } = await supabase
       .from('jobs')
-      .select('id, title, company')
+      .select('id, title, company, applications!inner(id)')
       .order('created_at', { ascending: false })
       .limit(30)
-    setJobs((data ?? []) as Job[])
+    setJobs((data ?? []).map(({ id, title, company }) => ({ id, title, company })) as Job[])
   }
 
   async function loadMessages() {
