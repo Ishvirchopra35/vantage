@@ -14,6 +14,8 @@ export interface Profile {
   skills: string[] | null;
   target_roles: string[] | null;
   linkedin_url: string | null;
+  portfolio_url: string | null;
+  github_url: string | null;
   updated_at: string | null;
 }
 
@@ -49,6 +51,8 @@ export async function updateProfile(userId: string, data: Partial<Profile>) {
         skills: data.skills,
         target_roles: data.target_roles,
         linkedin_url: data.linkedin_url,
+        portfolio_url: data.portfolio_url,
+        github_url: data.github_url,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'id',

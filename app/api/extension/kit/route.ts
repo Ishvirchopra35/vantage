@@ -2,6 +2,8 @@
 // ALTER TABLE profiles ADD COLUMN IF NOT EXISTS extension_token text;
 // ALTER TABLE profiles ADD COLUMN IF NOT EXISTS extension_token_created_at timestamptz;
 // ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone text;
+// ALTER TABLE profiles ADD COLUMN IF NOT EXISTS portfolio_url text;
+// ALTER TABLE profiles ADD COLUMN IF NOT EXISTS github_url text;
 
 import { createClient } from '@supabase/supabase-js'
 import { ok, unauthorized } from '@/lib/apiResponse'
@@ -16,6 +18,9 @@ interface Kit {
   email: string | null
   phone: string | null
   linkedin: string | null
+  portfolio: string
+  github: string
+  location: string
   referralSource: string
   coverLetter: string | null
   answers: Record<string, string>
@@ -45,7 +50,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('id, full_name, email, phone, linkedin_url')
+    .select('id, full_name, email, phone, linkedin_url, portfolio_url, github_url')
     .eq('extension_token', token)
     .limit(1)
     .single()
@@ -110,6 +115,9 @@ export async function GET(request: Request): Promise<Response> {
     email: profile.email as string | null,
     phone: profile.phone as string | null,
     linkedin: profile.linkedin_url as string | null,
+    portfolio: (profile.portfolio_url as string | null) ?? '',
+    github: (profile.github_url as string | null) ?? '',
+    location: '',
     referralSource: 'LinkedIn',
     coverLetter,
     answers,

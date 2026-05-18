@@ -16,6 +16,8 @@ export interface Profile {
   skills: string[] | null;
   target_roles: string[] | null;
   linkedin_url: string | null;
+  portfolio_url?: string | null;
+  github_url?: string | null;
   updated_at: string | null;
 }
 
@@ -31,6 +33,8 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
   const [graduationYear, setGraduationYear] = useState(initialData?.graduation_year || 2026);
   const [yearsExperience, setYearsExperience] = useState(initialData?.years_experience || 0);
   const [linkedinUrl, setLinkedinUrl] = useState(initialData?.linkedin_url || '');
+  const [portfolioUrl, setPortfolioUrl] = useState(initialData?.portfolio_url || '');
+  const [githubUrl, setGithubUrl] = useState(initialData?.github_url || '');
   const [skills, setSkills] = useState<string[]>(initialData?.skills || []);
   const [targetRoles, setTargetRoles] = useState<string[]>(initialData?.target_roles || []);
 
@@ -53,6 +57,8 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
     setGraduationYear(prev => prev === 2026 ? (initialData.graduation_year || 2026) : prev);
     setYearsExperience(prev => prev === 0 ? (initialData.years_experience ?? 0) : prev);
     setLinkedinUrl(prev => prev || initialData.linkedin_url || '');
+    setPortfolioUrl(prev => prev || initialData.portfolio_url || '');
+    setGithubUrl(prev => prev || initialData.github_url || '');
     setSkills(prev => prev.length === 0 ? (initialData.skills || []) : prev);
     setTargetRoles(prev => prev.length === 0 ? (initialData.target_roles || []) : prev);
   }, [initialData]);
@@ -128,6 +134,8 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
       graduation_year: graduationYear || null,
       years_experience: yearsExperience || null,
       linkedin_url: linkedinUrl,
+      portfolio_url: portfolioUrl || null,
+      github_url: githubUrl || null,
       skills: skills,
       target_roles: targetRoles,
     } as Partial<Profile>);
@@ -370,6 +378,38 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
           placeholder="https://linkedin.com/in/yourprofile"
           value={linkedinUrl}
           onChange={(e) => setLinkedinUrl(e.target.value)}
+          style={fieldStyle}
+          onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
+          onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
+        />
+      </div>
+
+      {/* Portfolio URL */}
+      <div style={{ marginBottom: '18px' }}>
+        <label style={labelStyle}>
+          Portfolio URL <span style={{ color: 'var(--muted)' }}>(optional)</span>
+        </label>
+        <input
+          type="url"
+          placeholder="https://yourportfolio.com"
+          value={portfolioUrl}
+          onChange={(e) => setPortfolioUrl(e.target.value)}
+          style={fieldStyle}
+          onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
+          onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
+        />
+      </div>
+
+      {/* GitHub URL */}
+      <div style={{ marginBottom: '18px' }}>
+        <label style={labelStyle}>
+          GitHub URL <span style={{ color: 'var(--muted)' }}>(optional)</span>
+        </label>
+        <input
+          type="url"
+          placeholder="https://github.com/yourusername"
+          value={githubUrl}
+          onChange={(e) => setGithubUrl(e.target.value)}
           style={fieldStyle}
           onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
           onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}

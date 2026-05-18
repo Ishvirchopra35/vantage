@@ -113,6 +113,9 @@
     { key: 'email',       patterns: [/\bemail\b/i, /\be-mail\b/i] },
     { key: 'phone',       patterns: [/\bphone\b/i, /\bmobile\b/i, /\btelephone\b/i, /\btel\b/i, /\bcell\b/i] },
     { key: 'linkedin',    patterns: [/\blinkedin\b/i] },
+    { key: 'portfolio',   patterns: [/\bportfolio\b/i, /\bpersonal.?website\b/i, /\bpersonal.?site\b/i] },
+    { key: 'github',      patterns: [/\bgithub\b/i, /\bgit.?hub\b/i] },
+    { key: 'location',    patterns: [/\blocation\b/i, /\bwhere are you located\b/i, /\bcity\b/i] },
   ];
 
   const TEXTAREA_MATCHERS = [
@@ -220,6 +223,9 @@
       email: kit.email || '',
       phone: kit.phone || '',
       linkedin: kit.linkedin || '',
+      portfolio: kit.portfolio || '',
+      github: kit.github || '',
+      location: kit.location || '',
       coverLetter: kit.coverLetter || '',
       ...(kit.answers || {}),
     };
@@ -310,7 +316,41 @@
     // ── Greenhouse second pass ────────────────────────────────────────────────
     filled += fillGreenhouseDropdowns(kit);
 
+    // ── Checkboxes ────────────────────────────────────────────────────────────
+    fillCheckboxes();
+
     return filled;
+  }
+
+  // ── Checkbox handler ─────────────────────────────────────────────────────────
+
+  function fillCheckboxes() {
+    const checkboxes = queryShadow(document.body, 'input[type="checkbox"]');
+    for (const cb of checkboxes) {
+      if (cb.disabled) continue;
+
+      const container = cb.closest('[class*="field"],[class*="question"],[class*="form-group"],li,label');
+      const forLabel = cb.id
+        ? document.querySelector(`label[for="${CSS.escape(cb.id)}"]`)
+        : null;
+      const labelText = (
+        container?.textContent ||
+        forLabel?.textContent ||
+        cb.getAttribute('aria-label') ||
+        ''
+      ).toLowerCase().trim();
+
+      if (
+        labelText.includes('contact me') ||
+        labelText.includes('future job opportunities') ||
+        labelText.includes('can contact')
+      ) {
+        if (!cb.checked) cb.click();
+      } else if (labelText.includes('use name only')) {
+        if (!cb.checked) cb.click();
+      }
+      // Skip pronoun checkboxes (he/him, she/her, they/them, etc.)
+    }
   }
 
   // ── Message listener ──────────────────────────────────────────────────────────
