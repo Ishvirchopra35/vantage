@@ -128,6 +128,9 @@ export default function ApplyPrepPage() {
   })
   const [markingApplied, setMarkingApplied] = useState(false)
 
+  // Auto-fill
+  const [extensionInstalled, setExtensionInstalled] = useState(false)
+
   const allChecked = CHECKLIST_ITEMS.every(({ key }) => checklist[key])
 
   // ─── Load ──────────────────────────────────────────────────────────────
@@ -141,7 +144,7 @@ export default function ApplyPrepPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
-      const [jobRes, docsRes, atsRes, appRes] = await Promise.all([
+      const [jobRes, docsRes, atsRes, appRes, profileRes] = await Promise.all([
         supabase
           .from('jobs')
           .select('id, title, company, required_skills, keywords')
@@ -171,6 +174,11 @@ export default function ApplyPrepPage() {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('extension_token')
+          .eq('id', user.id)
+          .single(),
       ])
 
       if (jobRes.error || !jobRes.data) {
@@ -185,6 +193,7 @@ export default function ApplyPrepPage() {
       setCoverDoc(docs.find(d => d.type === 'cover_letter') ?? null)
       setAtsScore((atsRes.data as AtsRow | null) ?? null)
       setApplication((appRes.data as AppRow | null) ?? null)
+      setExtensionInstalled(!!(profileRes.data as { extension_token: string | null } | null)?.extension_token)
 
       if (appRes.data?.id) {
         const qRes = await fetch(`/api/answer-question?applicationId=${appRes.data.id}`)
@@ -575,33 +584,37 @@ export default function ApplyPrepPage() {
         )}
       </div>
 
-      {/* ── Auto-fill (coming soon) ───────────────────────────────────────── */}
-      <div style={{
-        ...card,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '16px',
-        opacity: 0.6,
-      }}>
-        <div>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>Auto-fill</div>
-          <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
-            Paste an application URL and Vantage will fill the form for you using your profile and tailored documents.
+      {/* ── Auto-fill ─────────────────────────────────────────────────────────── */}
+      <div style={card}>
+        <div style={sectionLabel}>Auto-fill</div>
+
+        {extensionInstalled ? (
+          <div style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.7 }}>
+            Click the <strong>Vantage icon</strong> in your toolbar while you have the application form open.{' '}
+            <Link href="/profile#extension-token" style={{ color: 'var(--accent)', textDecoration: 'none', fontSize: '13px' }}>
+              Manage token →
+            </Link>
           </div>
-        </div>
-        <span style={{
-          flexShrink: 0,
-          fontSize: '11px',
-          fontWeight: 600,
-          color: 'var(--muted)',
-          border: '1px solid var(--border)',
-          borderRadius: '6px',
-          padding: '3px 10px',
-          whiteSpace: 'nowrap',
-        }}>
-          Coming soon
-        </span>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.7 }}>
+              Install the Vantage extension to auto-fill application forms with one click.
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <a
+                href="https://chrome.google.com/webstore"
+                target="_blank"
+                rel="noreferrer"
+                style={primaryBtn}
+              >
+                Install extension — 30 seconds
+              </a>
+              <Link href="/profile#extension-token" style={{ ...smallBtn, fontSize: '13px' }}>
+                Already installed? Get your token →
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Submit Checklist ──────────────────────────────────────────────── */}
