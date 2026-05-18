@@ -184,13 +184,16 @@ async function handleFill() {
     let questions;
     try {
       questions = await sendMessage(tab.id, { type: 'EXTRACT_QUESTIONS' });
-    } catch {
+    } catch (e) {
+      console.error('[Vantage] EXTRACT_QUESTIONS failed:', e);
       resultEl.innerHTML = '<div class="result-box result-error mt-8">Could not reach page. Make sure you are on a job application form and try again.</div>';
       return;
     }
 
+    console.log('[Vantage] Extracted questions:', questions);
+
     if (!questions || questions.length === 0) {
-      resultEl.innerHTML = '<div class="result-box result-info mt-8">No form fields found on this page.</div>';
+      resultEl.innerHTML = '<div class="result-box result-info mt-8">No form fields detected on this page.</div>';
       return;
     }
 
@@ -206,16 +209,26 @@ async function handleFill() {
       body: JSON.stringify({ questions, jobUrl: tab.url }),
     });
 
+    console.log('[Vantage] AI fill response status:', aiRes.status);
+    const aiBody = await aiRes.text();
+    console.log('[Vantage] AI fill response body:', aiBody);
+
     if (aiRes.status === 401) {
       resultEl.innerHTML = '<div class="result-box result-error mt-8">Token expired. Reconnect from your profile.</div>';
       return;
     }
     if (!aiRes.ok) {
-      resultEl.innerHTML = '<div class="result-box result-error mt-8">Failed to generate answers. Try again.</div>';
+      resultEl.innerHTML = `<div class="result-box result-error mt-8">API error: ${aiRes.status} — ${aiBody}</div>`;
       return;
     }
 
-    const { data } = await aiRes.json();
+    const { data } = JSON.parse(aiBody);
+    console.log('[Vantage] Fields to fill:', data?.fields);
+
+    if (!data?.fields?.length) {
+      resultEl.innerHTML = '<div class="result-box result-info mt-8">AI returned no fields to fill.</div>';
+      return;
+    }
 
     btn.textContent = 'Filling form...';
 
@@ -223,10 +236,13 @@ async function handleFill() {
     let result;
     try {
       result = await chrome.tabs.sendMessage(tab.id, { type: 'FILL_ANSWERS', fields: data.fields });
-    } catch {
+    } catch (e) {
+      console.error('[Vantage] FILL_ANSWERS failed:', e);
       resultEl.innerHTML = '<div class="result-box result-error mt-8">Could not fill the form. Try refreshing and try again.</div>';
       return;
     }
+
+    console.log('[Vantage] Fill result:', result);
 
     const count = result?.filled ?? 0;
     if (count === 0) {
@@ -234,7 +250,8 @@ async function handleFill() {
     } else {
       resultEl.innerHTML = `<div class="result-box result-success mt-8">Filled ${count} field${count === 1 ? '' : 's'}. Review and submit.</div>`;
     }
-  } catch {
+  } catch (e) {
+    console.error('[Vantage] Unexpected error in handleFill:', e);
     resultEl.innerHTML = '<div class="result-box result-error mt-8">Unexpected error. Try again.</div>';
   } finally {
     filling = false;
