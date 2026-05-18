@@ -34,6 +34,29 @@
     el.dispatchEvent(new Event('blur', { bubbles: true }));
   }
 
+  function fillReactInput(el, value) {
+    if (!el || !value) return;
+    const nativeInputSetter = Object.getOwnPropertyDescriptor(
+      el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype,
+      'value'
+    )?.set;
+    if (nativeInputSetter) {
+      nativeInputSetter.call(el, value);
+    }
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
+    el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+    const reactKey = Object.keys(el).find(k => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance'));
+    if (reactKey) {
+      const fiber = el[reactKey];
+      const props = fiber?.memoizedProps || fiber?.return?.memoizedProps;
+      if (props?.onChange) {
+        props.onChange({ target: { value } });
+      }
+    }
+  }
+
   const selectNativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
 
   function fillSelect(el, value) {
@@ -312,6 +335,18 @@
     return { filled };
   }
 
+  // ── Lever checkbox helper ─────────────────────────────────────────────────────
+
+  function checkLeverCheckbox(input) {
+    if (!input) return;
+    const label = input.closest('label');
+    if (label) {
+      label.click();
+      return;
+    }
+    input.click();
+  }
+
   // ── Lever form fill ───────────────────────────────────────────────────────────
 
   async function fillLeverForm(kit) {
@@ -369,17 +404,46 @@
       filled++;
     }
 
-    // Checkboxes — use .click() so React/DOM change events fire correctly
-    // Consent to marketing contact
+    // Checkboxes — click the wrapping label so Lever's CSS pseudo-element toggles correctly
     const marketingCb = document.querySelector('input[name="consent[marketing]"]');
-    if (marketingCb && !marketingCb.checked) marketingCb.click();
+    if (marketingCb && !marketingCb.checked) checkLeverCheckbox(marketingCb);
 
-    // "Use name only" pronoun option
+    // Pronouns — default to "Use name only"
     const useNameOnlyCb = document.getElementById('useNameOnlyPronounsOption') ||
                           document.querySelector('input[name="pronouns"][value="Use name only"]');
-    if (useNameOnlyCb && !useNameOnlyCb.checked) useNameOnlyCb.click();
+    if (useNameOnlyCb && !useNameOnlyCb.checked) checkLeverCheckbox(useNameOnlyCb);
 
     return { filled };
+  }
+
+  // ── Lever demographic survey (hidden until location is filled) ───────────────
+
+  async function fillLeverSurveyIfVisible(kit) {
+    await new Promise(r => setTimeout(r, 800));
+
+    const survey = document.getElementById('countrySurvey');
+    if (!survey || survey.classList.contains('hidden')) return;
+
+    // Age range radio — default to 21-29
+    const ageTarget = '21-29';
+    const ageRadios = survey.querySelectorAll('input[type="radio"][name*="field0"]');
+    for (const radio of ageRadios) {
+      if (radio.value === ageTarget && !radio.checked) {
+        radio.closest('label')?.click();
+        break;
+      }
+    }
+
+    await new Promise(r => setTimeout(r, 100));
+
+    // Education radio — default to Bachelor
+    const eduRadios = survey.querySelectorAll('input[type="radio"][name*="field3"]');
+    for (const radio of eduRadios) {
+      if (radio.value === 'Bachelor' && !radio.checked) {
+        radio.closest('label')?.click();
+        break;
+      }
+    }
   }
 
   // ── Checkbox handler ─────────────────────────────────────────────────────────
@@ -513,10 +577,32 @@
       }
     }
 
+    // Greenhouse special plain-input fields with question_ prefixed IDs
+    // (no role="combobox", skipped by the combobox pass above)
+    const specialFields = ['question_64567483', 'question_64567484', 'question_64567485', 'question_66194211'];
+    for (const id of specialFields) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const labelId = el.getAttribute('aria-labelledby');
+      const labelEl = labelId ? document.getElementById(labelId) : null;
+      const labelText = labelEl?.textContent?.trim() || el.getAttribute('aria-label') || id;
+      if (seen.has(labelText)) continue;
+      seen.add(labelText);
+      questions.push({ label: labelText, type: el.tagName === 'TEXTAREA' ? 'textarea' : 'text', fieldId: id });
+    }
+
     return questions;
   }
 
   // ── AI answer fill ────────────────────────────────────────────────────────────
+
+  // Hardcode-fills Greenhouse question_ fields that React synthetic events require
+  function fillGreenhouseDirectFields(kit) {
+    fillReactInput(document.getElementById('question_64567483'), kit.firstName);
+    fillReactInput(document.getElementById('question_64567484'), kit.lastName);
+    fillReactInput(document.getElementById('question_64567485'), kit.linkedin);
+    // question_66194211 is filled by AI answer via the normal fill flow
+  }
 
   function labelsMatch(elLabel, targetLabel) {
     const clean = s => s.toLowerCase().replace(/\*/g, '').replace(/\s+/g, ' ').trim();
@@ -614,7 +700,9 @@
     }
   }
 
-  async function fillWithAIAnswers(fields) {
+  const SPECIAL_QUESTION_IDS = ['question_64567483', 'question_64567484', 'question_64567485', 'question_66194211'];
+
+  async function fillWithAIAnswers(fields, kit = {}) {
     let filled = 0;
 
     // ── Pass 1: native inputs, textareas, and <select> elements ──────────────
@@ -633,6 +721,9 @@
 
         if (el.tagName === 'SELECT') {
           if (fillSelect(el, answer)) filled++;
+        } else if (SPECIAL_QUESTION_IDS.includes(el.id)) {
+          fillReactInput(el, answer);
+          filled++;
         } else {
           fill(el, answer);
           filled++;
@@ -654,6 +745,12 @@
     const aiCheckbox = document.getElementById('question_64567494[]_651433054') ||
                        document.querySelector('input[name="question_64567494[]"]');
     if (aiCheckbox && !aiCheckbox.checked) aiCheckbox.click();
+
+    // ── Greenhouse direct fields (firstName/lastName/linkedin bypass AI) ──────
+    fillGreenhouseDirectFields(kit);
+
+    // ── Lever demographic survey (hidden until location fills; waits 800ms) ───
+    await fillLeverSurveyIfVisible(kit);
 
     return { filled };
   }
@@ -678,9 +775,16 @@
     }
 
     if (message.type === 'FILL_ANSWERS') {
-      fillWithAIAnswers(message.fields || [])
+      fillWithAIAnswers(message.fields || [], message.kit || {})
         .then(result => sendResponse(result))
         .catch(e => sendResponse({ filled: 0, error: String(e) }));
+      return true;
+    }
+
+    if (message.type === 'FILL_LEVER_SURVEY') {
+      fillLeverSurveyIfVisible(message.kit || {})
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }));
       return true;
     }
 

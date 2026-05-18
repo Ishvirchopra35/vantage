@@ -69,7 +69,13 @@ export async function POST(request: Request): Promise<Response> {
 
 For dropdown questions, you MUST return the answer as EXACTLY one of the provided option strings — copy it verbatim. Do not paraphrase. If the answer is "SKIP", return null instead.
 
-For demographic questions (gender, ethnicity, sexual orientation, disability, veteran status), always choose the "I don't wish to answer" option (or equivalent phrasing) unless the user's profile explicitly states otherwise.`
+For demographic questions (gender, ethnicity, sexual orientation, disability, veteran status), use the user's actual profile information if available. Only choose "I don't wish to answer" as a last resort when the information is genuinely unknown.
+
+Examples:
+- gender: if the user's name or profile suggests male → pick "Male"
+- veteran: almost always "No, I am not a veteran" unless stated otherwise
+- disability: almost always "No" unless stated otherwise
+- transgender: almost always "No" unless stated otherwise`
 
     const userPrompt = `Here is the applicant's information:
 ${contextStr}

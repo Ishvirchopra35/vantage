@@ -176,6 +176,9 @@ async function handleFill() {
       return;
     }
 
+    const kitData = await kitRes.json();
+    const userKit = kitData?.data?.kit || {};
+
     btn.textContent = 'Reading form...';
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -237,7 +240,7 @@ async function handleFill() {
     // 4. Fill the answers into the form
     let result;
     try {
-      result = await chrome.tabs.sendMessage(tab.id, { type: 'FILL_ANSWERS', fields });
+      result = await chrome.tabs.sendMessage(tab.id, { type: 'FILL_ANSWERS', fields, kit: userKit });
     } catch (e) {
       console.error('[Vantage] FILL_ANSWERS failed:', e);
       resultEl.innerHTML = '<div class="result-box result-error mt-8">Could not fill the form. Try refreshing and try again.</div>';
@@ -245,6 +248,9 @@ async function handleFill() {
     }
 
     console.log('[Vantage] Fill result:', result);
+
+    // Second pass — fill Lever demographic survey after location dropdown triggers it
+    chrome.tabs.sendMessage(tab.id, { type: 'FILL_LEVER_SURVEY', kit: userKit }).catch(() => {});
 
     const count = result?.filled ?? 0;
     if (count === 0) {
