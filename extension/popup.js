@@ -141,6 +141,16 @@ async function handleSaveToken() {
   }
 }
 
+async function sendFill(tabId, kit) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, { type: 'VANTAGE_FILL', kit });
+  } catch {
+    // Content script not running on this tab — inject it then retry
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+    return await chrome.tabs.sendMessage(tabId, { type: 'VANTAGE_FILL', kit });
+  }
+}
+
 async function handleFill() {
   if (filling) return;
   filling = true;
@@ -173,20 +183,21 @@ async function handleFill() {
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    chrome.tabs.sendMessage(tab.id, { type: 'VANTAGE_FILL', kit }, (response) => {
-      if (chrome.runtime.lastError) {
-        resultEl.innerHTML = '<div class="result-box result-error mt-8">Could not reach page. Refresh and try again.</div>';
-        return;
-      }
+    let response;
+    try {
+      response = await sendFill(tab.id, kit);
+    } catch {
+      resultEl.innerHTML = '<div class="result-box result-error mt-8">Could not reach page. Make sure you are on a job application form and try again.</div>';
+      return;
+    }
 
-      const count = response?.filled ?? 0;
-      if (count === 0) {
-        resultEl.innerHTML = '<div class="result-box result-info mt-8">No matching fields found on this page.</div>';
-      } else {
-        resultEl.innerHTML = `<div class="result-box result-success mt-8">Filled ${count} field${count === 1 ? '' : 's'}.</div>`;
-      }
-    });
-  } catch (e) {
+    const count = response?.filled ?? 0;
+    if (count === 0) {
+      resultEl.innerHTML = '<div class="result-box result-info mt-8">No matching fields found on this page.</div>';
+    } else {
+      resultEl.innerHTML = `<div class="result-box result-success mt-8">Filled ${count} field${count === 1 ? '' : 's'}. Review and submit.</div>`;
+    }
+  } catch {
     resultEl.innerHTML = '<div class="result-box result-error mt-8">Unexpected error. Try again.</div>';
   } finally {
     filling = false;
