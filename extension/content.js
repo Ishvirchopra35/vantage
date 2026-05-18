@@ -210,9 +210,62 @@
     return filled;
   }
 
+  // ── Custom div-based dropdown handler (Greenhouse, Lever) ───────────────────
+
+  async function fillCustomDropdowns(kit) {
+    const dropdownTriggers = queryShadow(document.body,
+      '[role="combobox"], [role="listbox"], [class*="select__control"], [class*="SelectInput"], [class*="dropdown-trigger"], [data-qa="select"]'
+    );
+
+    console.log('[Vantage] Custom dropdown triggers found:', dropdownTriggers.length, dropdownTriggers);
+
+    for (const trigger of dropdownTriggers) {
+      const container = trigger.closest('[class*="field"],[class*="question"],[class*="form-group"],[class*="application-question"]') || trigger.parentElement?.parentElement;
+      const labelEl = container?.querySelector('label, [class*="label"], legend');
+      const questionText = (labelEl?.textContent || trigger.getAttribute('aria-label') || trigger.getAttribute('placeholder') || '').toLowerCase().trim();
+
+      console.log('[Vantage] Dropdown question:', questionText);
+
+      let targetValue = null;
+      if (questionText.includes('authorized to work') || questionText.includes('work authorization')) targetValue = 'Yes';
+      else if (questionText.includes('visa') || questionText.includes('sponsorship')) targetValue = 'No';
+      else if (questionText.includes('non-compete') || questionText.includes('non-solicitation')) targetValue = 'No';
+      else if (questionText.includes('comfortable') || questionText.includes('pay range') || questionText.includes('compensation')) targetValue = 'Yes';
+      else if (questionText.includes('how did you hear') || questionText.includes('how did you find')) targetValue = 'LinkedIn';
+      else if (questionText.includes('location') || questionText.includes('where are you')) targetValue = kit.location;
+
+      if (!targetValue) continue;
+
+      trigger.click();
+      trigger.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+
+      await new Promise(r => setTimeout(r, 300));
+
+      const options = queryShadow(document.body,
+        '[role="option"], [class*="select__option"], [class*="SelectOption"], [class*="dropdown-item"], li[class*="option"]'
+      );
+
+      console.log('[Vantage] Options found after click:', options.length, options.map(o => o.textContent?.trim()));
+
+      const match = options.find(o =>
+        o.textContent?.toLowerCase().includes(targetValue.toLowerCase())
+      );
+
+      if (match) {
+        match.click();
+        match.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        console.log('[Vantage] Clicked option:', match.textContent?.trim());
+      } else {
+        trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      }
+
+      await new Promise(r => setTimeout(r, 200));
+    }
+  }
+
   // ── Main fill function ────────────────────────────────────────────────────────
 
-  function fillForm(kit) {
+  async function fillForm(kit) {
     console.log('[Vantage] fillForm called, kit keys:', Object.keys(kit));
     let filled = 0;
 
@@ -319,7 +372,10 @@
     // ── Checkboxes ────────────────────────────────────────────────────────────
     fillCheckboxes();
 
-    return filled;
+    // ── Custom div-based dropdowns (Greenhouse, Lever) ────────────────────────
+    await fillCustomDropdowns(kit);
+
+    return { filled };
   }
 
   // ── Checkbox handler ─────────────────────────────────────────────────────────
@@ -358,12 +414,9 @@
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type !== 'VANTAGE_FILL') return false;
 
-    try {
-      const filled = fillForm(message.kit);
-      sendResponse({ filled });
-    } catch (e) {
-      sendResponse({ filled: 0, error: String(e) });
-    }
+    fillForm(message.kit)
+      .then(result => sendResponse(result))
+      .catch(e => sendResponse({ filled: 0, error: String(e) }));
 
     return true;
   });

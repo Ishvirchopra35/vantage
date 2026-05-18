@@ -240,3 +240,11 @@ title: Chrome Extension for job application auto-fill
 - app/(dashboard)/actions.ts: Profile interface and updateProfile upsert include phone
 - lib/userContext.ts: UserContext interface and fetchProfile query include phone
 - SQL migration required: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS extension_token text; ADD COLUMN IF NOT EXISTS extension_token_created_at timestamptz; ADD COLUMN IF NOT EXISTS phone text;
+
+---
+date: 2026-05-17
+type: Update
+title: Extension — custom div-based dropdown handler for Greenhouse and Lever
+- extension/content.js: added async fillCustomDropdowns(kit) that finds role="combobox"/role="listbox"/class*="select__control" and similar triggers; clicks to open, waits 300ms, finds role="option" elements, clicks the matching option; handles work authorization, sponsorship, non-compete, compensation, referral source, and location questions
+- extension/content.js: fillForm() converted to async, calls await fillCustomDropdowns(kit) after the Greenhouse second pass, returns { filled } object instead of a bare number
+- extension/content.js: chrome.runtime.onMessage listener updated to return true and resolve with fillForm().then(sendResponse) so the async response is delivered correctly
