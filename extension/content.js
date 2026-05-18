@@ -34,27 +34,25 @@
     el.dispatchEvent(new Event('blur', { bubbles: true }));
   }
 
-  function fillReactInput(el, value) {
+  function reactFill(el, value) {
     if (!el || !value) return;
-    const nativeInputSetter = Object.getOwnPropertyDescriptor(
-      el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype,
-      'value'
-    )?.set;
-    if (nativeInputSetter) {
-      nativeInputSetter.call(el, value);
+    if (el.tagName === 'TEXTAREA') {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+      if (setter) {
+        setter.call(el, value);
+      } else {
+        el.value = value;
+      }
+    } else {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      if (setter) {
+        setter.call(el, value);
+      } else {
+        el.value = value;
+      }
     }
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
-    el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
-    el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
-    const reactKey = Object.keys(el).find(k => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance'));
-    if (reactKey) {
-      const fiber = el[reactKey];
-      const props = fiber?.memoizedProps || fiber?.return?.memoizedProps;
-      if (props?.onChange) {
-        props.onChange({ target: { value } });
-      }
-    }
   }
 
   const selectNativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
@@ -534,6 +532,8 @@
   // ── AI-driven question extraction ─────────────────────────────────────────────
 
   function extractFormQuestions() {
+    if (isWorkday()) return extractWorkdayQuestions();
+
     const questions = [];
     const seen = new Set();
 
@@ -598,10 +598,33 @@
 
   // Hardcode-fills Greenhouse question_ fields that React synthetic events require
   function fillGreenhouseDirectFields(kit) {
-    fillReactInput(document.getElementById('question_64567483'), kit.firstName);
-    fillReactInput(document.getElementById('question_64567484'), kit.lastName);
-    fillReactInput(document.getElementById('question_64567485'), kit.linkedin);
-    // question_66194211 is filled by AI answer via the normal fill flow
+    reactFill(document.getElementById('question_64567483'), kit.firstName);
+    reactFill(document.getElementById('question_64567484'), kit.lastName);
+    reactFill(document.getElementById('question_64567485'), kit.linkedin);
+    // question_66194211 is filled by AI answer via fillPlainTextFields
+  }
+
+  // Fills input[type="text"] and textarea elements by matching aria-labelledby/aria-label
+  // against AI answer labels — handles Greenhouse question_ fields and similar React inputs
+  function fillPlainTextFields(fields) {
+    const inputs = document.querySelectorAll(
+      'input[type="text"]:not([role="combobox"]):not([tabindex="-1"]), textarea'
+    );
+    for (const input of inputs) {
+      if (input.disabled || input.readOnly || input.value) continue;
+      const labelId = input.getAttribute('aria-labelledby');
+      const labelEl = labelId ? document.getElementById(labelId) : null;
+      const elLabel = (labelEl?.textContent || input.getAttribute('aria-label') || '').trim();
+      if (!elLabel) continue;
+
+      for (const { label: targetLabel, answer } of fields) {
+        if (!answer || answer === 'null') continue;
+        if (labelsMatch(elLabel, targetLabel)) {
+          reactFill(input, answer);
+          break;
+        }
+      }
+    }
   }
 
   function labelsMatch(elLabel, targetLabel) {
@@ -700,9 +723,106 @@
     }
   }
 
+  // ── Workday detection and fill ────────────────────────────────────────────────
+
+  function isWorkday() {
+    return window.location.hostname.includes('myworkdayjobs.com') ||
+           window.location.hostname.includes('workday.com') ||
+           document.querySelector('[data-automation-id]') !== null;
+  }
+
+  async function fillWorkdayInput(el, value) {
+    if (!el) return;
+    el.click();
+    el.focus();
+    await new Promise(r => setTimeout(r, 300));
+    el.select?.();
+    document.execCommand('selectAll');
+    document.execCommand('delete');
+    await new Promise(r => setTimeout(r, 100));
+    for (const char of value) {
+      document.execCommand('insertText', false, char);
+      await new Promise(r => setTimeout(r, 20 + Math.random() * 30));
+    }
+    el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  async function findWorkdayInputByLabel(labelText) {
+    const allLabels = document.querySelectorAll(
+      '[data-automation-id*="FormLabel"], label, [class*="css-"][class*="Label"]'
+    );
+    for (const label of allLabels) {
+      if (label.textContent.toLowerCase().includes(labelText.toLowerCase())) {
+        const container = label.closest('[data-automation-id]') || label.parentElement;
+        const input = container?.querySelector('input, textarea');
+        if (input) return input;
+      }
+    }
+    return null;
+  }
+
+  async function fillWorkdayDropdown(labelText, optionText) {
+    const input = await findWorkdayInputByLabel(labelText);
+    if (!input) return;
+    input.click();
+    input.focus();
+    await new Promise(r => setTimeout(r, 500));
+    document.execCommand('insertText', false, optionText.substring(0, 3));
+    await new Promise(r => setTimeout(r, 600));
+    const options = document.querySelectorAll(
+      '[data-automation-id="promptOption"], [role="option"], [class*="option"]'
+    );
+    const match = Array.from(options).find(o =>
+      o.textContent.trim().toLowerCase().includes(optionText.toLowerCase())
+    );
+    if (match) {
+      match.click();
+      await new Promise(r => setTimeout(r, 300));
+    }
+  }
+
+  function extractWorkdayQuestions() {
+    const questions = [];
+    const inputs = document.querySelectorAll(
+      'input[type="text"]:not([type="hidden"]), input[type="email"], input[type="tel"], textarea'
+    );
+    for (const input of inputs) {
+      let labelText = '';
+      let el = input.parentElement;
+      for (let i = 0; i < 5; i++) {
+        const label = el?.querySelector('label, [class*="Label"], [data-automation-id*="Label"]');
+        if (label) {
+          labelText = label.textContent.trim();
+          break;
+        }
+        el = el?.parentElement;
+      }
+      if (labelText) questions.push({ label: labelText, type: 'text' });
+    }
+    return questions;
+  }
+
+  async function fillWorkdayForm(fields) {
+    let filled = 0;
+    for (const { label: targetLabel, answer } of fields) {
+      if (!answer || answer === 'null') continue;
+      const input = await findWorkdayInputByLabel(targetLabel);
+      if (!input) continue;
+      await fillWorkdayInput(input, answer);
+      filled++;
+      await new Promise(r => setTimeout(r, 500));
+    }
+    return { filled };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const SPECIAL_QUESTION_IDS = ['question_64567483', 'question_64567484', 'question_64567485', 'question_66194211'];
 
   async function fillWithAIAnswers(fields, kit = {}) {
+    if (isWorkday()) return fillWorkdayForm(fields);
+
     let filled = 0;
 
     // ── Pass 1: native inputs, textareas, and <select> elements ──────────────
@@ -722,7 +842,7 @@
         if (el.tagName === 'SELECT') {
           if (fillSelect(el, answer)) filled++;
         } else if (SPECIAL_QUESTION_IDS.includes(el.id)) {
-          fillReactInput(el, answer);
+          reactFill(el, answer);
           filled++;
         } else {
           fill(el, answer);
@@ -745,6 +865,9 @@
     const aiCheckbox = document.getElementById('question_64567494[]_651433054') ||
                        document.querySelector('input[name="question_64567494[]"]');
     if (aiCheckbox && !aiCheckbox.checked) aiCheckbox.click();
+
+    // ── Pass 5: plain text + textarea fields via aria-label (React-compatible) ──
+    fillPlainTextFields(fields);
 
     // ── Greenhouse direct fields (firstName/lastName/linkedin bypass AI) ──────
     fillGreenhouseDirectFields(kit);

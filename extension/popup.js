@@ -235,7 +235,8 @@ async function handleFill() {
       return;
     }
 
-    btn.textContent = 'Filling form...';
+    const onWorkday = currentTabUrl.includes('myworkdayjobs.com') || currentTabUrl.includes('workday.com');
+    btn.textContent = onWorkday ? 'Filling Workday form (~30s)...' : 'Filling form...';
 
     // 4. Fill the answers into the form
     let result;
