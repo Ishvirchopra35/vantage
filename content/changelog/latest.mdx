@@ -259,3 +259,15 @@ title: Extension — fix dropdown bleeding and Lever location select
 - extension/content.js fillCustomDropdowns: option search scoped to the open panel (select__menu/dropdown-menu/listbox/SelectMenu) instead of document.body, preventing 244 country options from bleeding across all dropdowns
 - extension/content.js fillCustomDropdowns: after clicking a matching option, waits 400ms then dispatches Escape to cleanly close the panel
 - extension/content.js fillCustomDropdowns: Lever native-select second pass added at end of function — queries all document selects, matches label containing "location"/"where", fills via value + change event
+
+---
+date: 2026-05-18
+type: Fix
+title: Extension — phone dropdown filter, proximity panel detection, and open-ended question fill
+- extension/content.js fillCustomDropdowns: phone/country skip now checks trigger className and aria-label for "phone"/"country"/"flag" in addition to container tel input — catches dropdowns where the phone field is not a sibling
+- extension/content.js fillCustomDropdowns: adds options.length > 50 guard after panel opens — dispatches Escape and skips when the open panel is a country/state list
+- extension/content.js fillCustomDropdowns: open panel detection replaced with proximity-based search — finds allPanels, picks the one whose top is within 200px of the trigger's bottom, falls back to last panel; prevents a distant open panel from being used for the wrong trigger
+- extension/content.js textarea loop: open-ended question fill added — if no cover letter key matches, checks label for "excites you", "career goals", "why do you want", "why are you interested", "tell us about yourself", "what would you contribute", "long-term", "passion", "motivated" and fills from kit.applicationQuestions.excited or .goals
+- app/api/extension/kit/route.ts: Kit interface gains applicationQuestions field
+- app/api/extension/kit/route.ts: job query updated to select title, company, key_responsibilities, company_description
+- app/api/extension/kit/route.ts: after fetching cover letter and saved questions, generates applicationQuestions via generateJSON with 15s timeout — excited, goals, why_company, contribution — non-critical, fails silently

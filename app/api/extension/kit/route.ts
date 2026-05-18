@@ -7,6 +7,8 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { ok, unauthorized } from '@/lib/apiResponse'
+import { generateJSON } from '@/lib/ai'
+import { withTimeout } from '@/lib/withTimeout'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -24,6 +26,7 @@ interface Kit {
   referralSource: string
   coverLetter: string | null
   answers: Record<string, string>
+  applicationQuestions: Record<string, string>
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -64,11 +67,12 @@ export async function GET(request: Request): Promise<Response> {
 
   let coverLetter: string | null = null
   let answers: Record<string, string> = {}
+  let applicationQuestions: Record<string, string> = {}
 
   if (jobUrl) {
     const { data: job } = await supabase
       .from('jobs')
-      .select('id')
+      .select('id, title, company, key_responsibilities, company_description')
       .eq('user_id', profile.id)
       .eq('url', jobUrl)
       .limit(1)
@@ -100,6 +104,33 @@ export async function GET(request: Request): Promise<Response> {
           if (answer) answers[q.question] = answer
         }
       }
+
+      const jobTitle = (job as Record<string, unknown>).title as string | null
+      const jobCompany = (job as Record<string, unknown>).company as string | null
+      if (jobTitle && jobCompany) {
+        try {
+          const questionsPrompt = `Generate brief, authentic 2-3 sentence answers for these common job application questions for a candidate applying to ${jobTitle} at ${jobCompany}.
+Return JSON with keys being short question identifiers and values being the answers.
+Questions to answer:
+- excited: "What excites you about this position?"
+- goals: "How does this align with your long-term career goals?"
+- why_company: "Why do you want to work here?"
+- contribution: "What would you contribute to our team?"
+
+Keep answers genuine, specific to ${jobCompany}, and under 3 sentences each.`
+
+          applicationQuestions = await withTimeout(
+            generateJSON<Record<string, string>>(
+              'You are a job application assistant. Generate authentic, specific answers for common application questions.',
+              questionsPrompt
+            ),
+            15000,
+            'application-questions'
+          )
+        } catch {
+          // Non-critical — proceed without generated answers
+        }
+      }
     }
   }
 
@@ -121,6 +152,7 @@ export async function GET(request: Request): Promise<Response> {
     referralSource: 'LinkedIn',
     coverLetter,
     answers,
+    applicationQuestions,
   }
 
   return ok({ kit })

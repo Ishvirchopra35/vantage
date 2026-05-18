@@ -222,9 +222,18 @@
     for (const trigger of dropdownTriggers) {
       const container = trigger.closest('[class*="field"],[class*="question"],[class*="form-group"],[class*="application-question"]') || trigger.parentElement?.parentElement;
 
-      // Skip phone country-code pickers
-      const isPhoneField = container?.querySelector('input[type="tel"], input[name*="phone"], input[placeholder*="phone"]');
-      if (isPhoneField) continue;
+      // Skip phone/country dropdowns
+      if (
+        container?.querySelector('input[type="tel"]') ||
+        trigger.className?.toLowerCase().includes('phone') ||
+        trigger.className?.toLowerCase().includes('country') ||
+        trigger.className?.toLowerCase().includes('flag') ||
+        trigger.getAttribute('aria-label')?.toLowerCase().includes('phone') ||
+        trigger.getAttribute('aria-label')?.toLowerCase().includes('country')
+      ) {
+        console.log('[Vantage] Skipping phone/country dropdown')
+        continue
+      }
 
       const labelEl = container?.querySelector('label, [class*="label"], legend');
       const questionText = (labelEl?.textContent || trigger.getAttribute('aria-label') || trigger.getAttribute('placeholder') || '').toLowerCase().trim();
@@ -251,8 +260,13 @@
       // Wait longer for the option list to render
       await new Promise(r => setTimeout(r, 500));
 
-      // Scope option search to the open panel, not the entire document
-      const openPanel = document.querySelector('[class*="select__menu"], [class*="dropdown-menu"], [role="listbox"], [class*="SelectMenu"]');
+      // Find panel near the trigger, not globally
+      const allPanels = document.querySelectorAll('[class*="select__menu"], [class*="dropdown-menu"], [role="listbox"], [class*="SelectMenu"], [class*="menu--open"]')
+      const openPanel = Array.from(allPanels).find(p => {
+        const triggerRect = trigger.getBoundingClientRect()
+        const panelRect = p.getBoundingClientRect()
+        return Math.abs(panelRect.top - triggerRect.bottom) < 200
+      }) || allPanels[allPanels.length - 1]
       if (!openPanel) {
         console.log('[Vantage] No dropdown panel found after click');
         continue;
@@ -260,6 +274,13 @@
 
       const options = queryShadow(openPanel, '[role="option"], [class*="select__option"], [class*="option"], li');
       console.log('[Vantage] Options in open panel:', options.length, options.map(o => o.textContent?.trim()).slice(0, 5));
+
+      if (options.length > 50) {
+        console.log('[Vantage] Too many options, likely country/state list, skipping')
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+        await new Promise(r => setTimeout(r, 200))
+        continue
+      }
 
       const match = options.find(o =>
         o.textContent?.toLowerCase().includes(targetValue.toLowerCase())
@@ -368,9 +389,24 @@
 
       const label = getFieldLabel(el);
       const key = matchKey(label, TEXTAREA_MATCHERS);
-      if (!key) continue;
+      let value = key ? values[key] : null;
 
-      const value = values[key];
+      if (!value && kit.applicationQuestions) {
+        if (
+          label.includes('excites you') ||
+          label.includes('career goals') ||
+          label.includes('why do you want') ||
+          label.includes('why are you interested') ||
+          label.includes('tell us about yourself') ||
+          label.includes('what would you contribute') ||
+          label.includes('long-term') ||
+          label.includes('passion') ||
+          label.includes('motivated')
+        ) {
+          value = kit.applicationQuestions.excited || kit.applicationQuestions.goals || '';
+        }
+      }
+
       if (!value) continue;
 
       if (el.value && el.value !== el.placeholder) continue;
