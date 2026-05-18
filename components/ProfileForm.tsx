@@ -30,7 +30,9 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
   const [fullName, setFullName] = useState(initialData?.full_name || '');
   const [phone, setPhone] = useState(initialData?.phone || '');
   const [university, setUniversity] = useState(initialData?.university || '');
-  const [graduationYear, setGraduationYear] = useState(initialData?.graduation_year || 2026);
+  const currentYear = new Date().getFullYear();
+  const graduationYears = Array.from({ length: currentYear + 7 - 1970 + 1 }, (_, i) => 1970 + i).reverse();
+  const [graduationYear, setGraduationYear] = useState(initialData?.graduation_year || currentYear);
   const [yearsExperience, setYearsExperience] = useState(initialData?.years_experience || 0);
   const [linkedinUrl, setLinkedinUrl] = useState(initialData?.linkedin_url || '');
   const [portfolioUrl, setPortfolioUrl] = useState(initialData?.portfolio_url || '');
@@ -54,7 +56,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
     setFullName(prev => prev || initialData.full_name || '');
     setPhone(prev => prev || initialData.phone || '');
     setUniversity(prev => prev || initialData.university || '');
-    setGraduationYear(prev => prev === 2026 ? (initialData.graduation_year || 2026) : prev);
+    setGraduationYear(prev => prev === currentYear ? (initialData.graduation_year || currentYear) : prev);
     setYearsExperience(prev => prev === 0 ? (initialData.years_experience ?? 0) : prev);
     setLinkedinUrl(prev => prev || initialData.linkedin_url || '');
     setPortfolioUrl(prev => prev || initialData.portfolio_url || '');
@@ -74,7 +76,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
       const { profile: p } = await res.json();
       if (p.full_name) setFullName(prev => prev || p.full_name);
       if (p.university) setUniversity(prev => prev || p.university);
-      if (p.graduation_year) setGraduationYear(prev => prev === 2026 ? p.graduation_year : prev);
+      if (p.graduation_year) setGraduationYear(prev => prev === currentYear ? p.graduation_year : prev);
       if (p.years_experience != null) setYearsExperience(prev => prev === 0 ? p.years_experience : prev);
       if (p.linkedin_url) setLinkedinUrl(prev => prev || p.linkedin_url);
       if (p.skills?.length) setSkills(prev => prev.length === 0 ? p.skills : prev);
@@ -341,7 +343,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
             onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
             onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
           >
-            {[2026, 2027, 2028, 2029, 2030, 2031, 2032].map((year) => (
+            {graduationYears.map((year) => (
               <option key={year} value={year}>
                 {year}
               </option>

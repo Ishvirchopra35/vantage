@@ -54,8 +54,15 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
   }, [])
 
   async function handleFile(file: File) {
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      setError('Only PDF files are supported.')
+    const ext = file.name.toLowerCase().split('.').pop() ?? ''
+    const allowedExts = ['pdf', 'docx', 'doc']
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword',
+    ]
+    if (!allowedExts.includes(ext) && !allowedTypes.includes(file.type)) {
+      setError('Only PDF and Word documents are accepted.')
       return
     }
     if (file.size > 5 * 1024 * 1024) {
@@ -75,9 +82,17 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
       const path = `${user.id}/${Date.now()}-${safeName}`
 
+      const contentTypeMap: Record<string, string> = {
+        pdf: 'application/pdf',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        doc: 'application/msword',
+      }
+      const uploadExt = file.name.toLowerCase().split('.').pop() ?? ''
+      const uploadContentType = contentTypeMap[uploadExt] ?? file.type ?? 'application/octet-stream'
+
       const { error: uploadError } = await supabase.storage
         .from('resumes')
-        .upload(path, file, { contentType: 'application/pdf', upsert: false })
+        .upload(path, file, { contentType: uploadContentType, upsert: false })
 
       if (uploadError) throw new Error(uploadError.message)
 
@@ -92,10 +107,10 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
       const parseRes = await fetch('/api/parse-resume', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileUrl: signedData.signedUrl }),
+        body: JSON.stringify({ fileUrl: signedData.signedUrl, fileName: file.name }),
       })
       const parseJson = await parseRes.json()
-      if (!parseRes.ok) throw new Error(parseJson.error || 'Failed to extract text from PDF')
+      if (!parseRes.ok) throw new Error(parseJson.error || 'Failed to extract text from the document')
 
       const saveRes = await fetch('/api/save-resume', {
         method: 'POST',
@@ -148,7 +163,7 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
       <input
         ref={fileRef}
         type="file"
-        accept=".pdf"
+        accept=".pdf,.docx,.doc"
         style={{ display: 'none' }}
         onChange={e => {
           const file = e.target.files?.[0]
@@ -180,7 +195,7 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
             Uploading...
           </>
         ) : (
-          current ? 'Replace resume' : 'Upload PDF'
+          current ? 'Replace resume' : 'Upload resume'
         )}
       </button>
 

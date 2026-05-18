@@ -13,31 +13,45 @@ export async function POST(request: Request): Promise<Response> {
   const { user } = auth;
 
   const body = await request.json().catch(() => null);
-  const validation = validateBody<{ fileUrl: string }>(body, ['fileUrl']);
+  const validation = validateBody<{ fileUrl: string; fileName?: string }>(body, ['fileUrl']);
   if (!validation.valid) return err(validation.error, 400);
-  const { fileUrl } = validation.data;
+  const { fileUrl, fileName = '' } = validation.data;
 
   let arrayBuffer: ArrayBuffer;
+  let contentType = '';
   try {
-    const response = await withTimeout(fetch(fileUrl), 10000, 'PDF fetch');
+    const response = await withTimeout(fetch(fileUrl), 10000, 'file fetch');
     if (!response.ok) {
       return err('Could not download the uploaded file — please try uploading again', 400);
     }
+    contentType = response.headers.get('content-type') ?? '';
     arrayBuffer = await response.arrayBuffer();
   } catch {
     return err('Could not download the uploaded file — please try uploading again', 400);
   }
 
-  let pdfData: PdfResult;
+  const buffer = Buffer.from(arrayBuffer);
+  const isDocx =
+    /\.docx?$/i.test(fileName) ||
+    contentType.includes('officedocument') ||
+    contentType.includes('msword');
+
+  let text: string;
   try {
-    const pdfParse = require('pdf-parse/lib/pdf-parse.js') as (buffer: Buffer) => Promise<PdfResult>;
-    const buffer = Buffer.from(arrayBuffer);
-    pdfData = await pdfParse(buffer);
+    if (isDocx) {
+      const mammoth = require('mammoth') as { extractRawText: (opts: { buffer: Buffer }) => Promise<{ value: string }> };
+      const result = await mammoth.extractRawText({ buffer });
+      text = result.value;
+    } else {
+      const pdfParse = require('pdf-parse/lib/pdf-parse.js') as (buffer: Buffer) => Promise<PdfResult>;
+      const pdfData = await pdfParse(buffer);
+      text = pdfData.text;
+    }
   } catch (e) {
     await logRoute('/api/parse-resume', user.id, Date.now() - start, 500);
     return serverError(e);
   }
 
   await logRoute('/api/parse-resume', user.id, Date.now() - start, 200);
-  return ok({ text: pdfData.text, pageCount: pdfData.numpages });
+  return ok({ text });
 }
