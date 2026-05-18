@@ -248,3 +248,14 @@ title: Extension — custom div-based dropdown handler for Greenhouse and Lever
 - extension/content.js: added async fillCustomDropdowns(kit) that finds role="combobox"/role="listbox"/class*="select__control" and similar triggers; clicks to open, waits 300ms, finds role="option" elements, clicks the matching option; handles work authorization, sponsorship, non-compete, compensation, referral source, and location questions
 - extension/content.js: fillForm() converted to async, calls await fillCustomDropdowns(kit) after the Greenhouse second pass, returns { filled } object instead of a bare number
 - extension/content.js: chrome.runtime.onMessage listener updated to return true and resolve with fillForm().then(sendResponse) so the async response is delivered correctly
+
+---
+date: 2026-05-17
+type: Fix
+title: Extension — fix dropdown bleeding and Lever location select
+- extension/content.js fillCustomDropdowns: skips triggers inside phone fields (country-code pickers) via container querySelector for tel/phone inputs
+- extension/content.js fillCustomDropdowns: dispatches Escape + 150ms pause before each trigger click to close any previously open panel
+- extension/content.js fillCustomDropdowns: wait increased from 300ms to 500ms after opening a trigger before searching for options
+- extension/content.js fillCustomDropdowns: option search scoped to the open panel (select__menu/dropdown-menu/listbox/SelectMenu) instead of document.body, preventing 244 country options from bleeding across all dropdowns
+- extension/content.js fillCustomDropdowns: after clicking a matching option, waits 400ms then dispatches Escape to cleanly close the panel
+- extension/content.js fillCustomDropdowns: Lever native-select second pass added at end of function — queries all document selects, matches label containing "location"/"where", fills via value + change event

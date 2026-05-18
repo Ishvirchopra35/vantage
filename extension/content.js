@@ -221,6 +221,11 @@
 
     for (const trigger of dropdownTriggers) {
       const container = trigger.closest('[class*="field"],[class*="question"],[class*="form-group"],[class*="application-question"]') || trigger.parentElement?.parentElement;
+
+      // Skip phone country-code pickers
+      const isPhoneField = container?.querySelector('input[type="tel"], input[name*="phone"], input[placeholder*="phone"]');
+      if (isPhoneField) continue;
+
       const labelEl = container?.querySelector('label, [class*="label"], legend');
       const questionText = (labelEl?.textContent || trigger.getAttribute('aria-label') || trigger.getAttribute('placeholder') || '').toLowerCase().trim();
 
@@ -236,16 +241,25 @@
 
       if (!targetValue) continue;
 
+      // Close any dropdown that may still be open from a previous iteration
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await new Promise(r => setTimeout(r, 150));
+
       trigger.click();
       trigger.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
 
-      await new Promise(r => setTimeout(r, 300));
+      // Wait longer for the option list to render
+      await new Promise(r => setTimeout(r, 500));
 
-      const options = queryShadow(document.body,
-        '[role="option"], [class*="select__option"], [class*="SelectOption"], [class*="dropdown-item"], li[class*="option"]'
-      );
+      // Scope option search to the open panel, not the entire document
+      const openPanel = document.querySelector('[class*="select__menu"], [class*="dropdown-menu"], [role="listbox"], [class*="SelectMenu"]');
+      if (!openPanel) {
+        console.log('[Vantage] No dropdown panel found after click');
+        continue;
+      }
 
-      console.log('[Vantage] Options found after click:', options.length, options.map(o => o.textContent?.trim()));
+      const options = queryShadow(openPanel, '[role="option"], [class*="select__option"], [class*="option"], li');
+      console.log('[Vantage] Options in open panel:', options.length, options.map(o => o.textContent?.trim()).slice(0, 5));
 
       const match = options.find(o =>
         o.textContent?.toLowerCase().includes(targetValue.toLowerCase())
@@ -255,11 +269,31 @@
         match.click();
         match.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
         console.log('[Vantage] Clicked option:', match.textContent?.trim());
+        // Let the framework process the selection, then close
+        await new Promise(r => setTimeout(r, 400));
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       } else {
         trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       }
 
       await new Promise(r => setTimeout(r, 200));
+    }
+
+    // Lever native-select second pass for location and similar fields
+    const leverSelects = document.querySelectorAll('select');
+    for (const sel of leverSelects) {
+      const label = (sel.closest('[class*="field"]')?.querySelector('label')?.textContent || '').toLowerCase();
+      if (!label.includes('location') && !label.includes('where')) continue;
+      if (!kit.location) continue;
+
+      const match = Array.from(sel.options).find(o =>
+        o.value && o.text.toLowerCase().includes(kit.location.toLowerCase())
+      );
+      if (match) {
+        sel.value = match.value;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        console.log('[Vantage] Lever location select filled:', match.text);
+      }
     }
   }
 
