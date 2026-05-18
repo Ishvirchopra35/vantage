@@ -303,6 +303,82 @@
     // ── Checkboxes ────────────────────────────────────────────────────────────
     fillCheckboxes();
 
+    // ── Lever-specific fields ─────────────────────────────────────────────────
+    if (window.location.hostname.includes('lever.co')) {
+      const leverResult = await fillLeverForm(kit);
+      filled += leverResult.filled;
+    }
+
+    return { filled };
+  }
+
+  // ── Lever form fill ───────────────────────────────────────────────────────────
+
+  async function fillLeverForm(kit) {
+    let filled = 0;
+
+    // Full name — Lever uses name="name"
+    const nameInput = document.querySelector('input[name="name"]');
+    if (nameInput && kit.fullName && !nameInput.value) {
+      setInput(nameInput, kit.fullName);
+      filled++;
+    }
+
+    // Email
+    const emailInput = document.querySelector('input[type="email"]');
+    if (emailInput && kit.email && !emailInput.value) {
+      setInput(emailInput, kit.email);
+      filled++;
+    }
+
+    // Phone
+    const phoneInput = document.querySelector('input[type="tel"]');
+    if (phoneInput && kit.phone && !phoneInput.value) {
+      setInput(phoneInput, kit.phone);
+      filled++;
+    }
+
+    // Location text input (city string)
+    const locationTextInput = document.getElementById('location-input');
+    if (locationTextInput && kit.location && !locationTextInput.value) {
+      setInput(locationTextInput, kit.location);
+      filled++;
+    }
+
+    // Location country select — extract country from "City, Country" strings
+    const locationSelect = document.querySelector('select.candidate-location, select[data-qa="candidate-location-select"]');
+    if (locationSelect && kit.location) {
+      const country = kit.location.split(',').pop()?.trim() || kit.location;
+      if (fillSelect(locationSelect, country)) filled++;
+    }
+
+    // LinkedIn
+    const linkedinInput = document.querySelector('input[name="urls[LinkedIn]"]') ||
+                          document.querySelector('input[placeholder*="linkedin" i]') ||
+                          document.querySelector('input[name="linkedin"]');
+    if (linkedinInput && kit.linkedin && !linkedinInput.value) {
+      setInput(linkedinInput, kit.linkedin);
+      filled++;
+    }
+
+    // Portfolio / website
+    const portfolioInput = document.querySelector('input[name="urls[Portfolio]"]') ||
+                           document.querySelector('input[name="urls[Other]"]');
+    if (portfolioInput && kit.portfolio && !portfolioInput.value) {
+      setInput(portfolioInput, kit.portfolio);
+      filled++;
+    }
+
+    // Checkboxes — use .click() so React/DOM change events fire correctly
+    // Consent to marketing contact
+    const marketingCb = document.querySelector('input[name="consent[marketing]"]');
+    if (marketingCb && !marketingCb.checked) marketingCb.click();
+
+    // "Use name only" pronoun option
+    const useNameOnlyCb = document.getElementById('useNameOnlyPronounsOption') ||
+                          document.querySelector('input[name="pronouns"][value="Use name only"]');
+    if (useNameOnlyCb && !useNameOnlyCb.checked) useNameOnlyCb.click();
+
     return { filled };
   }
 
