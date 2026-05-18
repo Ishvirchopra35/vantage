@@ -182,176 +182,6 @@
     return null;
   }
 
-  // ── Greenhouse second-pass dropdown fill ─────────────────────────────────────
-  // Greenhouse labels often live in a parent container rather than a <label for="">
-  // or aria-label on the select itself. This pass uses container-based detection.
-
-  function fillGreenhouseDropdowns(kit) {
-    let filled = 0;
-    const allSelects = queryShadow(document.body, 'select');
-    console.log('[Vantage] fillGreenhouseDropdowns: found', allSelects.length, 'select elements');
-
-    for (const select of allSelects) {
-      if (select.disabled) continue;
-      // Already selected in first pass or by the user
-      if (select.selectedIndex > 0) continue;
-
-      // Walk up to the nearest field container and find its label element
-      const container = select.closest(
-        '.field, .form-field, [class*="question"], [class*="field"]'
-      );
-      const labelEl = container
-        ? container.querySelector('label, .label, [class*="label"]')
-        : null;
-
-      // Build question text: container label → aria-label → aria-labelledby → name/id
-      let questionText = (labelEl?.textContent || '').trim();
-      if (!questionText) {
-        questionText = (select.getAttribute('aria-label') || '').trim();
-      }
-      if (!questionText) {
-        const lbId = select.getAttribute('aria-labelledby');
-        if (lbId) {
-          questionText = (document.getElementById(lbId)?.textContent || '').trim();
-        }
-      }
-      if (!questionText && select.name) questionText = select.name;
-      if (!questionText && select.id)   questionText = select.id;
-
-      const lowerQuestion = questionText.toLowerCase();
-
-      console.log('[Vantage] Select found:', select.name || select.id || '(unnamed)', '| Label detected:', lowerQuestion || '(none)');
-
-      if (!lowerQuestion) continue;
-
-      const value = selectValueForLabel(lowerQuestion, kit);
-      if (!value) continue;
-
-      const option = Array.from(select.options).find(o =>
-        o.text.toLowerCase().includes(value.toLowerCase()) ||
-        o.value.toLowerCase().includes(value.toLowerCase())
-      );
-
-      if (option) {
-        if (selectNativeSetter) selectNativeSetter.call(select, option.value);
-        else select.value = option.value;
-        select.dispatchEvent(new Event('change', { bubbles: true }));
-        select.dispatchEvent(new Event('input', { bubbles: true }));
-        filled++;
-      }
-    }
-
-    return filled;
-  }
-
-  // ── Custom div-based dropdown handler (Greenhouse, Lever) ───────────────────
-
-  async function fillCustomDropdowns(kit) {
-    const dropdownTriggers = queryShadow(document.body,
-      '[role="combobox"], [role="listbox"], [class*="select__control"], [class*="SelectInput"], [class*="dropdown-trigger"], [data-qa="select"]'
-    );
-
-    console.log('[Vantage] Custom dropdown triggers found:', dropdownTriggers.length, dropdownTriggers);
-
-    for (const trigger of dropdownTriggers) {
-      const container = trigger.closest('[class*="field"],[class*="question"],[class*="form-group"],[class*="application-question"]') || trigger.parentElement?.parentElement;
-
-      // Skip phone/country dropdowns
-      if (
-        container?.querySelector('input[type="tel"]') ||
-        trigger.className?.toLowerCase().includes('phone') ||
-        trigger.className?.toLowerCase().includes('country') ||
-        trigger.className?.toLowerCase().includes('flag') ||
-        trigger.getAttribute('aria-label')?.toLowerCase().includes('phone') ||
-        trigger.getAttribute('aria-label')?.toLowerCase().includes('country')
-      ) {
-        console.log('[Vantage] Skipping phone/country dropdown')
-        continue
-      }
-
-      const labelEl = container?.querySelector('label, [class*="label"], legend');
-      const questionText = (labelEl?.textContent || trigger.getAttribute('aria-label') || trigger.getAttribute('placeholder') || '').toLowerCase().trim();
-
-      console.log('[Vantage] Dropdown question:', questionText);
-
-      let targetValue = null;
-      if (questionText.includes('authorized to work') || questionText.includes('work authorization')) targetValue = 'Yes';
-      else if (questionText.includes('visa') || questionText.includes('sponsorship')) targetValue = 'No';
-      else if (questionText.includes('non-compete') || questionText.includes('non-solicitation')) targetValue = 'No';
-      else if (questionText.includes('comfortable') || questionText.includes('pay range') || questionText.includes('compensation')) targetValue = 'Yes';
-      else if (questionText.includes('how did you hear') || questionText.includes('how did you find')) targetValue = 'LinkedIn';
-      else if (questionText.includes('location') || questionText.includes('where are you')) targetValue = kit.location;
-
-      if (!targetValue) continue;
-
-      // Close any dropdown that may still be open from a previous iteration
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      await new Promise(r => setTimeout(r, 150));
-
-      trigger.click();
-      trigger.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-
-      // Wait longer for the option list to render
-      await new Promise(r => setTimeout(r, 500));
-
-      // Find panel near the trigger, not globally
-      const allPanels = document.querySelectorAll('[class*="select__menu"], [class*="dropdown-menu"], [role="listbox"], [class*="SelectMenu"], [class*="menu--open"]')
-      const openPanel = Array.from(allPanels).find(p => {
-        const triggerRect = trigger.getBoundingClientRect()
-        const panelRect = p.getBoundingClientRect()
-        return Math.abs(panelRect.top - triggerRect.bottom) < 200
-      }) || allPanels[allPanels.length - 1]
-      if (!openPanel) {
-        console.log('[Vantage] No dropdown panel found after click');
-        continue;
-      }
-
-      const options = queryShadow(openPanel, '[role="option"], [class*="select__option"], [class*="option"], li');
-      console.log('[Vantage] Options in open panel:', options.length, options.map(o => o.textContent?.trim()).slice(0, 5));
-
-      if (options.length > 50) {
-        console.log('[Vantage] Too many options, likely country/state list, skipping')
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
-        await new Promise(r => setTimeout(r, 200))
-        continue
-      }
-
-      const match = options.find(o =>
-        o.textContent?.toLowerCase().includes(targetValue.toLowerCase())
-      );
-
-      if (match) {
-        match.click();
-        match.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-        console.log('[Vantage] Clicked option:', match.textContent?.trim());
-        // Let the framework process the selection, then close
-        await new Promise(r => setTimeout(r, 400));
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      } else {
-        trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      }
-
-      await new Promise(r => setTimeout(r, 200));
-    }
-
-    // Lever native-select second pass for location and similar fields
-    const leverSelects = document.querySelectorAll('select');
-    for (const sel of leverSelects) {
-      const label = (sel.closest('[class*="field"]')?.querySelector('label')?.textContent || '').toLowerCase();
-      if (!label.includes('location') && !label.includes('where')) continue;
-      if (!kit.location) continue;
-
-      const match = Array.from(sel.options).find(o =>
-        o.value && o.text.toLowerCase().includes(kit.location.toLowerCase())
-      );
-      if (match) {
-        sel.value = match.value;
-        sel.dispatchEvent(new Event('change', { bubbles: true }));
-        console.log('[Vantage] Lever location select filled:', match.text);
-      }
-    }
-  }
-
   // ── Main fill function ────────────────────────────────────────────────────────
 
   async function fillForm(kit) {
@@ -470,14 +300,8 @@
       }
     }
 
-    // ── Greenhouse second pass ────────────────────────────────────────────────
-    filled += fillGreenhouseDropdowns(kit);
-
     // ── Checkboxes ────────────────────────────────────────────────────────────
     fillCheckboxes();
-
-    // ── Custom div-based dropdowns (Greenhouse, Lever) ────────────────────────
-    await fillCustomDropdowns(kit);
 
     return { filled };
   }
@@ -570,21 +394,106 @@
     return false;
   }
 
+  async function fillLocationField(city) {
+    const locationInput = document.getElementById('candidate-location');
+    if (!locationInput || !city) return;
+
+    locationInput.focus();
+    locationInput.click();
+    await new Promise(r => setTimeout(r, 200));
+
+    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (nativeSetter) nativeSetter.call(locationInput, city);
+    locationInput.dispatchEvent(new Event('input', { bubbles: true }));
+    locationInput.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: city[0] }));
+
+    // Wait for location search API to respond
+    await new Promise(r => setTimeout(r, 1200));
+
+    const menu = document.querySelector('.select__menu');
+    if (menu) {
+      const firstOption = menu.querySelector('[class*="option"]');
+      if (firstOption) {
+        firstOption.click();
+        console.log('[Vantage] Location selected:', firstOption.textContent?.trim());
+      }
+    }
+  }
+
+  async function fillGreenhouseReactSelects(fields) {
+    for (const { label: targetLabel, answer } of fields) {
+      if (!answer || answer === 'null' || answer === null) continue;
+
+      const allComboboxes = document.querySelectorAll('input[role="combobox"]');
+
+      for (const input of allComboboxes) {
+        const labelId = input.getAttribute('aria-labelledby');
+        const labelEl = labelId ? document.getElementById(labelId) : null;
+        const elLabel = (labelEl?.textContent || input.getAttribute('aria-label') || '').toLowerCase().trim();
+        const cleanTarget = targetLabel.toLowerCase().replace(/\*/g, '').trim();
+
+        if (elLabel.includes('country') || elLabel.includes('phone') || input.id === 'country') continue;
+
+        const matches = elLabel.includes(cleanTarget.substring(0, 25)) ||
+                        cleanTarget.includes(elLabel.substring(0, 25));
+        if (!matches) continue;
+
+        console.log('[Vantage] Filling React Select:', elLabel, '→', answer);
+
+        input.focus();
+        input.click();
+        await new Promise(r => setTimeout(r, 200));
+
+        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        if (nativeSetter) nativeSetter.call(input, answer);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: answer[0] }));
+
+        await new Promise(r => setTimeout(r, 400));
+
+        const menu = document.querySelector('.select__menu');
+        if (!menu) {
+          console.log('[Vantage] No menu found for:', elLabel);
+          input.blur();
+          continue;
+        }
+
+        const options = menu.querySelectorAll('[class*="option"]');
+        console.log('[Vantage] Options:', Array.from(options).map(o => o.textContent?.trim()));
+
+        const match = Array.from(options).find(o =>
+          o.textContent?.toLowerCase().trim().includes(answer.toLowerCase()) ||
+          answer.toLowerCase().includes(o.textContent?.toLowerCase().trim() || '')
+        );
+
+        if (match) {
+          match.click();
+          console.log('[Vantage] Clicked:', match.textContent?.trim());
+        } else {
+          input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        }
+
+        await new Promise(r => setTimeout(r, 300));
+        break;
+      }
+    }
+  }
+
   async function fillWithAIAnswers(fields) {
     let filled = 0;
 
-    // ── Pass 1: native inputs, textareas, selects ─────────────────────────────
+    // ── Pass 1: native inputs, textareas, and <select> elements ──────────────
     for (const { label: targetLabel, answer } of fields) {
       if (!answer || answer === 'null') continue;
 
       const allInputs = queryShadow(document.body,
-        'input:not([type=submit]):not([type=hidden]):not([type=file]), textarea, select'
+        'input:not([type=submit]):not([type=hidden]):not([type=file]):not([role=combobox]), textarea, select'
       );
 
       for (const el of allInputs) {
         if (el.disabled || el.readOnly) continue;
         const elLabel = getLabel(el);
-        console.log('[Vantage] Trying to fill:', targetLabel, '| answer:', answer, '| matched el:', el?.tagName);
+        console.log('[Vantage] Trying to fill:', targetLabel, '| answer:', answer, '| el:', el?.tagName, el?.id || el?.name || '');
         if (!labelsMatch(elLabel, targetLabel)) continue;
 
         if (el.tagName === 'SELECT') {
@@ -597,48 +506,19 @@
       }
     }
 
-    // ── Pass 2: custom [role="combobox"] / React-Select dropdowns ────────────
-    for (const { label: targetLabel, answer } of fields) {
-      if (!answer || answer === 'null') continue;
-
-      const dropdowns = queryShadow(document.body,
-        '[role="combobox"], [class*="select__control"]'
-      );
-
-      for (const trigger of dropdowns) {
-        const container = trigger.closest('[class*="field"],[class*="question"],[class*="application-question"]') || trigger.parentElement?.parentElement;
-        const labelEl = container?.querySelector('label, [class*="label"]');
-        const elLabel = (labelEl?.textContent || trigger.getAttribute('aria-label') || '').trim();
-
-        if (!elLabel) continue;
-        if (elLabel.toLowerCase().includes('phone') || elLabel.toLowerCase().includes('country')) continue;
-        if (!labelsMatch(elLabel, targetLabel)) continue;
-
-        trigger.click();
-        await new Promise(r => setTimeout(r, 500));
-
-        const panel = document.querySelector('[class*="select__menu-list"], [class*="select__menu"], [role="listbox"]');
-        if (!panel) continue;
-
-        const options = panel.querySelectorAll('[class*="select__option"], [role="option"]');
-        console.log('[Vantage] Dropdown options for', targetLabel, ':', Array.from(options).map(o => o.textContent?.trim()));
-
-        const match = Array.from(options).find(o =>
-          o.textContent?.toLowerCase().trim().includes(answer.toLowerCase())
-        );
-
-        if (match) {
-          match.click();
-          console.log('[Vantage] Selected:', match.textContent?.trim());
-          filled++;
-        } else {
-          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        }
-
-        await new Promise(r => setTimeout(r, 300));
-        break;
-      }
+    // ── Pass 2: Greenhouse location field ─────────────────────────────────────
+    const locationField = fields.find(f => /\blocation\b|\bcity\b/i.test(f.label));
+    if (locationField?.answer && locationField.answer !== 'null') {
+      await fillLocationField(locationField.answer);
     }
+
+    // ── Pass 3: Greenhouse React Select comboboxes ────────────────────────────
+    await fillGreenhouseReactSelects(fields);
+
+    // ── Pass 4: AI guidelines checkbox ────────────────────────────────────────
+    const aiCheckbox = document.getElementById('question_64567494[]_651433054') ||
+                       document.querySelector('input[name="question_64567494[]"]');
+    if (aiCheckbox && !aiCheckbox.checked) aiCheckbox.click();
 
     return { filled };
   }
