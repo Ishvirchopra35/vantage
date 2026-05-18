@@ -34,6 +34,8 @@
     el.dispatchEvent(new Event('blur', { bubbles: true }));
   }
 
+  const selectNativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+
   function fillSelect(el, value) {
     const lowerVal = value.toLowerCase();
     const match = Array.from(el.options).find(o => {
@@ -48,7 +50,8 @@
       );
     });
     if (match) {
-      el.value = match.value;
+      if (selectNativeSetter) selectNativeSetter.call(el, match.value);
+      else el.value = match.value;
       el.dispatchEvent(new Event('change', { bubbles: true }));
       el.dispatchEvent(new Event('input', { bubbles: true }));
     }
@@ -142,9 +145,72 @@
     return null;
   }
 
+  // ── Greenhouse second-pass dropdown fill ─────────────────────────────────────
+  // Greenhouse labels often live in a parent container rather than a <label for="">
+  // or aria-label on the select itself. This pass uses container-based detection.
+
+  function fillGreenhouseDropdowns(kit) {
+    let filled = 0;
+    const allSelects = queryShadow(document.body, 'select');
+    console.log('[Vantage] fillGreenhouseDropdowns: found', allSelects.length, 'select elements');
+
+    for (const select of allSelects) {
+      if (select.disabled) continue;
+      // Already selected in first pass or by the user
+      if (select.selectedIndex > 0) continue;
+
+      // Walk up to the nearest field container and find its label element
+      const container = select.closest(
+        '.field, .form-field, [class*="question"], [class*="field"]'
+      );
+      const labelEl = container
+        ? container.querySelector('label, .label, [class*="label"]')
+        : null;
+
+      // Build question text: container label → aria-label → aria-labelledby → name/id
+      let questionText = (labelEl?.textContent || '').trim();
+      if (!questionText) {
+        questionText = (select.getAttribute('aria-label') || '').trim();
+      }
+      if (!questionText) {
+        const lbId = select.getAttribute('aria-labelledby');
+        if (lbId) {
+          questionText = (document.getElementById(lbId)?.textContent || '').trim();
+        }
+      }
+      if (!questionText && select.name) questionText = select.name;
+      if (!questionText && select.id)   questionText = select.id;
+
+      const lowerQuestion = questionText.toLowerCase();
+
+      console.log('[Vantage] Select found:', select.name || select.id || '(unnamed)', '| Label detected:', lowerQuestion || '(none)');
+
+      if (!lowerQuestion) continue;
+
+      const value = selectValueForLabel(lowerQuestion, kit);
+      if (!value) continue;
+
+      const option = Array.from(select.options).find(o =>
+        o.text.toLowerCase().includes(value.toLowerCase()) ||
+        o.value.toLowerCase().includes(value.toLowerCase())
+      );
+
+      if (option) {
+        if (selectNativeSetter) selectNativeSetter.call(select, option.value);
+        else select.value = option.value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        select.dispatchEvent(new Event('input', { bubbles: true }));
+        filled++;
+      }
+    }
+
+    return filled;
+  }
+
   // ── Main fill function ────────────────────────────────────────────────────────
 
   function fillForm(kit) {
+    console.log('[Vantage] fillForm called, kit keys:', Object.keys(kit));
     let filled = 0;
 
     const values = {
@@ -240,6 +306,9 @@
         }
       }
     }
+
+    // ── Greenhouse second pass ────────────────────────────────────────────────
+    filled += fillGreenhouseDropdowns(kit);
 
     return filled;
   }

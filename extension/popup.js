@@ -144,9 +144,16 @@ async function handleSaveToken() {
 async function sendFill(tabId, kit) {
   try {
     return await chrome.tabs.sendMessage(tabId, { type: 'VANTAGE_FILL', kit });
-  } catch {
-    // Content script not running on this tab — inject it then retry
-    await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+  } catch (e1) {
+    console.log('[Vantage] First sendMessage failed:', e1?.message);
+    try {
+      await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+      console.log('[Vantage] Script injected successfully');
+    } catch (e2) {
+      console.log('[Vantage] Script injection failed:', e2?.message);
+      throw e2;
+    }
+    console.log('[Vantage] Retrying sendMessage...');
     return await chrome.tabs.sendMessage(tabId, { type: 'VANTAGE_FILL', kit });
   }
 }
