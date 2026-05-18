@@ -33,7 +33,7 @@ export default function PrivacyPage() {
           marginBottom: '56px',
         }}
       >
-        Last updated: May 15, 2026
+        Last updated: May 17, 2026
       </p>
 
       <section style={{ marginBottom: '48px' }}>
@@ -427,7 +427,29 @@ export default function PrivacyPage() {
               fontSize: '0.95rem',
             }}
           >
-            We use Groq's API for AI inference. When you use resume tailoring, cover letter generation, ATS scoring, or other AI features, we send your resume text and job descriptions to Groq's API to generate outputs. Groq's privacy policy applies to this data.
+            We use Groq's API for AI inference. When you use resume tailoring, cover letter generation, ATS scoring, networking message generation, or other AI features, we send your resume text and job descriptions to Groq's API to generate outputs. Groq's privacy policy applies to this data.
+          </p>
+        </div>
+
+        <div style={{ marginBottom: '24px' }}>
+          <h3
+            style={{
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              color: 'var(--text)',
+              marginBottom: '8px',
+            }}
+          >
+            Cerebras
+          </h3>
+          <p
+            style={{
+              color: 'var(--muted)',
+              lineHeight: 1.7,
+              fontSize: '0.95rem',
+            }}
+          >
+            We use Cerebras's API for AI inference powering interview practice features. When you generate interview questions or submit a practice answer for assessment, we send relevant context (your profile, job details, and your answer) to Cerebras's API. Cerebras's privacy policy applies to this data.
           </p>
         </div>
 
