@@ -31,6 +31,14 @@ summary: Blog infrastructure with MDX rendering, category filtering, and newslet
 - new packages: @tailwindcss/typography, next-mdx-remote
 
 ---
+date: 2026-05-18
+type: Feature
+title: AI-powered form fill via Cerebras
+- app/api/extension/ai-fill/route.ts created: POST endpoint with token auth; accepts extracted form questions, builds user context via buildUserContext, calls generateJSONCerebras to generate field answers, returns { fields: [{ label, answer }] }
+- extension/content.js: added getLabel() for human-readable label extraction, fill() helper, extractFormQuestions() to scrape all form fields, fillWithAIAnswers() to match AI answers back to DOM elements (native inputs + custom comboboxes); updated message listener for EXTRACT_QUESTIONS and FILL_ANSWERS
+- extension/popup.js: rearchitected handleFill to use four-step flow — token validation, EXTRACT_QUESTIONS, POST ai-fill, FILL_ANSWERS; replaced sendFill with generic sendMessage helper
+
+---
 date: 2026-05-15
 type: Feature
 title: Admin analytics dashboard

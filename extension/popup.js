@@ -141,20 +141,12 @@ async function handleSaveToken() {
   }
 }
 
-async function sendFill(tabId, kit) {
+async function sendMessage(tabId, message) {
   try {
-    return await chrome.tabs.sendMessage(tabId, { type: 'VANTAGE_FILL', kit });
-  } catch (e1) {
-    console.log('[Vantage] First sendMessage failed:', e1?.message);
-    try {
-      await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
-      console.log('[Vantage] Script injected successfully');
-    } catch (e2) {
-      console.log('[Vantage] Script injection failed:', e2?.message);
-      throw e2;
-    }
-    console.log('[Vantage] Retrying sendMessage...');
-    return await chrome.tabs.sendMessage(tabId, { type: 'VANTAGE_FILL', kit });
+    return await chrome.tabs.sendMessage(tabId, message);
+  } catch {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+    return await chrome.tabs.sendMessage(tabId, message);
   }
 }
 
@@ -165,42 +157,80 @@ async function handleFill() {
   const btn = document.getElementById('btn-fill');
   const resultEl = document.getElementById('fill-result');
   btn.disabled = true;
-  btn.textContent = 'Fetching your profile...';
+  btn.textContent = 'Verifying token...';
   resultEl.innerHTML = '';
 
   try {
+    // 1. Validate token
     const kitUrl = `${VANTAGE_URL}/api/extension/kit?url=${encodeURIComponent(currentTabUrl)}`;
-    const res = await fetch(kitUrl, {
+    const kitRes = await fetch(kitUrl, {
       headers: { Authorization: `Bearer ${currentToken}` },
     });
 
-    if (res.status === 401) {
+    if (kitRes.status === 401) {
       resultEl.innerHTML = '<div class="result-box result-error mt-8">Token expired. Reconnect from your profile.</div>';
       return;
     }
-
-    if (!res.ok) {
-      resultEl.innerHTML = '<div class="result-box result-error mt-8">Failed to load profile data.</div>';
+    if (!kitRes.ok) {
+      resultEl.innerHTML = '<div class="result-box result-error mt-8">Failed to verify token.</div>';
       return;
     }
 
-    const { kit } = await res.json();
-
-    btn.textContent = 'Filling form...';
+    btn.textContent = 'Reading form...';
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    let response;
+    // 2. Extract questions from the page
+    let questions;
     try {
-      response = await sendFill(tab.id, kit);
+      questions = await sendMessage(tab.id, { type: 'EXTRACT_QUESTIONS' });
     } catch {
       resultEl.innerHTML = '<div class="result-box result-error mt-8">Could not reach page. Make sure you are on a job application form and try again.</div>';
       return;
     }
 
-    const count = response?.filled ?? 0;
+    if (!questions || questions.length === 0) {
+      resultEl.innerHTML = '<div class="result-box result-info mt-8">No form fields found on this page.</div>';
+      return;
+    }
+
+    btn.textContent = 'Generating answers...';
+
+    // 3. Get AI-generated answers
+    const aiRes = await fetch(`${VANTAGE_URL}/api/extension/ai-fill`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${currentToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ questions, jobUrl: tab.url }),
+    });
+
+    if (aiRes.status === 401) {
+      resultEl.innerHTML = '<div class="result-box result-error mt-8">Token expired. Reconnect from your profile.</div>';
+      return;
+    }
+    if (!aiRes.ok) {
+      resultEl.innerHTML = '<div class="result-box result-error mt-8">Failed to generate answers. Try again.</div>';
+      return;
+    }
+
+    const { data } = await aiRes.json();
+
+    btn.textContent = 'Filling form...';
+
+    // 4. Fill the answers into the form
+    let result;
+    try {
+      result = await chrome.tabs.sendMessage(tab.id, { type: 'FILL_ANSWERS', fields: data.fields });
+    } catch {
+      resultEl.innerHTML = '<div class="result-box result-error mt-8">Could not fill the form. Try refreshing and try again.</div>';
+      return;
+    }
+
+    const count = result?.filled ?? 0;
     if (count === 0) {
-      resultEl.innerHTML = '<div class="result-box result-info mt-8">No matching fields found on this page.</div>';
+      resultEl.innerHTML = '<div class="result-box result-info mt-8">No matching fields filled.</div>';
     } else {
       resultEl.innerHTML = `<div class="result-box result-success mt-8">Filled ${count} field${count === 1 ? '' : 's'}. Review and submit.</div>`;
     }

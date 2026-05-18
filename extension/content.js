@@ -74,6 +74,40 @@
     return results;
   }
 
+  // ── Label helpers ─────────────────────────────────────────────────────────────
+
+  // Returns a human-readable label for use in AI prompts (preserves original case).
+  function getLabel(el) {
+    if (el.id) {
+      const labelEl = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+      if (labelEl) {
+        const text = labelEl.textContent.trim();
+        if (text) return text;
+      }
+    }
+
+    const labelledBy = el.getAttribute('aria-labelledby');
+    if (labelledBy) {
+      const texts = labelledBy.split(' ')
+        .map(id => document.getElementById(id)?.textContent?.trim())
+        .filter(Boolean);
+      if (texts.length) return texts.join(' ');
+    }
+
+    const ariaLabel = el.getAttribute('aria-label');
+    if (ariaLabel?.trim()) return ariaLabel.trim();
+
+    const parentLabel = el.closest('label');
+    if (parentLabel) {
+      const clone = parentLabel.cloneNode(true);
+      clone.querySelectorAll('input, select, textarea').forEach(c => c.remove());
+      const text = clone.textContent.trim();
+      if (text) return text;
+    }
+
+    return el.placeholder?.trim() || el.name?.trim() || '';
+  }
+
   // ── Field detection ───────────────────────────────────────────────────────────
 
   function getFieldLabel(el) {
@@ -479,15 +513,162 @@
     }
   }
 
+  // ── fill() helper ────────────────────────────────────────────────────────────
+
+  function fill(el, value) {
+    if (el.tagName === 'TEXTAREA') {
+      setTextarea(el, value);
+    } else {
+      setInput(el, value);
+    }
+  }
+
+  // ── AI-driven question extraction ─────────────────────────────────────────────
+
+  function extractFormQuestions() {
+    const questions = [];
+    const seen = new Set();
+
+    const inputs = queryShadow(document.body,
+      'input:not([type=submit]):not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]), textarea, select'
+    );
+    for (const el of inputs) {
+      if (el.disabled || el.readOnly) continue;
+      const label = getLabel(el);
+      if (label && label.length > 2 && !seen.has(label)) {
+        seen.add(label);
+        questions.push({ label, tag: el.tagName, type: el.type || null });
+      }
+    }
+
+    const dropdowns = queryShadow(document.body,
+      '[role="combobox"], [class*="select__control"], [class*="SelectInput"]'
+    );
+    for (const el of dropdowns) {
+      const container = el.closest('[class*="field"],[class*="question"],[class*="form-group"],[class*="application-question"]') || el.parentElement?.parentElement;
+      const labelEl = container?.querySelector('label, [class*="label"]');
+      const label = (labelEl?.textContent || el.getAttribute('aria-label') || '').trim();
+      const lowerLabel = label.toLowerCase();
+      if (label && label.length > 2 && !lowerLabel.includes('phone') && !lowerLabel.includes('country') && !seen.has(label)) {
+        seen.add(label);
+        questions.push({ label, tag: 'SELECT_CUSTOM', type: 'select' });
+      }
+    }
+
+    return questions;
+  }
+
+  // ── AI answer fill ────────────────────────────────────────────────────────────
+
+  async function fillWithAIAnswers(fields) {
+    let filled = 0;
+
+    for (const { label, answer } of fields) {
+      if (!answer) continue;
+
+      const allInputs = queryShadow(document.body,
+        'input:not([type=submit]):not([type=hidden]):not([type=file]), textarea, select'
+      );
+
+      let matched = false;
+      for (const el of allInputs) {
+        if (el.disabled || el.readOnly) continue;
+        const elLabel = getLabel(el).toLowerCase();
+        const targetLabel = label.toLowerCase();
+
+        if (
+          elLabel.includes(targetLabel.substring(0, 20)) ||
+          targetLabel.includes(elLabel.substring(0, 20))
+        ) {
+          if (el.tagName === 'SELECT') {
+            if (fillSelect(el, answer)) filled++;
+          } else {
+            fill(el, answer);
+            filled++;
+          }
+          matched = true;
+          break;
+        }
+      }
+
+      if (matched) continue;
+
+      // Try custom div-based dropdowns
+      const triggers = queryShadow(document.body,
+        '[role="combobox"], [class*="select__control"], [class*="SelectInput"]'
+      );
+      for (const trigger of triggers) {
+        const container = trigger.closest('[class*="field"],[class*="question"],[class*="form-group"],[class*="application-question"]') || trigger.parentElement?.parentElement;
+        const labelEl = container?.querySelector('label, [class*="label"], legend');
+        const triggerLabel = (labelEl?.textContent || trigger.getAttribute('aria-label') || '').toLowerCase().trim();
+        const targetLabel = label.toLowerCase();
+
+        if (!triggerLabel || triggerLabel.includes('phone') || triggerLabel.includes('country')) continue;
+
+        if (
+          !triggerLabel.includes(targetLabel.substring(0, 20)) &&
+          !targetLabel.includes(triggerLabel.substring(0, 20))
+        ) continue;
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await new Promise(r => setTimeout(r, 100));
+
+        trigger.click();
+        trigger.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 500));
+
+        const allPanels = document.querySelectorAll('[class*="select__menu"], [role="listbox"], [class*="SelectMenu"], [class*="menu--open"]');
+        const openPanel = allPanels[allPanels.length - 1];
+        if (!openPanel) continue;
+
+        const options = queryShadow(openPanel, '[role="option"], [class*="select__option"], li');
+        if (options.length > 50) {
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+          continue;
+        }
+
+        const match = options.find(o => o.textContent?.toLowerCase().includes(answer.toLowerCase()));
+        if (match) {
+          match.click();
+          await new Promise(r => setTimeout(r, 300));
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+          filled++;
+          break;
+        }
+
+        trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      }
+    }
+
+    return { filled };
+  }
+
   // ── Message listener ──────────────────────────────────────────────────────────
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type !== 'VANTAGE_FILL') return false;
+    if (message.type === 'VANTAGE_FILL') {
+      fillForm(message.kit)
+        .then(result => sendResponse(result))
+        .catch(e => sendResponse({ filled: 0, error: String(e) }));
+      return true;
+    }
 
-    fillForm(message.kit)
-      .then(result => sendResponse(result))
-      .catch(e => sendResponse({ filled: 0, error: String(e) }));
+    if (message.type === 'EXTRACT_QUESTIONS') {
+      try {
+        sendResponse(extractFormQuestions());
+      } catch (e) {
+        sendResponse([]);
+      }
+      return true;
+    }
 
-    return true;
+    if (message.type === 'FILL_ANSWERS') {
+      fillWithAIAnswers(message.fields || [])
+        .then(result => sendResponse(result))
+        .catch(e => sendResponse({ filled: 0, error: String(e) }));
+      return true;
+    }
+
+    return false;
   });
 })();
