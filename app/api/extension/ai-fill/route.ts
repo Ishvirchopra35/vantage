@@ -11,11 +11,22 @@ interface Question {
   label: string
   tag: string
   type: string | null
+  options?: string[]
+  fieldId?: string
 }
 
 interface FieldAnswer {
   label: string
   answer: string | null
+}
+
+function formatQuestions(questions: Question[]): string {
+  return questions.map(q => {
+    if (q.options?.length) {
+      return `Q: "${q.label}"\n  Options: ${q.options.join(' | ')}\n  → Pick exactly one option text, or "SKIP" if not applicable`
+    }
+    return `Q: "${q.label}"\n  → Write a natural answer`
+  }).join('\n\n')
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -54,7 +65,11 @@ export async function POST(request: Request): Promise<Response> {
     const contextStr = formatContextForPrompt(ctx)
     const resumeText = ctx.baseResume ?? 'No resume uploaded'
 
-    const systemPrompt = `You are helping a job applicant fill out an application form. Given their profile and resume, generate appropriate answers for each form field. Return ONLY valid JSON with no other text.`
+    const systemPrompt = `You are helping a job applicant fill out an application form. Given their profile and resume, generate appropriate answers for each form field. Return ONLY valid JSON with no other text.
+
+For dropdown questions, you MUST return the answer as EXACTLY one of the provided option strings — copy it verbatim. Do not paraphrase. If the answer is "SKIP", return null instead.
+
+For demographic questions (gender, ethnicity, sexual orientation, disability, veteran status), always choose the "I don't wish to answer" option (or equivalent phrasing) unless the user's profile explicitly states otherwise.`
 
     const userPrompt = `Here is the applicant's information:
 ${contextStr}
@@ -62,19 +77,20 @@ ${contextStr}
 Resume:
 ${resumeText.slice(0, 3000)}
 
-Here are the form fields that need to be filled (label, field type):
-${JSON.stringify(questions, null, 2)}
+Here are the form fields to fill:
 
-For each field, provide the best answer based on the applicant's information.
-- For Yes/No dropdowns about work authorization: answer "Yes" for authorized, "No" for sponsorship needed
-- For salary comfort questions: answer "Yes"
-- For non-compete questions: answer "No"
-- For "how did you hear": answer "LinkedIn"
-- For open-ended questions: write 2-3 genuine sentences based on their actual experience
-- For fields where you don't have enough info: return null
+${formatQuestions(questions)}
 
-Return JSON array:
-[{ "label": "exact label from input", "answer": "your answer or null" }]`
+Rules for non-dropdown fields:
+- Work authorization: "Yes"
+- Visa sponsorship needed: "No"
+- Salary comfort / non-compete: "Yes" / "No" respectively
+- How did you hear: "LinkedIn"
+- Open-ended questions: 2-3 genuine sentences from their actual experience
+- Unknown info: null
+
+Return a JSON array — one entry per question, preserving the exact label:
+[{ "label": "exact label text", "answer": "verbatim option or written answer or null" }]`
 
     const fields = await withTimeout(
       generateJSONCerebras<FieldAnswer[]>(systemPrompt, userPrompt),

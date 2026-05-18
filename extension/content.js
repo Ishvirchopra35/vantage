@@ -347,14 +347,63 @@
     }
   }
 
+  // ── Greenhouse option extraction ─────────────────────────────────────────────
+
+  function getGreenhouseQuestionOptions() {
+    try {
+      const scriptEl = Array.from(document.querySelectorAll('script')).find(s =>
+        s.textContent.includes('__remixContext')
+      );
+      if (!scriptEl) return {};
+
+      const match = scriptEl.textContent.match(/window\.__remixContext\s*=\s*(\{.+\});?\s*<\/script>/s)
+        || scriptEl.textContent.match(/window\.__remixContext\s*=\s*(\{[\s\S]+\})/);
+      if (!match) return {};
+
+      const ctx = JSON.parse(match[1]);
+      const jobPost = ctx?.state?.loaderData?.['routes/$url_token_.jobs_.$job_post_id']?.jobPost;
+      if (!jobPost) return {};
+
+      const optionMap = {};
+
+      for (const q of jobPost.questions || []) {
+        for (const field of q.fields || []) {
+          if (field.values?.length) {
+            optionMap[field.name] = {
+              label: q.label,
+              options: field.values.map(v => v.label),
+            };
+          }
+        }
+      }
+
+      for (const dq of jobPost.demographic_questions?.questions || []) {
+        optionMap[String(dq.id)] = {
+          label: dq.name,
+          options: dq.answer_options.map(o => o.name),
+        };
+      }
+
+      return optionMap;
+    } catch (e) {
+      console.error('[Vantage] Failed to parse greenhouse options:', e);
+      return {};
+    }
+  }
+
   // ── AI-driven question extraction ─────────────────────────────────────────────
 
   function extractFormQuestions() {
     const questions = [];
     const seen = new Set();
 
+    const ghOptions = (window.location.hostname.includes('greenhouse') || window.location.hostname.includes('boards.greenhouse'))
+      ? getGreenhouseQuestionOptions()
+      : {};
+
+    // Native inputs/textareas/selects — exclude combobox inputs (handled separately below)
     const inputs = queryShadow(document.body,
-      'input:not([type=submit]):not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]), textarea, select'
+      'input:not([type=submit]):not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]):not([role=combobox]), textarea, select'
     );
     for (const el of inputs) {
       if (el.disabled || el.readOnly) continue;
@@ -365,16 +414,25 @@
       }
     }
 
-    const dropdowns = queryShadow(document.body,
-      '[role="combobox"], [class*="select__control"], [class*="SelectInput"]'
-    );
-    for (const el of dropdowns) {
-      const container = el.closest('[class*="field"],[class*="question"],[class*="form-group"],[class*="application-question"]') || el.parentElement?.parentElement;
-      const labelEl = container?.querySelector('label, [class*="label"]');
-      const label = (labelEl?.textContent || el.getAttribute('aria-label') || '').trim();
+    // React Select combobox inputs — resolve label via aria-labelledby, attach options when available
+    const comboboxInputs = document.querySelectorAll('input[role="combobox"]');
+    for (const input of comboboxInputs) {
+      if (input.id === 'candidate-location' || input.id === 'country') continue;
+
+      const labelId = input.getAttribute('aria-labelledby');
+      const labelEl = labelId ? document.getElementById(labelId) : null;
+      const label = (labelEl?.textContent || input.getAttribute('aria-label') || '').trim();
       const lowerLabel = label.toLowerCase();
-      if (label && label.length > 2 && !lowerLabel.includes('phone') && !lowerLabel.includes('country') && !seen.has(label)) {
-        seen.add(label);
+
+      if (!label || label.length <= 2) continue;
+      if (lowerLabel.includes('phone') || lowerLabel.includes('country')) continue;
+      if (seen.has(label)) continue;
+      seen.add(label);
+
+      const optionData = ghOptions[input.id];
+      if (optionData?.options?.length) {
+        questions.push({ label, tag: 'SELECT_CUSTOM', type: 'dropdown', options: optionData.options, fieldId: input.id });
+      } else {
         questions.push({ label, tag: 'SELECT_CUSTOM', type: 'select' });
       }
     }
@@ -462,8 +520,9 @@
         console.log('[Vantage] Options:', Array.from(options).map(o => o.textContent?.trim()));
 
         const match = Array.from(options).find(o =>
-          o.textContent?.toLowerCase().trim().includes(answer.toLowerCase()) ||
-          answer.toLowerCase().includes(o.textContent?.toLowerCase().trim() || '')
+          o.textContent?.trim() === answer
+        ) || Array.from(options).find(o =>
+          o.textContent?.toLowerCase().trim().includes(answer.toLowerCase())
         );
 
         if (match) {
