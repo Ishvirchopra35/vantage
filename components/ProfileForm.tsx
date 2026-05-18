@@ -9,6 +9,7 @@ export interface Profile {
   id: string;
   full_name: string | null;
   email: string | null;
+  phone?: string | null;
   university: string | null;
   graduation_year: number | null;
   years_experience: number | null;
@@ -25,6 +26,7 @@ interface ProfileFormProps {
 
 export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
   const [fullName, setFullName] = useState(initialData?.full_name || '');
+  const [phone, setPhone] = useState(initialData?.phone || '');
   const [university, setUniversity] = useState(initialData?.university || '');
   const [graduationYear, setGraduationYear] = useState(initialData?.graduation_year || 2026);
   const [yearsExperience, setYearsExperience] = useState(initialData?.years_experience || 0);
@@ -46,6 +48,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
   useEffect(() => {
     if (!initialData) return;
     setFullName(prev => prev || initialData.full_name || '');
+    setPhone(prev => prev || initialData.phone || '');
     setUniversity(prev => prev || initialData.university || '');
     setGraduationYear(prev => prev === 2026 ? (initialData.graduation_year || 2026) : prev);
     setYearsExperience(prev => prev === 0 ? (initialData.years_experience ?? 0) : prev);
@@ -120,6 +123,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
 
     const result = await updateProfile(initialData?.id || '', {
       full_name: fullName,
+      phone: phone || null,
       university: university,
       graduation_year: graduationYear || null,
       years_experience: yearsExperience || null,
@@ -278,6 +282,22 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
           placeholder="John Doe"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
+          style={fieldStyle}
+          onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
+          onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
+        />
+      </div>
+
+      {/* Phone */}
+      <div style={{ marginBottom: '18px' }}>
+        <label style={labelStyle}>
+          Phone <span style={{ color: 'var(--muted)' }}>(optional)</span>
+        </label>
+        <input
+          type="tel"
+          placeholder="+1 (555) 000-0000"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
           style={fieldStyle}
           onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
           onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}

@@ -17,6 +17,7 @@ export interface UserContext {
   // Profile
   fullName?: string | null;
   email?: string | null;
+  phone?: string | null;
   university?: string | null;
   graduationYear?: number | null;
   yearsExperience?: number | null;
@@ -53,7 +54,7 @@ export interface UserContext {
 
 async function fetchProfile(svc: ServiceClient, userId: string) {
   try {
-    const { data } = await svc.from('profiles').select('full_name, email, university, graduation_year, years_experience, skills, target_roles, linkedin_url').eq('id', userId).limit(1).single();
+    const { data } = await svc.from('profiles').select('full_name, email, phone, university, graduation_year, years_experience, skills, target_roles, linkedin_url').eq('id', userId).limit(1).single();
     return data;
   } catch {
     return null;
@@ -233,6 +234,7 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
   return {
     fullName: profile?.full_name,
     email: profile?.email,
+    phone: profile?.phone,
     university: profile?.university,
     graduationYear: profile?.graduation_year,
     yearsExperience: profile?.years_experience,

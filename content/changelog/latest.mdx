@@ -224,3 +224,19 @@ title: Cerebras AI for interview prep + full UI restyle
 - app/(dashboard)/interview/page.tsx: full restyle — landing page with Start session card and past sessions table (Company/Date/Progress columns); practice session with pill category tabs, redesigned question cards (question left, buttons right), Voice/Type toggle pills, "I don't know" link, typed textarea, assessment grid with Strengths/Improve columns and filler word badges
 - .env.local: added CEREBRAS_API_KEY placeholder
 - new env var required: CEREBRAS_API_KEY
+---
+date: 2026-05-17
+type: Feature
+title: Chrome Extension for job application auto-fill
+- extension/manifest.json: Manifest V3 extension — activeTab, storage, host_permissions for all URLs
+- extension/popup.html + popup.js: 280px popup with connect/main views; token saved to chrome.storage.local; fetches kit from /api/extension/kit; sends VANTAGE_FILL message to content script; shows filled count
+- extension/content.js: fillForm() with nativeSetter pattern (React/Vue/Angular compatible); queryShadow() for Workday Shadow DOM; dispatches input/change/blur events; matches first name, last name, full name, email, phone, LinkedIn, cover letter, and application questions; never auto-submits
+- extension/background.js: minimal service worker
+- app/api/extension/kit/route.ts: GET route; Bearer token auth via service role client matching profiles.extension_token; returns firstName, lastName, fullName, email, phone, linkedin, coverLetter, answers; fetches cover letter and application_questions when job URL matches
+- app/api/extension/token/route.ts: POST route; requireAuth; generates crypto.randomUUID() token; stores in profiles.extension_token + extension_token_created_at
+- components/ExtensionTokenSection.tsx: client component on profile page; generate/regenerate token; one-time display of new token with copy button; masked display of existing token
+- components/ProfileForm.tsx: phone field added (between full name and university); phone saved via updateProfile
+- app/(dashboard)/profile/page.tsx: imports ExtensionTokenSection; fetches extension_token and extension_token_created_at from profiles; passes to component
+- app/(dashboard)/actions.ts: Profile interface and updateProfile upsert include phone
+- lib/userContext.ts: UserContext interface and fetchProfile query include phone
+- SQL migration required: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS extension_token text; ADD COLUMN IF NOT EXISTS extension_token_created_at timestamptz; ADD COLUMN IF NOT EXISTS phone text;

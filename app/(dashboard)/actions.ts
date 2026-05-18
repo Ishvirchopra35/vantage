@@ -7,6 +7,7 @@ export interface Profile {
   id: string;
   full_name: string | null;
   email: string | null;
+  phone: string | null;
   university: string | null;
   graduation_year: number | null;
   years_experience: number | null;
@@ -41,6 +42,7 @@ export async function updateProfile(userId: string, data: Partial<Profile>) {
       .upsert({
         id: userId,
         full_name: data.full_name,
+        phone: data.phone,
         university: data.university,
         graduation_year: data.graduation_year,
         years_experience: data.years_experience,
