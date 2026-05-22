@@ -6,6 +6,24 @@ import { generateJSON } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
 import { createClient } from '@/lib/supabase/server'
 
+interface WorkExperience {
+  company: string
+  title: string
+  start_date: string
+  end_date: string | null
+  current: boolean
+  location: string
+  bullets: string[]
+}
+
+interface Project {
+  name: string
+  description: string
+  url: string | null
+  tech_stack: string[]
+  bullets: string[]
+}
+
 interface ParsedProfile {
   full_name: string
   university: string | null
@@ -14,6 +32,8 @@ interface ParsedProfile {
   linkedin_url: string | null
   skills: string[]
   target_roles: string[]
+  experience: WorkExperience[]
+  projects: Project[]
 }
 
 const SYSTEM_PROMPT = `You are a resume parser. Extract structured profile information from resume text. Return ONLY valid JSON.`
@@ -38,6 +58,22 @@ export async function POST(request: Request): Promise<Response> {
 - linkedin_url: string or null (only if explicitly present in the text)
 - skills: string[] (all technical skills, languages, frameworks, and tools mentioned)
 - target_roles: string[] (infer from job titles held and objective/summary section, max 3)
+- experience: array of work experiences, each with:
+  - company (string)
+  - title (string)
+  - start_date (string, "YYYY-MM" format)
+  - end_date (string, "YYYY-MM" format, or null if current)
+  - current (boolean)
+  - location (string)
+  - bullets (array of strings — the bullet points / responsibilities)
+- projects: array of projects, each with:
+  - name (string)
+  - description (string, one sentence)
+  - url (string or null)
+  - tech_stack (array of strings)
+  - bullets (array of strings — key accomplishments)
+
+Return the full profile as one JSON object including all of these fields.
 
 Resume text:
 ${rawText}`
@@ -64,12 +100,14 @@ ${rawText}`
   if (parsed.linkedin_url) upsertPayload.linkedin_url = parsed.linkedin_url
   if (parsed.skills?.length) upsertPayload.skills = parsed.skills
   if (parsed.target_roles?.length) upsertPayload.target_roles = parsed.target_roles.slice(0, 3)
+  upsertPayload.experience = parsed.experience || []
+  upsertPayload.projects = parsed.projects || []
 
   const supabase = await createClient()
   const { data: upsertedProfile, error: upsertError } = await supabase
     .from('profiles')
     .upsert(upsertPayload, { onConflict: 'id' })
-    .select('id, full_name, university, graduation_year, years_experience, linkedin_url, skills, target_roles')
+    .select('id, full_name, university, graduation_year, years_experience, linkedin_url, skills, target_roles, experience, projects')
     .single()
 
   if (upsertError) {

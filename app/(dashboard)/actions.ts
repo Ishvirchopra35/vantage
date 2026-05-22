@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { track } from '@/lib/analytics';
+import type { WorkExperience, Project } from '@/components/ProfileForm';
 
 export interface Profile {
   id: string;
@@ -16,6 +17,8 @@ export interface Profile {
   linkedin_url: string | null;
   portfolio_url: string | null;
   github_url: string | null;
+  experience: WorkExperience[] | null;
+  projects: Project[] | null;
   updated_at: string | null;
 }
 
@@ -50,6 +53,8 @@ export async function updateProfile(userId: string, data: Partial<Profile>) {
         years_experience: data.years_experience,
         skills: data.skills,
         target_roles: data.target_roles,
+        experience: data.experience ?? [],
+        projects: data.projects ?? [],
         linkedin_url: data.linkedin_url,
         portfolio_url: data.portfolio_url,
         github_url: data.github_url,

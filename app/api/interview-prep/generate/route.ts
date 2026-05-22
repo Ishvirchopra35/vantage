@@ -61,18 +61,28 @@ export async function POST(request: Request): Promise<Response> {
   const responsibilities = (job.key_responsibilities ?? []).slice(0, 5).join(', ')
   const companyDesc = (job.company_description ?? '').slice(0, 300)
 
+  const expSummary = (ctx.experience || []).slice(0, 4).map(e =>
+    `${e.title} at ${e.company}: ${(e.bullets || []).slice(0, 2).filter(Boolean).join('; ')}`
+  ).join('\n')
+
+  const projSummary = (ctx.projects || []).slice(0, 3).map(p =>
+    `${p.name} (${(p.tech_stack || []).join(', ')}): ${(p.bullets || []).slice(0, 1).filter(Boolean).join('')}`
+  ).join('\n')
+
   const userPrompt =
     `${contextStr}\n\n` +
     `Job: ${job.title} at ${job.company}.\n` +
     `Required skills: ${skills || 'Not specified'}.\n` +
     `Responsibilities: ${responsibilities || 'Not specified'}.\n` +
     `Company: ${companyDesc || 'Not provided'}.\n\n` +
+    `Candidate's actual work history to ground behavioral questions in:\n${expSummary || 'See resume above'}\n\n` +
+    `Candidate's projects:\n${projSummary || 'See resume above'}\n\n` +
     `Return a JSON object with exactly these keys:\n` +
     `{\n` +
-    `  "behavioral_questions": [5 STAR-format questions tailored to THIS role's responsibilities],\n` +
-    `  "technical_questions": [5 questions specific to the required skills listed above],\n` +
+    `  "behavioral_questions": [5 STAR-format questions framed as "Tell me about a time when..." that reference THIS candidate's actual experience at their specific companies and projects — not generic situations],\n` +
+    `  "technical_questions": [5 questions specific to the required skills listed above, referencing the candidate's tech stack where relevant],\n` +
     `  "role_specific_questions": [3 questions about why this company and this team specifically],\n` +
-    `  "tips": [3 specific preparation tips for THIS interview, not generic advice]\n` +
+    `  "tips": [3 specific preparation tips for THIS interview that reference the candidate's experience gaps relative to the role, not generic advice]\n` +
     `}`
 
   console.error('[interview-prep/generate] Cerebras key present:', !!process.env.CEREBRAS_API_KEY)

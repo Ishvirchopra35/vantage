@@ -13,6 +13,24 @@ import { withTimeout } from '@/lib/withTimeout'
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
+interface WorkExperienceEntry {
+  company: string
+  title: string
+  start_date: string
+  end_date: string | null
+  current: boolean
+  location: string
+  bullets: string[]
+}
+
+interface ProjectEntry {
+  name: string
+  description: string
+  url: string | null
+  tech_stack: string[]
+  bullets: string[]
+}
+
 interface Kit {
   firstName: string
   lastName: string
@@ -27,6 +45,8 @@ interface Kit {
   coverLetter: string | null
   answers: Record<string, string>
   applicationQuestions: Record<string, string>
+  experience: WorkExperienceEntry[]
+  projects: ProjectEntry[]
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -53,7 +73,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('id, full_name, email, phone, linkedin_url, portfolio_url, github_url')
+    .select('id, full_name, email, phone, linkedin_url, portfolio_url, github_url, experience, projects')
     .eq('extension_token', token)
     .limit(1)
     .single()
@@ -153,6 +173,8 @@ Keep answers genuine, specific to ${jobCompany}, and under 3 sentences each.`
     coverLetter,
     answers,
     applicationQuestions,
+    experience: (profile.experience as WorkExperienceEntry[] | null) ?? [],
+    projects: (profile.projects as ProjectEntry[] | null) ?? [],
   }
 
   return ok({ kit })

@@ -78,7 +78,9 @@ For dropdown questions, return the answer as EXACTLY one of the provided option 
 For demographic questions (gender, ethnicity, sexual orientation, disability, veteran status), use the user's actual profile information if available. Only choose "I don't wish to answer" as a last resort when the information is genuinely unknown.
 - veteran: almost always "No, I am not a veteran" unless stated otherwise
 - disability: almost always "No" unless stated otherwise
-- transgender: almost always "No" unless stated otherwise`
+- transgender: almost always "No" unless stated otherwise
+
+For open-ended questions ("Why do you want to work here?", "Tell us about yourself", "What's your proudest achievement?", etc.), draw from the WORK EXPERIENCE and PROJECTS sections in the candidate's profile. Reference real companies, technologies, and accomplishments — never fabricate specifics.`
 
     const userPrompt = `Here is the applicant's information:
 ${contextStr}

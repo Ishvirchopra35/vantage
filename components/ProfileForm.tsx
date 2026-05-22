@@ -5,6 +5,24 @@ import { updateProfile } from '@/app/(dashboard)/actions';
 import { track } from '@/lib/analytics';
 import ResumeUpload from '@/components/ResumeUpload';
 
+export interface WorkExperience {
+  company: string;
+  title: string;
+  start_date: string;
+  end_date: string | null;
+  current: boolean;
+  location: string;
+  bullets: string[];
+}
+
+export interface Project {
+  name: string;
+  description: string;
+  url: string | null;
+  tech_stack: string[];
+  bullets: string[];
+}
+
 export interface Profile {
   id: string;
   full_name: string | null;
@@ -18,6 +36,8 @@ export interface Profile {
   linkedin_url: string | null;
   portfolio_url?: string | null;
   github_url?: string | null;
+  experience?: WorkExperience[] | null;
+  projects?: Project[] | null;
   updated_at: string | null;
 }
 
@@ -39,6 +59,11 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
   const [githubUrl, setGithubUrl] = useState(initialData?.github_url || '');
   const [skills, setSkills] = useState<string[]>(initialData?.skills || []);
   const [targetRoles, setTargetRoles] = useState<string[]>(initialData?.target_roles || []);
+  const [experience, setExperience] = useState<WorkExperience[]>(initialData?.experience || []);
+  const [projects, setProjects] = useState<Project[]>(initialData?.projects || []);
+  const [projectTechInputs, setProjectTechInputs] = useState<string[]>(
+    () => (initialData?.projects || []).map(() => '')
+  );
 
   const [skillsInput, setSkillsInput] = useState('');
   const [rolesInput, setRolesInput] = useState('');
@@ -63,6 +88,13 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
     setGithubUrl(prev => prev || initialData.github_url || '');
     setSkills(prev => prev.length === 0 ? (initialData.skills || []) : prev);
     setTargetRoles(prev => prev.length === 0 ? (initialData.target_roles || []) : prev);
+    setExperience(prev => prev.length === 0 ? (initialData.experience || []) : prev);
+    setProjects(prev => {
+      if (prev.length !== 0) return prev;
+      const p = initialData.projects || [];
+      setProjectTechInputs(p.map(() => ''));
+      return p;
+    });
   }, [initialData]);
 
   async function handleUploadComplete(rawText: string) {
@@ -81,6 +113,14 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
       if (p.linkedin_url) setLinkedinUrl(prev => prev || p.linkedin_url);
       if (p.skills?.length) setSkills(prev => prev.length === 0 ? p.skills : prev);
       if (p.target_roles?.length) setTargetRoles(prev => prev.length === 0 ? p.target_roles : prev);
+      if (p.experience?.length) setExperience(prev => prev.length === 0 ? p.experience : prev);
+      if (p.projects?.length) {
+        setProjects(prev => {
+          if (prev.length !== 0) return prev;
+          setProjectTechInputs(p.projects.map(() => ''));
+          return p.projects;
+        });
+      }
     } catch {
       // silent — resume upload already succeeded
     }
@@ -140,6 +180,8 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
       github_url: githubUrl || null,
       skills: skills,
       target_roles: targetRoles,
+      experience: experience,
+      projects: projects,
     } as Partial<Profile>);
 
     setLoading(false);
@@ -480,6 +522,435 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
         <p style={{ marginTop: '6px', fontSize: '12px', color: 'var(--muted)' }}>
           Press Enter or comma to add a role. Press Backspace to remove the last one.
         </p>
+      </div>
+
+      {/* Experience */}
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <label style={labelStyle}>Experience</label>
+          <button
+            type="button"
+            onClick={() =>
+              setExperience(prev => [
+                ...prev,
+                { company: '', title: '', start_date: '', end_date: null, current: false, location: '', bullets: [''] },
+              ])
+            }
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              padding: '5px 12px',
+              color: 'var(--text)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            + Add experience
+          </button>
+        </div>
+
+        {experience.length === 0 && (
+          <p style={{ fontSize: '13px', color: 'var(--muted)' }}>No experience added yet.</p>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {experience.map((entry, idx) => {
+            const update = (patch: Partial<WorkExperience>) =>
+              setExperience(prev => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)));
+
+            return (
+              <div
+                key={idx}
+                style={{
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  padding: '16px',
+                  position: 'relative',
+                }}
+              >
+                {/* Delete entry */}
+                <button
+                  type="button"
+                  onClick={() => setExperience(prev => prev.filter((_, i) => i !== idx))}
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--muted)',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    lineHeight: 1,
+                    padding: '0 4px',
+                  }}
+                  title="Remove entry"
+                >
+                  ×
+                </button>
+
+                {/* Title + Company */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px', paddingRight: '24px' }}>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: '12px' }}>Job title</label>
+                    <input
+                      type="text"
+                      placeholder="Software Engineer"
+                      value={entry.title || ''}
+                      onChange={e => update({ title: e.target.value })}
+                      style={fieldStyle}
+                      onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
+                      onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: '12px' }}>Company</label>
+                    <input
+                      type="text"
+                      placeholder="Acme Corp"
+                      value={entry.company || ''}
+                      onChange={e => update({ company: e.target.value })}
+                      style={fieldStyle}
+                      onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
+                      onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                </div>
+
+                {/* Dates + Location */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: '12px' }}>Start date</label>
+                    <input
+                      type="text"
+                      placeholder="2022-06"
+                      value={entry.start_date || ''}
+                      onChange={e => update({ start_date: e.target.value })}
+                      style={fieldStyle}
+                      onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
+                      onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: '12px' }}>End date</label>
+                    <input
+                      type="text"
+                      placeholder="2024-01"
+                      value={entry.end_date ?? ''}
+                      disabled={entry.current}
+                      onChange={e => update({ end_date: e.target.value || null })}
+                      style={{ ...fieldStyle, opacity: entry.current ? 0.4 : 1 }}
+                      onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
+                      onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: '12px' }}>Location</label>
+                    <input
+                      type="text"
+                      placeholder="San Francisco, CA"
+                      value={entry.location || ''}
+                      onChange={e => update({ location: e.target.value })}
+                      style={fieldStyle}
+                      onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
+                      onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                </div>
+
+                {/* Current role checkbox */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                  <input
+                    type="checkbox"
+                    id={`current-${idx}`}
+                    checked={entry.current}
+                    onChange={e => update({ current: e.target.checked, end_date: e.target.checked ? null : entry.end_date })}
+                    style={{ accentColor: 'var(--accent)', width: '14px', height: '14px', cursor: 'pointer' }}
+                  />
+                  <label htmlFor={`current-${idx}`} style={{ fontSize: '12px', color: 'var(--muted)', cursor: 'pointer', margin: 0 }}>
+                    Current role
+                  </label>
+                </div>
+
+                {/* Bullets */}
+                <div>
+                  <label style={{ ...labelStyle, fontSize: '12px', marginBottom: '8px' }}>Responsibilities / bullets</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {entry.bullets.map((bullet, bIdx) => (
+                      <div key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <input
+                          type="text"
+                          placeholder={`Bullet ${bIdx + 1}`}
+                          value={bullet || ''}
+                          onChange={e => {
+                            const next = [...entry.bullets];
+                            next[bIdx] = e.target.value;
+                            update({ bullets: next });
+                          }}
+                          style={{ ...fieldStyle, flex: 1 }}
+                          onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
+                          onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => update({ bullets: entry.bullets.filter((_, bi) => bi !== bIdx) })}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--muted)',
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            lineHeight: 1,
+                            padding: '0 4px',
+                            flexShrink: 0,
+                          }}
+                          title="Remove bullet"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => update({ bullets: [...entry.bullets, ''] })}
+                    style={{
+                      marginTop: '8px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--muted)',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      padding: '0',
+                    }}
+                  >
+                    + Add bullet
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Projects */}
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <label style={labelStyle}>Projects</label>
+          <button
+            type="button"
+            onClick={() => {
+              setProjects(prev => [
+                ...prev,
+                { name: '', description: '', url: null, tech_stack: [], bullets: [''] },
+              ]);
+              setProjectTechInputs(prev => [...prev, '']);
+            }}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              padding: '5px 12px',
+              color: 'var(--text)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            + Add project
+          </button>
+        </div>
+
+        {projects.length === 0 && (
+          <p style={{ fontSize: '13px', color: 'var(--muted)' }}>No projects added yet.</p>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {projects.map((proj, idx) => {
+            const update = (patch: Partial<Project>) =>
+              setProjects(prev => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+
+            const techInput = projectTechInputs[idx] ?? '';
+            const setTechInput = (val: string) =>
+              setProjectTechInputs(prev => prev.map((v, i) => (i === idx ? val : v)));
+
+            return (
+              <div
+                key={idx}
+                style={{
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  padding: '16px',
+                  position: 'relative',
+                }}
+              >
+                {/* Delete project */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProjects(prev => prev.filter((_, i) => i !== idx));
+                    setProjectTechInputs(prev => prev.filter((_, i) => i !== idx));
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--muted)',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    lineHeight: 1,
+                    padding: '0 4px',
+                  }}
+                  title="Remove project"
+                >
+                  ×
+                </button>
+
+                {/* Name + URL */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px', paddingRight: '24px' }}>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: '12px' }}>Project name</label>
+                    <input
+                      type="text"
+                      placeholder="My Project"
+                      value={proj.name || ''}
+                      onChange={e => update({ name: e.target.value })}
+                      style={fieldStyle}
+                      onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
+                      onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: '12px' }}>URL <span style={{ color: 'var(--muted)' }}>(optional)</span></label>
+                    <input
+                      type="text"
+                      placeholder="https://github.com/you/project"
+                      value={proj.url ?? ''}
+                      onChange={e => update({ url: e.target.value || null })}
+                      style={fieldStyle}
+                      onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
+                      onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ ...labelStyle, fontSize: '12px' }}>Description</label>
+                  <input
+                    type="text"
+                    placeholder="One-sentence description of the project"
+                    value={proj.description || ''}
+                    onChange={e => update({ description: e.target.value })}
+                    style={fieldStyle}
+                    onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
+                    onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                  />
+                </div>
+
+                {/* Tech stack tag input */}
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ ...labelStyle, fontSize: '12px' }}>Tech stack</label>
+                  <div style={tagWrapStyle}>
+                    {proj.tech_stack.map((tag, tIdx) => (
+                      <div key={tIdx} style={chipStyle}>
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => update({ tech_stack: proj.tech_stack.filter((_, i) => i !== tIdx) })}
+                          style={{ border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer', padding: '0', fontSize: '12px', lineHeight: 1 }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <input
+                      type="text"
+                      placeholder={proj.tech_stack.length === 0 ? 'e.g. React, Python' : ''}
+                      value={techInput}
+                      onChange={e => setTechInput(e.target.value)}
+                      onKeyDown={e => {
+                        if ((e.key === 'Enter' || e.key === ',') && techInput.trim()) {
+                          e.preventDefault();
+                          const tag = techInput.trim().replace(/,$/, '');
+                          if (!proj.tech_stack.includes(tag)) {
+                            update({ tech_stack: [...proj.tech_stack, tag] });
+                          }
+                          setTechInput('');
+                        } else if (e.key === 'Backspace' && !techInput && proj.tech_stack.length > 0) {
+                          update({ tech_stack: proj.tech_stack.slice(0, -1) });
+                        }
+                      }}
+                      style={tagInputStyle}
+                    />
+                  </div>
+                </div>
+
+                {/* Bullets */}
+                <div>
+                  <label style={{ ...labelStyle, fontSize: '12px', marginBottom: '8px' }}>Key accomplishments / bullets</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {proj.bullets.map((bullet, bIdx) => (
+                      <div key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <input
+                          type="text"
+                          placeholder={`Bullet ${bIdx + 1}`}
+                          value={bullet || ''}
+                          onChange={e => {
+                            const next = [...proj.bullets];
+                            next[bIdx] = e.target.value;
+                            update({ bullets: next });
+                          }}
+                          style={{ ...fieldStyle, flex: 1 }}
+                          onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
+                          onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => update({ bullets: proj.bullets.filter((_, bi) => bi !== bIdx) })}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--muted)',
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            lineHeight: 1,
+                            padding: '0 4px',
+                            flexShrink: 0,
+                          }}
+                          title="Remove bullet"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => update({ bullets: [...proj.bullets, ''] })}
+                    style={{
+                      marginTop: '8px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--muted)',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      padding: '0',
+                    }}
+                  >
+                    + Add bullet
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Save Button */}

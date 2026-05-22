@@ -62,18 +62,37 @@ export async function POST(request: Request): Promise<Response> {
 
   const contactContext = `Contact: ${contactName}, ${contactTitle} at ${contactCompany}.`
 
+  // Find most relevant experience and project to reference in the message
+  const mostRecentExp = (ctx.experience || [])[0]
+  const jobSkills = job ? ((job.required_skills ?? []) as string[]) : []
+  const relevantProject = (ctx.projects || []).find(p =>
+    jobSkills.some(s =>
+      (p.tech_stack || []).some(t => s.toLowerCase().includes(t.toLowerCase()))
+    )
+  ) ?? (ctx.projects || [])[0]
+
+  const candidateHighlight = mostRecentExp
+    ? `The candidate's most recent role is ${mostRecentExp.title} at ${mostRecentExp.company}.`
+    : ''
+  const projectHighlight = relevantProject
+    ? `They have a notable project: ${relevantProject.name} using ${(relevantProject.tech_stack || []).join(', ')}.`
+    : ''
+
   const messageInstructions: Record<MessageType, string> = {
     connection_request:
       `Write a LinkedIn connection request to ${contactName}. ` +
       `MAX 280 CHARACTERS — this is a hard limit enforced by LinkedIn. ` +
-      `Genuine, specific reason for connecting. Reference their role or company specifically.`,
+      `Genuine, specific reason for connecting. Reference their role or company specifically. ` +
+      `${candidateHighlight} ${projectHighlight} Weave in one specific detail from the candidate's background if it fits naturally.`,
     cold_email:
       `Write a cold outreach email to ${contactName}. ` +
       `First line must be: SUBJECT: [subject line here] (make the subject specific and compelling). ` +
-      `Then the email body. MAX 150 words total including the subject line.`,
+      `Then the email body. MAX 150 words total including the subject line. ` +
+      `${candidateHighlight} ${projectHighlight} Reference a specific accomplishment or project from the candidate's background to establish credibility.`,
     follow_up:
       `Write a brief follow-up message to ${contactName}, referencing a previous message you sent. ` +
-      `Move the conversation forward with a specific ask or update. MAX 80 words.`,
+      `Move the conversation forward with a specific ask or update. MAX 80 words. ` +
+      `${candidateHighlight} If relevant, mention a recent project or update from the candidate's work.`,
   }
 
   const systemPrompt =

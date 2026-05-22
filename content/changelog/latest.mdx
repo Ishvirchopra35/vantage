@@ -288,3 +288,36 @@ title: Extension — phone dropdown filter, proximity panel detection, and open-
 - app/api/extension/kit/route.ts: Kit interface gains applicationQuestions field
 - app/api/extension/kit/route.ts: job query updated to select title, company, key_responsibilities, company_description
 - app/api/extension/kit/route.ts: after fetching cover letter and saved questions, generates applicationQuestions via generateJSON with 15s timeout — excited, goals, why_company, contribution — non-critical, fails silently
+
+---
+date: 2026-05-22
+type: Update
+title: parse-profile extracts work experience and projects from resume
+- app/api/parse-profile/route.ts: prompt extended to extract experience (company, title, start_date, end_date, current, location, bullets) and projects (name, description, url, tech_stack, bullets); ParsedProfile interface updated with WorkExperience and Project types; upsert payload always writes experience and projects arrays; select returns both new columns
+
+---
+date: 2026-05-22
+type: Feature
+title: Experience section on profile page — editable cards with inline save
+- components/ProfileForm.tsx: WorkExperience interface exported; experience state initialized from profile; Experience section added below Target Roles with per-entry dark cards (title, company, start/end date, current-role checkbox, location, bullet list with add/remove); experience included in handleSubmit and handleUploadComplete sync
+- app/(dashboard)/actions.ts: Profile interface gains experience field; updateProfile upsert includes experience
+- app/(dashboard)/profile/page.tsx: select query includes experience column
+
+---
+date: 2026-05-22
+type: Feature
+title: Projects section on profile page — editable cards with tag-based tech stack
+- components/ProfileForm.tsx: Project interface exported; projects state + per-card projectTechInputs state; Projects section added below Experience with per-entry dark cards (name, URL, description, tech stack tag input matching skills UX, bullet list with add/remove, × delete); projects included in handleSubmit and handleUploadComplete sync
+- app/(dashboard)/actions.ts: Profile interface gains projects field; updateProfile upsert includes projects
+- app/(dashboard)/profile/page.tsx: select query includes projects column
+
+---
+date: 2026-05-22
+type: Update
+title: Experience and projects injected into all AI prompts
+- lib/userContext.ts: WorkExperienceEntry and ProjectEntry interfaces exported; experience and projects added to UserContext interface; fetchProfile select includes both columns; buildUserContext return includes both; formatContextForPrompt renders WORK EXPERIENCE and PROJECTS sections above resume snippet
+- app/api/extension/kit/route.ts: Kit interface gains experience/projects; profile select includes both; returned kit includes both arrays
+- app/api/extension/ai-fill/route.ts: system prompt instructs AI to draw from WORK EXPERIENCE and PROJECTS when answering open-ended questions
+- app/api/tailor-resume/route.ts: userPrompt instructs AI to use structured work history for tailored bullet points and surface relevant projects when they match required_skills
+- app/api/interview-prep/generate/route.ts: expSummary and projSummary built from ctx.experience/projects; behavioral_questions prompt grounded in candidate's actual companies and projects using STAR framing
+- app/api/generate-outreach/route.ts: mostRecentExp and relevantProject selected from ctx; message instructions for all three types reference candidate-specific background details

@@ -117,7 +117,9 @@ ATS keywords to naturally incorporate: ${(job.keywords || []).slice(0, 30).join(
 
 Instructions:
 - Reorder all bullets within each role so the most relevant experience for THIS job appears first
-- If a summary/objective section exists, rewrite it to reflect this specific role and company
+- Use the WORK EXPERIENCE section above to generate tailored bullet points that map the candidate's actual work to this job's key_responsibilities — only rephrase real work, never invent
+- Use the PROJECTS section above to surface relevant project accomplishments when they align with required_skills or nice_to_have_skills
+- If a summary/objective section exists, rewrite it to reflect this specific role and company, referencing the candidate's most relevant experience entries
 - For each bullet, consider whether any ATS keyword from the list naturally fits the described work
 - Prioritize coverage of required_skills over nice_to_have_skills
 

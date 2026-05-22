@@ -13,6 +13,24 @@ function serviceClient(): any {
   return createServiceClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 }
 
+export interface WorkExperienceEntry {
+  company: string;
+  title: string;
+  start_date: string;
+  end_date: string | null;
+  current: boolean;
+  location: string;
+  bullets: string[];
+}
+
+export interface ProjectEntry {
+  name: string;
+  description: string;
+  url: string | null;
+  tech_stack: string[];
+  bullets: string[];
+}
+
 export interface UserContext {
   // Profile
   fullName?: string | null;
@@ -24,6 +42,8 @@ export interface UserContext {
   skills?: string[] | null;
   targetRoles?: string[] | null;
   linkedinUrl?: string | null;
+  experience?: WorkExperienceEntry[] | null;
+  projects?: ProjectEntry[] | null;
 
   // Resume
   baseResume?: string | null;
@@ -54,7 +74,7 @@ export interface UserContext {
 
 async function fetchProfile(svc: ServiceClient, userId: string) {
   try {
-    const { data } = await svc.from('profiles').select('full_name, email, phone, university, graduation_year, years_experience, skills, target_roles, linkedin_url').eq('id', userId).limit(1).single();
+    const { data } = await svc.from('profiles').select('full_name, email, phone, university, graduation_year, years_experience, skills, target_roles, linkedin_url, experience, projects').eq('id', userId).limit(1).single();
     return data;
   } catch {
     return null;
@@ -241,6 +261,8 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
     skills: profile?.skills,
     targetRoles: profile?.target_roles,
     linkedinUrl: profile?.linkedin_url,
+    experience: profile?.experience ?? [],
+    projects: profile?.projects ?? [],
 
     baseResume: resume?.raw_text,
 
@@ -269,6 +291,22 @@ export function formatContextForPrompt(ctx: UserContext): string {
   const keywords = (ctx.commonMissingKeywords || []).join(', ') || 'None tracked';
   const breakdown = ctx.statusBreakdown || {};
 
+  const expStr = (ctx.experience || []).length > 0
+    ? (ctx.experience || []).map(e => {
+        const period = `${e.start_date} - ${e.current ? 'Present' : (e.end_date ?? 'N/A')}`;
+        const bullets = (e.bullets || []).filter(Boolean).map(b => `  • ${b}`).join('\n');
+        return `${e.title} at ${e.company} (${period})${e.location ? `, ${e.location}` : ''}${bullets ? `\n${bullets}` : ''}`;
+      }).join('\n\n')
+    : 'None provided';
+
+  const projStr = (ctx.projects || []).length > 0
+    ? (ctx.projects || []).map(p => {
+        const stack = (p.tech_stack || []).join(', ');
+        const bullets = (p.bullets || []).filter(Boolean).map(b => `  • ${b}`).join('\n');
+        return `${p.name}: ${p.description}${stack ? ` | Stack: ${stack}` : ''}${bullets ? `\n${bullets}` : ''}`;
+      }).join('\n\n')
+    : 'None provided';
+
   return `CANDIDATE PROFILE:
 Name: ${ctx.fullName || 'Not provided'} | University: ${ctx.university || 'Not provided'}, graduating ${ctx.graduationYear || 'N/A'}
 Experience: ${ctx.yearsExperience ?? 'Not provided'} years | Target roles: ${targetStr}
@@ -282,6 +320,12 @@ Status: Applied ${breakdown.applied || 0} / Interviewing ${breakdown.interviewin
 ATS PERFORMANCE:
 Average ATS score: ${ctx.avgOverallScore ?? 'N/A'}/100 | Average improvement from tailoring: +${ctx.avgImprovement ?? 0} points
 Most common missing keywords: ${keywords}
+
+WORK EXPERIENCE:
+${expStr}
+
+PROJECTS:
+${projStr}
 
 RESUME SUMMARY:
 ${resumeSnippet}`;
