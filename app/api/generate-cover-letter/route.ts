@@ -28,54 +28,111 @@ export async function POST(request: Request): Promise<Response> {
 
   const supabase = await createClient();
 
-  const { data: job, error: jobError } = await supabase
-    .from('jobs')
-    .select('id, user_id, title, company, company_description, required_skills, keywords')
-    .eq('id', jobId)
-    .eq('user_id', user.id)
-    .single();
+  const [jobResult, profileResult] = await Promise.all([
+    supabase
+      .from('jobs')
+      .select('id, user_id, title, company, company_description, required_skills, key_responsibilities, keywords')
+      .eq('id', jobId)
+      .eq('user_id', user.id)
+      .single(),
+    supabase
+      .from('profiles')
+      .select('full_name, phone, email, linkedin_url, portfolio_url, cover_letter_template')
+      .eq('id', user.id)
+      .single(),
+  ]);
 
-  if (jobError || !job) {
+  if (jobResult.error || !jobResult.data) {
     await logRoute('/api/generate-cover-letter', user.id, Date.now() - start, 404);
     return notFound('Job');
   }
 
+  const job = jobResult.data;
+  const profile = profileResult.data as {
+    full_name: string | null
+    phone: string | null
+    email: string | null
+    linkedin_url: string | null
+    portfolio_url: string | null
+    cover_letter_template: string | null
+  } | null;
+
   const ctx = await buildUserContext(user.id);
   const contextStr = formatContextForPrompt(ctx);
 
-  const systemPrompt = `You are an expert cover letter writer who understands both ATS systems and human hiring managers.
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const senderName = profile?.full_name || ctx.fullName || '';
+  const senderPhone = profile?.phone || ctx.phone || '';
+  const senderEmail = profile?.email || ctx.email || '';
+  const senderLink = profile?.portfolio_url || profile?.linkedin_url || ctx.linkedinUrl || '';
 
-Non-negotiable rules:
-1. Write in first person, present tense where appropriate, confident and direct tone.
-2. BANNED PHRASES — never use: 'I am excited to apply', 'I am passionate about', 'I would be a great fit', 'I hope to', 'I believe I', 'please find attached', 'to whom it may concern', 'I am writing to express', or any variation of these clichés.
-3. Sound like a real, specific person — not a template.
-4. Naturally incorporate relevant keywords from the job's keyword list throughout the letter. This improves ATS scanning without sounding forced.
-5. Structure: exactly 3 paragraphs.
-6. Return ONLY the cover letter text — no subject line, no date, no address block, no 'Sincerely'.`;
+  const letterHeader = [
+    senderName,
+    senderPhone,
+    senderEmail,
+    senderLink,
+    '',
+    today,
+  ].filter((line, idx) => idx >= 4 || line).join('\n');
 
-  const userPrompt = `Write a cover letter for this application.
+  const BANNED_PHRASES =
+    `'I am excited to apply', 'I am passionate about', 'I would be a great fit', ` +
+    `'I hope to', 'I believe I', 'please find attached', 'to whom it may concern', ` +
+    `'I am writing to express', or any variation of these clichés`;
 
-${contextStr}
+  let systemPrompt: string;
+  let userPrompt: string;
 
-JOB: ${job.title} at ${job.company}
-Company description: ${job.company_description || 'Not provided'}
-Key requirements: ${(job.required_skills || []).slice(0, 6).join(', ')}
-ATS keywords to naturally weave in: ${(job.keywords || []).slice(0, 20).join(', ')}
+  if (profile?.cover_letter_template) {
+    systemPrompt =
+      `You are adapting a user's personal cover letter template for a specific job application. ` +
+      `Keep their exact voice, sentence structure, and style. ` +
+      `Replace {company}, {role}, {hiring_manager}, and any other placeholders with real values. ` +
+      `Tailor the body to highlight experience relevant to this specific job. ` +
+      `Return ONLY the completed letter — no commentary, no meta-text.`;
 
-Paragraph 1 — Why this specific company and role:
-Reference something real from the company description. Do NOT use generic 'I'm excited' language. Show you've thought about why this specific company, not just the role type.
+    userPrompt =
+      `Complete this cover letter template for the job below.\n\n` +
+      `TEMPLATE:\n${profile.cover_letter_template}\n\n` +
+      `JOB: ${job.title} at ${job.company}\n` +
+      `Company description: ${job.company_description || 'Not provided'}\n` +
+      `Key responsibilities: ${(job.key_responsibilities || []).slice(0, 5).join(', ')}\n` +
+      `Required skills: ${(job.required_skills || []).slice(0, 6).join(', ')}\n\n` +
+      `CANDIDATE CONTEXT:\n${contextStr}\n\n` +
+      `Replace all placeholders. Keep the candidate's voice. Return the completed letter only.`;
+  } else {
+    systemPrompt =
+      `You are an expert cover letter writer. Write a professional cover letter in proper letter format.\n\n` +
+      `Rules:\n` +
+      `1. Write in first person, confident and direct tone\n` +
+      `2. BANNED PHRASES — never use: ${BANNED_PHRASES}\n` +
+      `3. Sound like a specific real person, not a template\n` +
+      `4. Naturally weave in ATS keywords throughout the letter\n` +
+      `5. Return the COMPLETE letter including header block, date, salutation, body, and closing\n` +
+      `6. Do NOT use placeholder brackets in the output`;
 
-Paragraph 2 — Why this specific candidate:
-Pull the 1-2 most relevant experiences from their resume that directly match the key requirements. Include one specific, quantifiable achievement if one exists in the resume. If no numbers exist, describe the scope or impact.
-
-Paragraph 3 — Close:
-Brief (2-3 sentences). Confident. Clear call to action. No begging, no 'please consider me'.
-
-Maximum 260 words total.`;
+    userPrompt =
+      `Write a cover letter for this application.\n\n` +
+      `${contextStr}\n\n` +
+      `JOB: ${job.title} at ${job.company}\n` +
+      `Company description: ${job.company_description || 'Not provided'}\n` +
+      `Key responsibilities: ${(job.key_responsibilities || []).slice(0, 5).join(', ')}\n` +
+      `Required skills: ${(job.required_skills || []).slice(0, 6).join(', ')}\n` +
+      `ATS keywords to weave in: ${(job.keywords || []).slice(0, 20).join(', ')}\n\n` +
+      `Format the letter EXACTLY like this:\n` +
+      `${letterHeader}\n\n` +
+      `Dear Hiring Team,\n\n` +
+      `[Paragraph 1 — Why this specific company and role. Reference the company description. No generic excitement language.]\n\n` +
+      `[Paragraph 2 — Most relevant experience or project from their background that directly matches the key responsibilities. Include a specific achievement or scope if one exists in their resume.]\n\n` +
+      `[Paragraph 3 — Skills alignment with the role's requirements. 2-3 sentences.]\n\n` +
+      `[Paragraph 4 (optional) — Brief, confident close with a clear call to action. No 'please consider me'.]\n\n` +
+      `Sincerely,\n${senderName}\n\n` +
+      `Maximum 350 words total. Do NOT include the bracket instructions in your output.`;
+  }
 
   let coverLetterText: string;
   try {
-    coverLetterText = await withTimeout(generateText(systemPrompt, userPrompt, 1000), 30000, 'generate-cover-letter');
+    coverLetterText = await withTimeout(generateText(systemPrompt, userPrompt, 1500), 30000, 'generate-cover-letter');
   } catch (e) {
     await logRoute('/api/generate-cover-letter', user.id, Date.now() - start, 500);
     return serverError(new Error('Failed to generate cover letter'));

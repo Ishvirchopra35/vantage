@@ -321,3 +321,34 @@ title: Experience and projects injected into all AI prompts
 - app/api/tailor-resume/route.ts: userPrompt instructs AI to use structured work history for tailored bullet points and surface relevant projects when they match required_skills
 - app/api/interview-prep/generate/route.ts: expSummary and projSummary built from ctx.experience/projects; behavioral_questions prompt grounded in candidate's actual companies and projects using STAR framing
 - app/api/generate-outreach/route.ts: mostRecentExp and relevantProject selected from ctx; message instructions for all three types reference candidate-specific background details
+
+---
+date: 2026-05-22
+type: Fix
+title: PDF generation — no browser headers, HTML-preserved formatting, 1-page layout
+- app/api/parse-resume/route.ts: after text extraction, calls Groq to convert resume to structured HTML (h1 name, h2 sections, ul/li bullets, a href links, strong/em); extractBodyContent() strips any accidental html/head/body wrappers; HTML saved to profiles.resume_html; response includes resumeHtml field
+- app/api/tailor-resume/route.ts: parallel fetch adds profiles.resume_html; when HTML is available, uses surgical HTML update prompt (only modifies li text and summary, preserves all tags/hrefs/structure, SKILL_GAPS appended after HTML); falls back to text generation when HTML is absent
+- app/(dashboard)/tailor/page.tsx: downloadAsPDF injects @page { margin: 0 } + body { margin: 0.5in 0.6in } to suppress browser print headers; renders HTML content directly when body is HTML, wraps plain text in pre; isHtmlContent() and stripHtml() helpers added; copyToClipboard strips HTML tags for plain-text paste; resume preview uses dangerouslySetInnerHTML for HTML content, pre for text
+- new DB column required: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS resume_html text;
+
+---
+date: 2026-05-22
+type: Feature
+title: Cover letter — proper letter format + personal template support
+- app/api/generate-cover-letter/route.ts: parallel fetch adds profiles (full_name, phone, email, linkedin_url, portfolio_url, cover_letter_template); builds letterHeader from profile contact info + today's date; two prompt paths — if cover_letter_template exists, adapts template keeping user's voice; else generates full letter with header/date/Dear/3-4 paragraphs/Sincerely block; key_responsibilities added to job select; output token limit raised to 1500
+- components/ProfileForm.tsx: cover_letter_template added to Profile interface, state, useEffect sync, handleSubmit payload; Cover Letter Template section added before Save button — labeled textarea with placeholder hints, {company}/{role}/{hiring_manager} placeholder guide in helper text, Clear template button
+- app/(dashboard)/actions.ts: Profile interface and upsert include cover_letter_template
+- app/(dashboard)/profile/page.tsx: select query includes cover_letter_template
+- new DB column required: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS cover_letter_template text;
+
+---
+date: 2026-05-22
+type: Feature
+title: Puppeteer PDF generation — pixel-perfect server-side resume PDF via Chromium
+- lib/generatePdf.ts created: generateResumeBuffer(htmlBody) uses @sparticuz/chromium-min + puppeteer-core to render HTML to a Letter-format PDF; CHROMIUM_EXECUTABLE_PATH env var selects local Chrome path (dev) or CDN tarball URL (prod); RESUME_CSS template uses Times New Roman 10.5pt, h1/h2/h3 hierarchy, ul/li with correct indentation, real a href links; returns null gracefully when env var is unset
+- app/api/tailor-resume/route.ts: export const maxDuration = 120; after saving document, calls generateResumeBuffer when content is HTML; uploads PDF buffer to Supabase Storage bucket pdfs at tailored-resumes/{userId}/{docId}.pdf; stores public URL in documents.pdf_url via update; returns pdfUrl in response
+- app/api/parse-resume/route.ts: for non-DOCX uploads, stores fileUrl in profiles.resume_pdf_path alongside resume_html update
+- app/(dashboard)/tailor/page.tsx: Doc interface gains pdf_url field; tailorResume() captures pdfUrl from API response; Download PDF button renders as anchor opening pdf_url in new tab when available, falls back to existing print path otherwise
+- new DB columns required: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS resume_pdf_path text; ALTER TABLE documents ADD COLUMN IF NOT EXISTS pdf_url text;
+- new npm packages: puppeteer-core @sparticuz/chromium-min (already installed)
+- new env var required: CHROMIUM_EXECUTABLE_PATH (local Chrome path for dev; CDN tarball URL for Vercel prod)

@@ -38,6 +38,7 @@ export interface Profile {
   github_url?: string | null;
   experience?: WorkExperience[] | null;
   projects?: Project[] | null;
+  cover_letter_template?: string | null;
   updated_at: string | null;
 }
 
@@ -61,6 +62,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
   const [targetRoles, setTargetRoles] = useState<string[]>(initialData?.target_roles || []);
   const [experience, setExperience] = useState<WorkExperience[]>(initialData?.experience || []);
   const [projects, setProjects] = useState<Project[]>(initialData?.projects || []);
+  const [coverLetterTemplate, setCoverLetterTemplate] = useState(initialData?.cover_letter_template || '');
   const [projectTechInputs, setProjectTechInputs] = useState<string[]>(
     () => (initialData?.projects || []).map(() => '')
   );
@@ -89,6 +91,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
     setSkills(prev => prev.length === 0 ? (initialData.skills || []) : prev);
     setTargetRoles(prev => prev.length === 0 ? (initialData.target_roles || []) : prev);
     setExperience(prev => prev.length === 0 ? (initialData.experience || []) : prev);
+    setCoverLetterTemplate(prev => prev || initialData.cover_letter_template || '');
     setProjects(prev => {
       if (prev.length !== 0) return prev;
       const p = initialData.projects || [];
@@ -182,6 +185,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
       target_roles: targetRoles,
       experience: experience,
       projects: projects,
+      cover_letter_template: coverLetterTemplate || null,
     } as Partial<Profile>);
 
     setLoading(false);
@@ -951,6 +955,45 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
             );
           })}
         </div>
+      </div>
+
+      {/* Cover Letter Template */}
+      <div style={{ marginBottom: '24px' }}>
+        <label style={labelStyle}>Cover letter template <span style={{ color: 'var(--muted)' }}>(optional)</span></label>
+        <p style={{ marginTop: '0', marginBottom: '8px', fontSize: '12px', color: 'var(--muted)', lineHeight: 1.5 }}>
+          Paste your preferred cover letter structure. Use <code style={{ background: 'var(--border)', padding: '1px 5px', borderRadius: '4px', fontSize: '11px' }}>{'{company}'}</code>, <code style={{ background: 'var(--border)', padding: '1px 5px', borderRadius: '4px', fontSize: '11px' }}>{'{role}'}</code>, and <code style={{ background: 'var(--border)', padding: '1px 5px', borderRadius: '4px', fontSize: '11px' }}>{'{hiring_manager}'}</code> as placeholders. Vantage will fill them in automatically.
+        </p>
+        <textarea
+          placeholder={`Dear {hiring_manager},\n\nI'm applying for the {role} position at {company}...\n\nSincerely,\n${initialData?.full_name || 'Your Name'}`}
+          value={coverLetterTemplate}
+          onChange={e => setCoverLetterTemplate(e.target.value)}
+          rows={10}
+          style={{
+            ...fieldStyle,
+            resize: 'vertical',
+            fontFamily: 'inherit',
+            lineHeight: 1.6,
+          }}
+          onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
+          onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
+        />
+        {coverLetterTemplate && (
+          <button
+            type="button"
+            onClick={() => setCoverLetterTemplate('')}
+            style={{
+              marginTop: '6px',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--muted)',
+              cursor: 'pointer',
+              fontSize: '12px',
+              padding: '0',
+            }}
+          >
+            Clear template
+          </button>
+        )}
       </div>
 
       {/* Save Button */}

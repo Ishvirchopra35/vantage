@@ -1,3 +1,5 @@
+export const maxDuration = 120;
+
 import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
 import { ok, err, notFound, rateLimited, serverError } from '@/lib/apiResponse';
@@ -62,7 +64,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const supabase = await createClient();
 
-  const [jobResult, resumeResult] = await Promise.all([
+  const [jobResult, resumeResult, profileResult] = await Promise.all([
     supabase
       .from('jobs')
       .select('id, user_id, title, company, required_skills, nice_to_have_skills, years_experience_required, key_responsibilities, keywords')
@@ -77,6 +79,11 @@ export async function POST(request: Request): Promise<Response> {
       .order('created_at', { ascending: false })
       .limit(1)
       .single(),
+    supabase
+      .from('profiles')
+      .select('resume_html')
+      .eq('id', user.id)
+      .single(),
   ]);
 
   if (jobResult.error || !jobResult.data) {
@@ -90,45 +97,74 @@ export async function POST(request: Request): Promise<Response> {
 
   const job = jobResult.data;
   const resume = resumeResult.data;
+  const resumeHtml = (profileResult.data as { resume_html: string | null } | null)?.resume_html ?? null;
 
   const ctx = await buildUserContext(user.id);
   const contextStr = formatContextForPrompt(ctx);
 
-  const systemPrompt = `You are an expert resume writer specializing in students and new graduates entering competitive job markets. Your output will be submitted directly to ATS systems before a human reads it.
-
-Non-negotiable rules:
-1. NEVER add any experience, skill, project, achievement, or fact not present in the original resume. If it's not there, it cannot appear in the output.
-2. Preserve the candidate's authentic voice — the output must sound like the same person who wrote the original resume.
-3. You have full freedom to: reorder bullet points within a role, reorder entire sections, rephrase existing bullets, adjust the summary/objective section, and change formatting choices.
-4. Keyword integration: naturally weave keywords from the job's ATS keyword list into existing bullets where they genuinely match the candidate's actual experience. Do not force keywords that don't fit — this looks fake to human reviewers.
-5. Return ONLY the complete resume text. No commentary, no explanations, no markdown formatting beyond what's already in the resume.
-6. End the response with exactly one line in this format: SKILL_GAPS: [comma-separated list of required_skills not present in the resume]`;
-
-  const userPrompt = `Tailor this resume for the following job. Focus on maximizing ATS keyword coverage while keeping the content authentic.
-
-${contextStr}
-
-TARGET JOB:
-Title: ${job.title} at ${job.company}
-Required skills: ${(job.required_skills || []).join(', ')}
-Nice to have: ${(job.nice_to_have_skills || []).join(', ')}
-Key responsibilities: ${(job.key_responsibilities || []).join('\n- ')}
-ATS keywords to naturally incorporate: ${(job.keywords || []).slice(0, 30).join(', ')}
-
-Instructions:
-- Reorder all bullets within each role so the most relevant experience for THIS job appears first
-- Use the WORK EXPERIENCE section above to generate tailored bullet points that map the candidate's actual work to this job's key_responsibilities — only rephrase real work, never invent
-- Use the PROJECTS section above to surface relevant project accomplishments when they align with required_skills or nice_to_have_skills
-- If a summary/objective section exists, rewrite it to reflect this specific role and company, referencing the candidate's most relevant experience entries
-- For each bullet, consider whether any ATS keyword from the list naturally fits the described work
-- Prioritize coverage of required_skills over nice_to_have_skills
-
-ORIGINAL RESUME:
-${resume.raw_text}`;
+  const jobSkills = (job.required_skills || []).join(', ');
+  const jobNiceToHave = (job.nice_to_have_skills || []).join(', ');
+  const jobResponsibilities = (job.key_responsibilities || []).join('\n- ');
+  const jobKeywords = (job.keywords || []).slice(0, 30).join(', ');
 
   let rawOutput: string;
   try {
-    rawOutput = await withTimeout(generateText(systemPrompt, userPrompt, 4000), 30000, 'tailor-resume');
+    if (resumeHtml) {
+      // Surgical HTML update — preserves layout and keeps PDF to one page
+      const systemPrompt =
+        `You are editing an existing resume's HTML to tailor it for a specific job. ` +
+        `Preserve the EXACT HTML structure — only modify bullet text and the summary if present.\n\n` +
+        `Rules:\n` +
+        `1. Keep every HTML tag, attribute, and hyperlink exactly as-is\n` +
+        `2. Only modify: text inside <li> elements, and the summary/objective <p> if present\n` +
+        `3. Weave in job keywords naturally — do not keyword-stuff\n` +
+        `4. Do NOT add new <li> items, new sections, or remove existing ones\n` +
+        `5. Do NOT change the name, contact info, job titles, company names, or education dates\n` +
+        `6. Return ONLY the modified HTML body content — no <html>/<head>/<body> tags\n` +
+        `7. On the very last line after the HTML, write: SKILL_GAPS: [comma-separated required_skills absent from the resume]`;
+
+      const userPrompt =
+        `${contextStr}\n\n` +
+        `TARGET JOB:\n` +
+        `Title: ${job.title} at ${job.company}\n` +
+        `Required skills: ${jobSkills}\n` +
+        `Nice to have: ${jobNiceToHave}\n` +
+        `Key responsibilities: ${jobResponsibilities}\n` +
+        `ATS keywords to weave in: ${jobKeywords}\n\n` +
+        `ORIGINAL RESUME HTML (modify only <li> text and summary — keep everything else identical):\n` +
+        `${resumeHtml}`;
+
+      rawOutput = await withTimeout(generateText(systemPrompt, userPrompt, 4000), 30000, 'tailor-resume');
+    } else {
+      // Fallback: plain-text tailoring when no HTML is available
+      const systemPrompt =
+        `You are an expert resume writer specializing in students and new graduates. ` +
+        `Your output will be submitted directly to ATS systems.\n\n` +
+        `Rules:\n` +
+        `1. NEVER add experience, skills, or facts not in the original resume\n` +
+        `2. Preserve the candidate's authentic voice\n` +
+        `3. Reorder bullets, rephrase existing content, and adjust the summary freely\n` +
+        `4. Weave in ATS keywords naturally where they genuinely fit\n` +
+        `5. Return ONLY the complete resume text — no commentary\n` +
+        `6. End with exactly: SKILL_GAPS: [comma-separated missing required_skills]`;
+
+      const userPrompt =
+        `Tailor this resume for the job below.\n\n` +
+        `${contextStr}\n\n` +
+        `TARGET JOB:\n` +
+        `Title: ${job.title} at ${job.company}\n` +
+        `Required skills: ${jobSkills}\n` +
+        `Nice to have: ${jobNiceToHave}\n` +
+        `Key responsibilities: ${jobResponsibilities}\n` +
+        `ATS keywords: ${jobKeywords}\n\n` +
+        `Instructions:\n` +
+        `- Reorder bullets so the most relevant experience appears first\n` +
+        `- Use WORK EXPERIENCE and PROJECTS sections above to tailor bullets to key_responsibilities\n` +
+        `- Rewrite the summary/objective for this specific role and company\n\n` +
+        `ORIGINAL RESUME:\n${resume.raw_text}`;
+
+      rawOutput = await withTimeout(generateText(systemPrompt, userPrompt, 4000), 30000, 'tailor-resume');
+    }
   } catch (e) {
     await logRoute('/api/tailor-resume', user.id, Date.now() - start, 500);
     return serverError(new Error('Failed to generate tailored resume'));
@@ -151,6 +187,28 @@ ${resume.raw_text}`;
   if (saveError || !savedDoc) {
     await logRoute('/api/tailor-resume', user.id, Date.now() - start, 500);
     return serverError(new Error(saveError?.message || 'Failed to save document'));
+  }
+
+  // Generate and store PDF — best-effort, only when content is HTML
+  let pdfUrl: string | null = null;
+  if (tailoredResumeText.trim().startsWith('<')) {
+    try {
+      const { generateResumeBuffer } = await import('@/lib/generatePdf');
+      const pdfBuffer = await generateResumeBuffer(tailoredResumeText);
+      if (pdfBuffer) {
+        const pdfPath = `tailored-resumes/${user.id}/${savedDoc.id}.pdf`;
+        const { error: uploadError } = await supabase.storage
+          .from('pdfs')
+          .upload(pdfPath, pdfBuffer, { contentType: 'application/pdf', upsert: true });
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('pdfs').getPublicUrl(pdfPath);
+          pdfUrl = urlData.publicUrl;
+          await supabase.from('documents').update({ pdf_url: pdfUrl }).eq('id', savedDoc.id);
+        }
+      }
+    } catch {
+      // PDF generation is non-critical
+    }
   }
 
   // ATS score the tailored document immediately — best-effort, does not fail the request
@@ -225,5 +283,5 @@ Return JSON with:
   ).catch(() => {});
 
   await logRoute('/api/tailor-resume', user.id, Date.now() - start, 200);
-  return ok({ document: savedDoc, skillGaps: parsedGaps, atsScore: immediateScore });
+  return ok({ document: savedDoc, skillGaps: parsedGaps, atsScore: immediateScore, pdfUrl });
 }

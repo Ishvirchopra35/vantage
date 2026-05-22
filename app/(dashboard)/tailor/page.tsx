@@ -35,6 +35,7 @@ interface ATSScore {
 interface Doc {
   id: string
   content: string
+  pdf_url?: string | null
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -351,6 +352,7 @@ export default function TailorPage() {
       document: Doc
       skillGaps: string[]
       atsScore: ATSScore | null
+      pdfUrl: string | null
     }>('/api/tailor-resume', {
       method: 'POST',
       body: JSON.stringify({ jobId: parsedJob.id }),
@@ -360,7 +362,7 @@ export default function TailorPage() {
       setActionError(error || 'Could not tailor resume. Please try again.')
       return
     }
-    setTailoredDoc(data.document)
+    setTailoredDoc({ ...data.document, pdf_url: data.pdfUrl ?? null })
     if (data.atsScore) setTailoredAtsScore(data.atsScore)
     setStep(3)
     setActiveTab('ats')
@@ -384,8 +386,17 @@ export default function TailorPage() {
     setActiveTab('cover')
   }
 
+  function isHtmlContent(content: string): boolean {
+    return content.trim().startsWith('<')
+  }
+
+  function stripHtml(html: string): string {
+    return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  }
+
   async function copyToClipboard(text: string, type: 'resume' | 'cover') {
-    await navigator.clipboard.writeText(text)
+    const plain = isHtmlContent(text) ? stripHtml(text) : text
+    await navigator.clipboard.writeText(plain)
     setCopied(type)
     setTimeout(() => setCopied(null), 2000)
   }
@@ -398,26 +409,43 @@ export default function TailorPage() {
     const doc = iframe.contentDocument || iframe.contentWindow?.document
     if (!doc) return
 
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${filename}</title><style>
-      body{font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial; font-size:11pt; line-height:1.5; color:#000; background:#fff;}
-      .page{padding:40px; max-width:700px; margin:0 auto;}
-      pre{white-space:pre-wrap; font-family: inherit; font-size:11pt; line-height:1.5;}
-    </style></head><body><div class="page"><pre>${escapeHtml(content)}</pre></div></body></html>`
+    const isHtml = isHtmlContent(content)
+    const bodyContent = isHtml ? content : `<pre>${escapeHtml(content)}</pre>`
+
+    const pageStyles = `
+      @page { margin: 0; size: letter; }
+      body {
+        margin: 0.5in 0.6in;
+        font-family: 'Times New Roman', Times, serif;
+        font-size: 11pt;
+        line-height: 1.5;
+        color: #000;
+        background: #fff;
+      }
+      h1 { font-size: 18pt; margin: 0 0 4pt; }
+      h2 { font-size: 12pt; margin: 12pt 0 4pt; border-bottom: 1px solid #000; padding-bottom: 2pt; }
+      p { margin: 0 0 6pt; }
+      ul { margin: 2pt 0 6pt; padding-left: 18pt; }
+      li { margin-bottom: 2pt; }
+      a { color: inherit; text-decoration: none; }
+      pre { white-space: pre-wrap; font-family: inherit; font-size: 11pt; line-height: 1.5; margin: 0; }
+    `
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(filename)}</title><style>${pageStyles}</style></head><body>${bodyContent}</body></html>`
 
     doc.open()
     doc.write(html)
     doc.close()
 
-    // Give the iframe a moment to render, then call print
     setTimeout(() => {
       try {
         iframe.contentWindow?.focus()
         iframe.contentWindow?.print()
-      } catch (e) {
+      } catch {
         // ignore
       }
       setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 500)
-    }, 200)
+    }, 250)
   }
 
   function escapeHtml(str: string) {
@@ -425,8 +453,8 @@ export default function TailorPage() {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/\"/g, '&quot;')
-      .replace(/\'/g, '&#039;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
   }
 
   async function logApplication() {
@@ -908,36 +936,70 @@ export default function TailorPage() {
                         >
                           {copied === 'resume' ? 'Copied!' : 'Copy'}
                         </button>
-                        <button
-                          onClick={() => downloadAsPDF(tailoredDoc.content, `${parsedJob.company} - ${parsedJob.title} - Tailored Resume.pdf`)}
-                          style={smallSecondaryBtn}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                          </svg>
-                          <span style={{ marginLeft: '6px' }}>Download PDF</span>
-                        </button>
+                        {tailoredDoc.pdf_url ? (
+                          <a
+                            href={tailoredDoc.pdf_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ ...smallSecondaryBtn, textDecoration: 'none' }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="7 10 12 15 17 10" />
+                              <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            <span style={{ marginLeft: '6px' }}>Download PDF</span>
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => downloadAsPDF(tailoredDoc.content, `${parsedJob.company} - ${parsedJob.title} - Tailored Resume.pdf`)}
+                            style={smallSecondaryBtn}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="7 10 12 15 17 10" />
+                              <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            <span style={{ marginLeft: '6px' }}>Download PDF</span>
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <pre style={{
-                      fontFamily: "'Courier New', Courier, monospace",
-                      fontSize: '13px',
-                      lineHeight: 1.7,
-                      color: 'var(--text)',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      maxHeight: '600px',
-                      overflowY: 'auto',
-                      background: 'var(--bg)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '10px',
-                      padding: '16px',
-                      margin: 0,
-                    }}>
-                      {tailoredDoc.content}
-                    </pre>
+                    {isHtmlContent(tailoredDoc.content) ? (
+                      <div
+                        style={{
+                          fontFamily: "'Times New Roman', Times, serif",
+                          fontSize: '13px',
+                          lineHeight: 1.6,
+                          color: 'var(--text)',
+                          maxHeight: '600px',
+                          overflowY: 'auto',
+                          background: 'var(--bg)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '10px',
+                          padding: '24px 28px',
+                        }}
+                        dangerouslySetInnerHTML={{ __html: tailoredDoc.content }}
+                      />
+                    ) : (
+                      <pre style={{
+                        fontFamily: "'Courier New', Courier, monospace",
+                        fontSize: '13px',
+                        lineHeight: 1.7,
+                        color: 'var(--text)',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        maxHeight: '600px',
+                        overflowY: 'auto',
+                        background: 'var(--bg)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '10px',
+                        padding: '16px',
+                        margin: 0,
+                      }}>
+                        {tailoredDoc.content}
+                      </pre>
+                    )}
                   </>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--muted)', fontSize: '14px' }}>

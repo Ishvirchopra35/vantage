@@ -19,6 +19,7 @@ export interface Profile {
   github_url: string | null;
   experience: WorkExperience[] | null;
   projects: Project[] | null;
+  cover_letter_template: string | null;
   updated_at: string | null;
 }
 
@@ -55,6 +56,7 @@ export async function updateProfile(userId: string, data: Partial<Profile>) {
         target_roles: data.target_roles,
         experience: data.experience ?? [],
         projects: data.projects ?? [],
+        cover_letter_template: data.cover_letter_template ?? null,
         linkedin_url: data.linkedin_url,
         portfolio_url: data.portfolio_url,
         github_url: data.github_url,
