@@ -16,7 +16,6 @@ interface Contact {
   company: string
   linkedin_url: string | null
   relevance_reason: string
-  ai_generated?: boolean
 }
 
 interface ScoredContact extends Contact {
@@ -34,21 +33,6 @@ async function fetchViaJina(url: string): Promise<string> {
 }
 
 
-async function generateFallbackContacts(company: string, role: string): Promise<Contact[]> {
-  const parsed = await withTimeout(
-    generateJSON<{ contacts: Contact[] }>(
-      'You generate realistic professional contact suggestions for networking purposes. Return only valid JSON.',
-      `Generate 3 realistic professional contacts who might work at ${company} in ${role || 'recruiting or hiring'} roles. ` +
-      `Return JSON: { "contacts": [{ "name": string (realistic full name), "title": string (realistic job title), ` +
-      `"company": "${company}", "linkedin_url": null, "relevance_reason": string (why they are relevant to reach out to), ` +
-      `"ai_generated": true }] }. ` +
-      `Use common names and accurate-sounding titles for the industry. Do not invent LinkedIn URLs.`
-    ),
-    20000,
-    'find-contacts-fallback'
-  )
-  return (parsed.contacts ?? []).map(c => ({ ...c, ai_generated: true }))
-}
 
 export async function POST(request: Request): Promise<Response> {
   const start = Date.now()
@@ -82,67 +66,79 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const roleKeyword = role || 'recruiter hiring manager'
+    const query = `${company} ${roleKeyword}`
 
     let markdown = ''
-    let source = 'google_search'
+    let source = 'linkedin'
 
-    // Step 1 — Google search via Jina.ai (LinkedIn blocks Jina consistently)
-    const googleQuery = `${company} ${roleKeyword} site:linkedin.com/in`
-    const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(googleQuery)}`
+    // Step 1 — LinkedIn people search via Jina
+    const linkedinUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(query)}`
     try {
-      const text = await withTimeout(fetchViaJina(googleUrl), 12000, 'jina-google')
-      console.error('[find-contacts] Google Jina response length:', text?.length, '| first 500 chars:', text?.slice(0, 500))
-      if (text && text.length > 200) {
+      const text = await withTimeout(fetchViaJina(linkedinUrl), 12000, 'jina-linkedin')
+      const isBlocked = !text || text.length < 200
+        || text.toLowerCase().includes('authwall')
+        || text.toLowerCase().includes('sign in to')
+        || text.toLowerCase().includes('join now')
+      if (!isBlocked) {
         markdown = text
       } else {
-        console.error('[find-contacts] Google Jina response too short:', text?.length)
+        console.error('[find-contacts] LinkedIn blocked, length:', text?.length)
       }
     } catch (e) {
-      console.error('[find-contacts] Google Jina fetch error:', e)
+      console.error('[find-contacts] LinkedIn Jina error:', e)
+    }
+
+    // Step 2 — Fall back to Google search via Jina if LinkedIn was blocked
+    if (!markdown) {
+      source = 'google_search'
+      const googleQuery = `${company} ${roleKeyword} site:linkedin.com/in OR contact email`
+      const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(googleQuery)}`
+      try {
+        const text = await withTimeout(fetchViaJina(googleUrl), 12000, 'jina-google')
+        console.error('[find-contacts] Google Jina length:', text?.length, '| preview:', text?.slice(0, 300))
+        if (text && text.length > 200) {
+          markdown = text
+        } else {
+          console.error('[find-contacts] Google Jina too short:', text?.length)
+        }
+      } catch (e) {
+        console.error('[find-contacts] Google Jina error:', e)
+      }
     }
 
     let contacts: ScoredContact[] = []
 
+    // Step 3 — Extract real contacts from whatever markdown was found
     if (markdown) {
-      // Step 2 — Extract contacts from scraped markdown
       try {
         const parsed = await withTimeout(
           generateJSON<{ contacts: Contact[] }>(
-            'Extract professional contact information from search result text. Return only valid JSON.',
+            'Extract professional contact information from search result text. Return only valid JSON. Only include people who are clearly real individuals with names and titles found in the text — do not invent or guess any contact details.',
             `From this search result, extract people who work at ${company}. ` +
-            `For each person, extract: name, title, company, linkedin_url (if visible as a full URL), relevance_reason ` +
-            `(e.g. "Recruiter at ${company}", "Engineering hiring manager"). ` +
+            `For each person, extract ONLY details explicitly present in the text: name, title, company, ` +
+            `linkedin_url (full URL only if visible in the text — do not construct or guess URLs), ` +
+            `relevance_reason (e.g. "Recruiter at ${company}", "Engineering hiring manager"). ` +
             `Return JSON: { "contacts": [{ "name": string, "title": string, "company": string, ` +
             `"linkedin_url": string | null, "relevance_reason": string }] }. ` +
-            `Up to 8 contacts. If none clearly found return { "contacts": [] }.\n\nText:\n${markdown.slice(0, 4000)}`
+            `Up to 8 contacts. If no real people are clearly identifiable, return { "contacts": [] }.\n\nText:\n${markdown.slice(0, 4000)}`
           ),
           30000,
           'find-contacts-parse'
         )
         contacts = (parsed.contacts ?? []).slice(0, 8)
-        console.error('[find-contacts] AI extracted', contacts.length, 'contacts from', source)
+        console.error('[find-contacts] extracted', contacts.length, 'contacts from', source)
       } catch (e) {
-        console.error('[find-contacts] AI extraction error:', e)
+        console.error('[find-contacts] extraction error:', e)
       }
     }
 
-    // Step 3 — AI fallback if Google also yielded nothing
-    if (contacts.length === 0) {
-      source = 'ai_generated'
-      console.error('[find-contacts] No real contacts found — generating AI fallback for:', company, role)
-      try {
-        contacts = await generateFallbackContacts(company, role ?? '')
-        console.error('[find-contacts] AI fallback generated', contacts.length, 'contacts')
-      } catch (e) {
-        console.error('[find-contacts] AI fallback error:', e)
-      }
-    }
+    // No AI fallback — if nothing found, return empty and let the UI say so
 
     // Step 4 — Score relevance to specific job if jobId provided (best-effort)
-    if (jobId && contacts.length > 0 && source !== 'ai_generated') {
+    if (jobId && contacts.length > 0) {
       try {
         const ctx = await buildUserContext(user.id)
-        const targetRoles = (ctx.targetRoles ?? []).join(', ') || 'software engineering'
+        const targetRoles = (ctx.targetRoles ?? []).join(', ') || 'the applied role'
         const scored = await withTimeout(
           generateJSON<{ contacts: ScoredContact[] }>(
             'Score contact relevance for a job application. Return only valid JSON.',

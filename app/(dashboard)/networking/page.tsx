@@ -16,7 +16,6 @@ interface Contact {
   linkedin_url: string | null
   relevance_reason: string
   job_relevance_score?: number
-  ai_generated?: boolean
 }
 
 interface Job {
@@ -75,11 +74,6 @@ function ContactCard({ contact, onUse }: { contact: Contact; onUse: (c: Contact)
           {contact.title} · {contact.company}
         </div>
       </div>
-      {contact.ai_generated && (
-        <span style={{ fontSize: '10px', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '4px', padding: '1px 6px', display: 'inline-block' }}>
-          AI suggested · verify manually
-        </span>
-      )}
       {contact.relevance_reason && (
         <div style={{ fontSize: '11px', color: 'var(--muted)', fontStyle: 'italic' }}>
           {contact.relevance_reason}
@@ -160,6 +154,7 @@ export default function NetworkingPage() {
   const [loadingMessages, setLoadingMessages] = useState(true)
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null)
 
   // Load jobs and messages on mount
   useEffect(() => {
@@ -305,12 +300,12 @@ export default function NetworkingPage() {
     setTogglingIds(prev => { const s = new Set(prev); s.delete(msg.id); return s })
   }
 
-  async function handleDelete(msg: OutreachMessage) {
-    if (!window.confirm(`Delete message to ${msg.contact_name}?`)) return
-    setDeletingIds(prev => new Set([...prev, msg.id]))
-    await supabase.from('outreach_messages').delete().eq('id', msg.id)
-    setMessages(prev => prev.filter(m => m.id !== msg.id))
-    setDeletingIds(prev => { const s = new Set(prev); s.delete(msg.id); return s })
+  async function handleDelete(id: string) {
+    setConfirmingDeleteId(null)
+    setDeletingIds(prev => new Set([...prev, id]))
+    await supabase.from('outreach_messages').delete().eq('id', id)
+    setMessages(prev => prev.filter(m => m.id !== id))
+    setDeletingIds(prev => { const s = new Set(prev); s.delete(id); return s })
   }
 
   // ── Shared styles ────────────────────────────────────────────────────────────
@@ -434,12 +429,6 @@ export default function NetworkingPage() {
         {searchDone && contacts.length === 0 && (
           <div style={{ marginTop: '16px', fontSize: '13px', color: 'var(--muted)' }}>
             No contacts found. Try a broader role or different company spelling.
-          </div>
-        )}
-
-        {contactSource === 'ai_generated' && contacts.length > 0 && (
-          <div style={{ marginTop: '14px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', fontSize: '12px', color: '#f59e0b' }}>
-            LinkedIn search was blocked. These are AI-suggested contacts. Search their names on LinkedIn before reaching out.
           </div>
         )}
 
@@ -651,30 +640,58 @@ export default function NetworkingPage() {
                         {new Date(msg.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </td>
                       <td style={{ padding: '12px 0', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button
-                            type="button"
-                            onClick={() => prefillFollowUp(msg)}
-                            style={{ ...ghostBtn, padding: '4px 10px', fontSize: '11px' }}
-                          >
-                            Follow-up
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(msg)}
-                            disabled={deleting}
-                            style={{
-                              ...ghostBtn,
-                              padding: '4px 10px',
-                              fontSize: '11px',
-                              color: '#ef4444',
-                              borderColor: 'rgba(239,68,68,0.3)',
-                              opacity: deleting ? 0.5 : 1,
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </div>
+                        {confirmingDeleteId === msg.id ? (
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Delete?</span>
+                            <button
+                              type="button"
+                              onClick={() => void handleDelete(msg.id)}
+                              disabled={deleting}
+                              style={{
+                                ...ghostBtn,
+                                padding: '4px 10px',
+                                fontSize: '11px',
+                                color: '#ef4444',
+                                borderColor: 'rgba(239,68,68,0.3)',
+                                opacity: deleting ? 0.5 : 1,
+                              }}
+                            >
+                              Yes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmingDeleteId(null)}
+                              style={{ ...ghostBtn, padding: '4px 10px', fontSize: '11px' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              onClick={() => prefillFollowUp(msg)}
+                              style={{ ...ghostBtn, padding: '4px 10px', fontSize: '11px' }}
+                            >
+                              Follow-up
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmingDeleteId(msg.id)}
+                              disabled={deleting}
+                              style={{
+                                ...ghostBtn,
+                                padding: '4px 10px',
+                                fontSize: '11px',
+                                color: '#ef4444',
+                                borderColor: 'rgba(239,68,68,0.3)',
+                                opacity: deleting ? 0.5 : 1,
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )

@@ -389,3 +389,10 @@ type: Update
 title: Profile form — generic placeholders and month picker date inputs
 - components/ProfileForm.tsx: skills placeholder changed to "e.g. Project Management, Data Analysis, Public Speaking"; target roles placeholder changed to "e.g. Marketing Manager, Financial Analyst, Product Designer"; experience job title placeholder changed from "Software Engineer" to "Account Manager"
 - components/ProfileForm.tsx: experience start_date and end_date inputs changed from type="text" to type="month"; styled with background #1a1a1a, border 1px solid #2a2a2a, color #f2f2f2, borderRadius 6px, padding 8px 12px, colorScheme dark; end_date remains disabled and cleared when Current role is checked
+
+---
+date: 2026-05-25
+type: Fix
+title: Networking — inline delete confirmation, remove AI-generated contact fallback
+- app/api/find-contacts/route.ts: removed generateFallbackContacts AI fallback entirely; removed ai_generated field from Contact interface; search now cascades LinkedIn via Jina → Google via Jina only; AI extraction prompt explicitly forbids fabricating contacts; returns empty array when no real contacts found
+- app/(dashboard)/networking/page.tsx: removed ai_generated field from Contact interface; removed AI-suggested amber banner; removed AI badge from ContactCard; replaced window.confirm delete dialog with inline "Delete? Yes / Cancel" confirmation using confirmingDeleteId state
