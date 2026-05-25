@@ -12,6 +12,13 @@ import { createClient } from '@/lib/supabase/server';
 
 type PdfResult = { text: string; numpages: number };
 
+type ProfileLinks = {
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
+  projects: { name: string; url: string | null }[] | null;
+};
+
 // Strip <html>/<head>/<body> wrappers if the AI included them despite the prompt
 function extractBodyContent(html: string): string {
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
@@ -22,6 +29,7 @@ function extractBodyContent(html: string): string {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  console.log('[parse-resume] route hit')
   const start = Date.now();
 
   const auth = await requireAuth();
@@ -72,18 +80,58 @@ export async function POST(request: Request): Promise<Response> {
   // Non-critical: text extraction already succeeded even if this fails.
   let resumeHtml: string | null = null;
   try {
+    const supabase = await createClient();
+
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('linkedin_url, github_url, portfolio_url, projects')
+      .eq('id', user.id)
+      .single();
+
+    const profile = profileData as ProfileLinks | null;
+    const profileLinkedin = profile?.linkedin_url ?? null;
+    const profileGithub = profile?.github_url ?? null;
+    const profilePortfolio = profile?.portfolio_url ?? null;
+
+    // Build project links block — only include projects that have a URL
+    const projectsWithUrls = (profile?.projects ?? []).filter(p => p.url);
+    const projectLinksBlock = projectsWithUrls.length > 0
+      ? `PROJECT LINKS (use these exact URLs, do not guess or hallucinate):\n` +
+        projectsWithUrls.map(p => `- ${p.name}: ${p.url}`).join('\n')
+      : '';
+
+    // Build contact link instructions using exact profile values
+    const contactLinkLines = [
+      profileLinkedin && `- "LinkedIn" in the contact line → <a href="${profileLinkedin}">LinkedIn</a>`,
+      profileGithub && `- "GitHub" in the contact line → <a href="${profileGithub}">GitHub</a>`,
+      profilePortfolio && `- "Portfolio" or "Website" in the contact line → <a href="${profilePortfolio}">Portfolio</a>`,
+      `- Any email address → <a href="mailto:EMAIL">EMAIL</a>`,
+      `- Any raw URL found in the text → <a href="URL">display text</a>`,
+    ].filter(Boolean).join('\n');
+
     const rawHtml = await withTimeout(
       generateText(
         'You are a resume formatter. Convert plain-text resumes to clean, semantic HTML body content. Return ONLY the HTML body content — no <html>, <head>, or <body> tags.',
-        `Convert this resume to clean HTML that exactly preserves the layout and formatting:
-- Use <h1> for the candidate's full name (first line of the resume)
+        `Convert this resume to clean HTML that exactly preserves the layout and formatting.
+
+RULES:
+- Use <h1> for the candidate's full name (first line)
 - Use <h2> for section headers (Experience, Education, Skills, Projects, etc.)
 - Use <p> for contact info and summary paragraphs
 - Use <ul><li> for bullet points
-- Preserve ALL hyperlinks as <a href="URL">text</a>
 - Use <strong> for bold text, <em> for italic
 - Single column layout, no tables, no floats, no CSS classes
 - Do NOT add, remove, or invent any content — preserve 100% of the original text
+
+CONTACT LINE LINKS — reconstruct these exact hyperlinks:
+${contactLinkLines}
+
+${projectLinksBlock ? `${projectLinksBlock}
+
+PROJECT LINK RULES:
+- For project entries, use ONLY the URLs listed in PROJECT LINKS above — match by project name
+- If a project is not listed in PROJECT LINKS, render the project name as plain text with NO link
+- Do not fabricate any URLs under any circumstances` : `Do not fabricate any project URLs. Only link to URLs that appear verbatim in the resume text.`}
 
 Resume text:
 ${text}`,
@@ -93,7 +141,46 @@ ${text}`,
       'resume-to-html'
     );
     resumeHtml = extractBodyContent(rawHtml);
-    const supabase = await createClient();
+    console.log('[parse-resume] generated html:', resumeHtml?.slice(0, 500));
+
+    // If the AI dropped all hyperlinks, retry with an explicit link-injection prompt
+    const linkCount = (resumeHtml.match(/<a\s/gi) ?? []).length;
+    if (linkCount === 0 && (profileLinkedin || profileGithub)) {
+      const mustHaveLinks = [
+        profileLinkedin && `<a href="${profileLinkedin}">LinkedIn</a>`,
+        profileGithub && `<a href="${profileGithub}">GitHub</a>`,
+        profilePortfolio && `<a href="${profilePortfolio}">Portfolio</a>`,
+      ].filter(Boolean).join(', ');
+
+      const retryHtml = await withTimeout(
+        generateText(
+          'You are a resume formatter. Convert plain-text resumes to clean, semantic HTML body content. Return ONLY the HTML body content — no <html>, <head>, or <body> tags.',
+          `Convert this resume to HTML using the same rules as before.
+
+CRITICAL — the contact <p> tag MUST contain these exact links: ${mustHaveLinks}
+Do NOT omit them under any circumstances.
+
+${projectLinksBlock ? `${projectLinksBlock}\nDo not fabricate project URLs — only use URLs from PROJECT LINKS above.` : 'Do not fabricate any project URLs.'}
+
+Rules:
+- Use <h1> for the candidate's full name
+- Use <h2> for section headers
+- Use <p> for contact info and summary paragraphs
+- Use <ul><li> for bullet points
+- Single column, no tables, no CSS classes
+- Preserve 100% of the original text
+
+Resume text:
+${text}`,
+          2000
+        ),
+        20000,
+        'resume-to-html-retry'
+      );
+      resumeHtml = extractBodyContent(retryHtml);
+      console.log('[parse-resume] retry html links:', (resumeHtml.match(/<a\s/gi) ?? []).length);
+    }
+
     await supabase
       .from('profiles')
       .update({
@@ -101,8 +188,8 @@ ${text}`,
         ...(!isDocx ? { resume_pdf_path: fileUrl } : {}),
       })
       .eq('id', user.id);
-  } catch {
-    // Intentionally swallowed — text parse succeeded
+  } catch (e) {
+    console.error('[parse-resume] html generation failed:', e)
   }
 
   await logRoute('/api/parse-resume', user.id, Date.now() - start, 200);

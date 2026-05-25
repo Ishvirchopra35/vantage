@@ -484,7 +484,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
           ))}
           <input
             type="text"
-            placeholder={skills.length === 0 ? 'e.g. React, Python, TypeScript' : ''}
+            placeholder={skills.length === 0 ? 'e.g. Project Management, Data Analysis, Public Speaking' : ''}
             value={skillsInput}
             onChange={(e) => setSkillsInput(e.target.value)}
             onKeyDown={handleSkillsKeyDown}
@@ -516,7 +516,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
           ))}
           <input
             type="text"
-            placeholder={targetRoles.length === 0 ? 'e.g. Software Engineer, Product Manager' : ''}
+            placeholder={targetRoles.length === 0 ? 'e.g. Marketing Manager, Financial Analyst, Product Designer' : ''}
             value={rolesInput}
             onChange={(e) => setRolesInput(e.target.value)}
             onKeyDown={handleRolesKeyDown}
@@ -602,7 +602,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
                     <label style={{ ...labelStyle, fontSize: '12px' }}>Job title</label>
                     <input
                       type="text"
-                      placeholder="Software Engineer"
+                      placeholder="Account Manager"
                       value={entry.title || ''}
                       onChange={e => update({ title: e.target.value })}
                       style={fieldStyle}
@@ -629,11 +629,18 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
                   <div>
                     <label style={{ ...labelStyle, fontSize: '12px' }}>Start date</label>
                     <input
-                      type="text"
-                      placeholder="2022-06"
+                      type="month"
                       value={entry.start_date || ''}
                       onChange={e => update({ start_date: e.target.value })}
-                      style={fieldStyle}
+                      style={{
+                        ...fieldStyle,
+                        background: '#1a1a1a',
+                        border: '1px solid #2a2a2a',
+                        color: '#f2f2f2',
+                        borderRadius: '6px',
+                        padding: '8px 12px',
+                        colorScheme: 'dark',
+                      }}
                       onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
                       onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
                     />
@@ -641,12 +648,20 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
                   <div>
                     <label style={{ ...labelStyle, fontSize: '12px' }}>End date</label>
                     <input
-                      type="text"
-                      placeholder="2024-01"
+                      type="month"
                       value={entry.end_date ?? ''}
                       disabled={entry.current}
                       onChange={e => update({ end_date: e.target.value || null })}
-                      style={{ ...fieldStyle, opacity: entry.current ? 0.4 : 1 }}
+                      style={{
+                        ...fieldStyle,
+                        background: '#1a1a1a',
+                        border: '1px solid #2a2a2a',
+                        color: '#f2f2f2',
+                        borderRadius: '6px',
+                        padding: '8px 12px',
+                        colorScheme: 'dark',
+                        opacity: entry.current ? 0.4 : 1,
+                      }}
                       onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
                       onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
                     />

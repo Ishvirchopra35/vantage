@@ -4,7 +4,7 @@ import { ok, err, serverError, rateLimited } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
 import { checkLimit, LIMITS } from '@/lib/rateLimit';
 import { withTimeout } from '@/lib/withTimeout';
-import { generateJSON } from '@/lib/ai';
+import { generateText } from '@/lib/ai';
 import { createClient } from '@/lib/supabase/server';
 
 interface ParsedJob {
@@ -51,126 +51,151 @@ Job posting content: ${content}`;
 export async function POST(request: Request): Promise<Response> {
   const start = Date.now();
 
-  const auth = await requireAuth();
-  if ('error' in auth) return auth.error;
-  const { user } = auth;
+  try {
+    const auth = await requireAuth();
+    if ('error' in auth) return auth.error;
+    const { user } = auth;
 
-  const limitCheck = await checkLimit(user.id, 'tailoring');
-  if (!limitCheck.allowed) {
-    await logRoute('/api/parse-job', user.id, Date.now() - start, 429);
-    return rateLimited('job parsing', LIMITS.tailoring, 30);
-  }
+    const limitCheck = await checkLimit(user.id, 'tailoring');
+    if (!limitCheck.allowed) {
+      await logRoute('/api/parse-job', user.id, Date.now() - start, 429);
+      return rateLimited('job parsing', LIMITS.tailoring, 30);
+    }
 
-  const body = await request.json().catch(() => null);
-  const validation = validateBody<{ url?: string; rawText?: string }>(body, []);
-  if (!validation.valid) {
-    return err(validation.error, 400);
-  }
+    const body = await request.json().catch(() => null);
+    console.log('[parse-job] request body:', body)
+    const validation = validateBody<{ url?: string; rawText?: string }>(body, []);
+    if (!validation.valid) {
+      console.log('[parse-job] validation error:', validation.error)
+      return err(validation.error, 400);
+    }
 
-  const url = typeof validation.data.url === 'string' && validation.data.url.trim()
-    ? validation.data.url.trim()
-    : '';
-  const pastedText = typeof validation.data.rawText === 'string' && validation.data.rawText.trim()
-    ? validation.data.rawText.trim()
-    : '';
+    const url = typeof validation.data.url === 'string' && validation.data.url.trim()
+      ? validation.data.url.trim()
+      : '';
+    const pastedText = typeof validation.data.rawText === 'string' && validation.data.rawText.trim()
+      ? validation.data.rawText.trim()
+      : '';
 
-  if (!url && !pastedText) {
-    return err('Either url or rawText is required', 400);
-  }
+    if (!url && !pastedText) {
+      return err('Either url or rawText is required', 400);
+    }
 
-  const parsedAsUrl = url ? isHttpUrl(url) : false;
-  const inputKind: 'rawText' | 'url' = pastedText || !parsedAsUrl ? 'rawText' : 'url';
+    const parsedAsUrl = url ? isHttpUrl(url) : false;
+    const inputKind: 'rawText' | 'url' = pastedText || !parsedAsUrl ? 'rawText' : 'url';
 
-  // Treat non-URL `url` field values as raw pasted descriptions.
-  const directText = pastedText || (url && !parsedAsUrl ? url : '');
+    // Treat non-URL `url` field values as raw pasted descriptions.
+    const directText = pastedText || (url && !parsedAsUrl ? url : '');
 
-  let rawText: string;
-  if (inputKind === 'rawText') {
-    rawText = directText;
-  } else {
-    try {
-      console.error('JINA_API_KEY present:', !!process.env.JINA_API_KEY);
-      const jinaHeaders: Record<string, string> = {
-        'Accept': 'text/markdown',
-        'X-Return-Format': 'markdown',
-      };
-      if (process.env.JINA_API_KEY) {
-        jinaHeaders['Authorization'] = `Bearer ${process.env.JINA_API_KEY}`;
-      }
-
-      const response = await withTimeout(
-        fetch('https://r.jina.ai/' + encodeURIComponent(url), { headers: jinaHeaders }),
-        10000,
-        'Jina fetch'
-      );
-      if (!response.ok) {
-        console.error(`Jina.ai response status: ${response.status}`);
-        if (response.status === 402) {
-          return err('Jina.ai token balance is empty — top up at jina.ai', 400);
+    let rawText: string;
+    if (inputKind === 'rawText') {
+      rawText = directText;
+    } else {
+      try {
+        console.error('JINA_API_KEY present:', !!process.env.JINA_API_KEY);
+        const jinaHeaders: Record<string, string> = {
+          'Accept': 'text/markdown',
+          'X-Return-Format': 'markdown',
+        };
+        if (process.env.JINA_API_KEY) {
+          jinaHeaders['Authorization'] = `Bearer ${process.env.JINA_API_KEY}`;
         }
-        if (response.status === 429) {
-          return err('Jina.ai rate limit hit — try again in a moment', 429);
+
+        const response = await withTimeout(
+          fetch('https://r.jina.ai/' + encodeURIComponent(url), { headers: jinaHeaders }),
+          10000,
+          'Jina fetch'
+        );
+        const responsePreview = (await response.clone().text()).slice(0, 200);
+        console.log('[parse-job] Jina fetch response:', { status: response.status, preview: responsePreview });
+        if (!response.ok) {
+          console.error(`Jina.ai response status: ${response.status}`);
+          if (response.status === 402) {
+            return err('Jina.ai token balance is empty — top up at jina.ai', 400);
+          }
+          if (response.status === 429) {
+            return err('Jina.ai rate limit hit — try again in a moment', 429);
+          }
+          return err('Could not fetch that job posting. Try pasting the job description directly.', 400);
         }
+        rawText = await response.text();
+
+        // Guard against scraper-block pages or empty extracts that produce downstream parse failures.
+        if (!rawText.trim() || rawText.trim().length < 80) {
+          return err('Could not fetch usable job posting content. Try pasting the full job description directly.', 400);
+        }
+      } catch {
         return err('Could not fetch that job posting. Try pasting the job description directly.', 400);
       }
-      rawText = await response.text();
+    }
 
-      // Guard against scraper-block pages or empty extracts that produce downstream parse failures.
-      if (!rawText.trim() || rawText.trim().length < 80) {
-        return err('Could not fetch usable job posting content. Try pasting the full job description directly.', 400);
+    let parsed: ParsedJob;
+    try {
+      console.log('[parse-job] before AI call');
+      const rawAiOutput = await withTimeout(
+        generateText(SYSTEM_PROMPT, buildUserPrompt(rawText), 2000),
+        30000,
+        'parse-job'
+      );
+      console.log('[parse-job] AI raw output:', rawAiOutput);
+      let candidate = rawAiOutput.trim();
+
+      candidate = candidate
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```\s*$/, '');
+
+      const first = candidate.search(/[\{\[]/);
+
+      if (first > 0) {
+        candidate = candidate.slice(first);
       }
-    } catch {
-      return err('Could not fetch that job posting. Try pasting the job description directly.', 400);
+
+      parsed = JSON.parse(candidate) as ParsedJob;
+    } catch (parseError) {
+      console.error('[parse-job] AI error:', parseError);
+      if (inputKind === 'rawText') {
+        return err('Could not extract structured data from the pasted text. Please paste the full job description.', 422);
+      }
+      return err('Could not extract structured data from this job posting. The page may require login or have unusual formatting.', 422);
     }
-  }
 
-  let parsed: ParsedJob;
-  try {
-    parsed = await withTimeout(
-      generateJSON<ParsedJob>(SYSTEM_PROMPT, buildUserPrompt(rawText)),
-      30000,
-      'parse-job'
-    );
-  } catch {
-    if (inputKind === 'rawText') {
-      return err('Could not extract structured data from the pasted text. Please paste the full job description.', 422);
+    const supabase = await createClient();
+
+    const { data: job, error: dbError } = await supabase
+      .from('jobs')
+      .insert({
+        user_id: user.id,
+        url: url || null,
+        raw_text: rawText,
+        title: parsed.title,
+        company: parsed.company,
+        location: parsed.location,
+        employment_type: parsed.employment_type,
+        required_skills: parsed.required_skills ?? [],
+        nice_to_have_skills: parsed.nice_to_have_skills ?? [],
+        years_experience_required: parsed.years_experience_required,
+        key_responsibilities: parsed.key_responsibilities ?? [],
+        company_description: parsed.company_description,
+        keywords: parsed.keywords ?? [],
+      })
+      .select('id, user_id, url, title, company, location, employment_type, required_skills, nice_to_have_skills, years_experience_required, key_responsibilities, company_description, keywords')
+      .single();
+
+    if (dbError) {
+      await logRoute('/api/parse-job', user.id, Date.now() - start, 500);
+      return serverError(new Error(dbError.message));
     }
-    return err('Could not extract structured data from this job posting. The page may require login or have unusual formatting.', 422);
-  }
 
-  const supabase = await createClient();
-
-  const { data: job, error: dbError } = await supabase
-    .from('jobs')
-    .insert({
+    void Promise.resolve(supabase.from('events').insert({
       user_id: user.id,
-      url: url || null,
-      raw_text: rawText,
-      title: parsed.title,
-      company: parsed.company,
-      location: parsed.location,
-      employment_type: parsed.employment_type,
-      required_skills: parsed.required_skills ?? [],
-      nice_to_have_skills: parsed.nice_to_have_skills ?? [],
-      years_experience_required: parsed.years_experience_required,
-      key_responsibilities: parsed.key_responsibilities ?? [],
-      company_description: parsed.company_description,
-      keywords: parsed.keywords ?? [],
-    })
-    .select('id, user_id, url, title, company, location, employment_type, required_skills, nice_to_have_skills, years_experience_required, key_responsibilities, company_description, keywords')
-    .single();
+      event_name: 'parsed_job',
+      properties: { title: parsed.title, company: parsed.company },
+    })).catch(() => {});
 
-  if (dbError) {
-    await logRoute('/api/parse-job', user.id, Date.now() - start, 500);
-    return serverError(new Error(dbError.message));
+    await logRoute('/api/parse-job', user.id, Date.now() - start, 200);
+    return ok({ job });
+  } catch (parseError) {
+    console.error('[parse-job] unhandled error:', parseError);
+    return serverError(parseError);
   }
-
-  void Promise.resolve(supabase.from('events').insert({
-    user_id: user.id,
-    event_name: 'parsed_job',
-    properties: { title: parsed.title, company: parsed.company },
-  })).catch(() => {});
-
-  await logRoute('/api/parse-job', user.id, Date.now() - start, 200);
-  return ok({ job });
 }

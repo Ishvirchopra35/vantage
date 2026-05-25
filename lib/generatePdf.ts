@@ -4,31 +4,63 @@
 //   Prod: CDN tarball URL (e.g. https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar)
 
 const RESUME_CSS = `
-@page { size: letter; margin: 0.5in 0.6in; }
+@page { size: letter; margin: 0.55in 0.65in; }
 *, *::before, *::after { box-sizing: border-box; }
 body {
-  font-family: 'Times New Roman', Times, serif;
-  font-size: 10.5pt;
-  line-height: 1.4;
+  font-family: 'Arial', 'Helvetica Neue', sans-serif;
+  font-size: 10.5px;
+  line-height: 1.3;
   color: #000;
   background: #fff;
   margin: 0;
   padding: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
-h1 { font-size: 20pt; font-weight: 700; margin: 0 0 3pt; text-align: center; }
+h1 {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 2px;
+  letter-spacing: 0.3px;
+}
+/* Contact line — <p> directly under h1 */
+h1 + p {
+  font-size: 10px;
+  text-align: center;
+  color: #000;
+  margin: 0 0 6px;
+}
 h2 {
-  font-size: 11pt;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.8pt;
-  border-bottom: 0.75pt solid #000;
-  margin: 9pt 0 3pt;
-  padding-bottom: 1pt;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #000;
+  margin: 5px 0 2px;
+  padding-bottom: 1px;
 }
-h3 { font-size: 10.5pt; font-weight: 700; margin: 5pt 0 1pt; }
-p { margin: 0 0 3pt; }
-ul { margin: 1pt 0 5pt; padding-left: 14pt; }
-li { margin-bottom: 1.5pt; }
+h3 {
+  font-size: 10.5px;
+  font-weight: 700;
+  margin: 3px 0 1px;
+}
+p {
+  margin: 0 0 2px;
+  font-size: 10.5px;
+}
+ul {
+  margin: 0;
+  padding-left: 16px;
+}
+li {
+  list-style-type: disc;
+  font-size: 10.5px;
+  line-height: 1.35;
+  margin: 1px 0;
+}
 a { color: #000; text-decoration: underline; }
 strong { font-weight: 700; }
 em { font-style: italic; }
@@ -60,7 +92,7 @@ export async function generateResumeBuffer(htmlBody: string): Promise<Buffer | n
       { waitUntil: 'domcontentloaded' }
     )
 
-    const pdfResult = await page.pdf({ format: 'Letter', printBackground: false })
+    const pdfResult = await page.pdf({ format: 'Letter', printBackground: true })
     return Buffer.from(pdfResult)
   } catch {
     return null

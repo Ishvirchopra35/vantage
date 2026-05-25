@@ -352,3 +352,40 @@ title: Puppeteer PDF generation — pixel-perfect server-side resume PDF via Chr
 - new DB columns required: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS resume_pdf_path text; ALTER TABLE documents ADD COLUMN IF NOT EXISTS pdf_url text;
 - new npm packages: puppeteer-core @sparticuz/chromium-min (already installed)
 - new env var required: CHROMIUM_EXECUTABLE_PATH (local Chrome path for dev; CDN tarball URL for Vercel prod)
+
+---
+date: 2026-05-22
+type: Fix
+title: Surgical tailor prompt + professional PDF CSS template
+- app/api/tailor-resume/route.ts: HTML path system prompt rewritten with 12 explicit absolute rules — only li text may change; section headings, name, contact info, job titles, company names, dates, href attributes all frozen; bullet count per section locked; 20-word bullet cap; filler phrases (demonstrating my ability to, showcasing my, leveraging my) banned; direct tone preserved
+- lib/generatePdf.ts: RESUME_CSS replaced — @page margin 0.55in 0.65in; body Arial/Helvetica 10.5px; h1/h2 Georgia serif (18px centered bold name, 11px uppercase section headings with 1px solid border); h1+p contact line 10px centered; ul padding-left 12px; li 10.5px line-height 1.4 margin 2px; a links black underline
+
+---
+date: 2026-05-22
+type: Fix
+title: Tailor metrics preservation + PDF bullet rendering + hyperlink retry
+- app/api/tailor-resume/route.ts: two new absolute rules added to HTML path prompt — rule 11 preserves all specific numbers, percentages, dollar amounts, and metrics verbatim; rule 12 requires every rewritten bullet to retain every quantitative fact from the original
+- lib/generatePdf.ts: CSS updated — list-style-type: disc on ul and li so bullets render as disc not plain text; ul margin: 0 padding-left: 18px; li margin: 2px 0 line-height: 1.4; p margin: 2px 0 font-size: 10.5px; h1 font-size 18px→16px; h2 margin tightened to 8px 0 3px; body line-height 1.4→1.3
+- app/api/parse-resume/route.ts: after extractBodyContent, counts <a tags in output; if zero links found and profile has linkedin_url or github_url, reruns AI with an explicit prompt that hard-codes the exact href values in the contact line instruction; logs retry link count
+
+---
+date: 2026-05-22
+type: Fix
+title: PDF spacing, bullet disc, metrics preservation, keyword stuffing, project link injection
+- lib/generatePdf.ts: h1 15px margin 0 0 2px; h2 10.5px bold uppercase border-bottom margin 6px 0 2px; p margin 1px 0; ul margin 0 padding-left 16px; li list-style-type disc margin 1px 0 line-height 1.35; body line-height 1.3 — all tightened to fit one page
+- app/api/tailor-resume/route.ts: rule 11 preserves all metrics verbatim including ~20% and R² notation; rule 12 requires every quantitative fact to survive the rewrite; rule 13 bans forcing keywords into unrelated bullets; rule 14 caps keywords at 1–2 per bullet
+- app/api/parse-resume/route.ts: ProfileLinks gains projects field; profiles select includes projects; builds projectLinksBlock from projects where url is non-null; prompt injects PROJECT LINKS section with exact URLs; two new rules instruct AI to match project links by name and never fabricate URLs; retry path also injects project links block
+
+---
+date: 2026-05-25
+type: Fix
+title: PDF printBackground, spacing, and tailor tech stack preservation
+- lib/generatePdf.ts: printBackground changed false→true; -webkit-print-color-adjust and print-color-adjust: exact added to body; h2 margin tightened to 5px 0 2px; p margin changed to 0 0 2px; letter-spacing on h2 changed to 0.05em
+- app/api/tailor-resume/route.ts: rule 15 added — tech stack line under project headings must be preserved exactly, not removed or shortened
+
+---
+date: 2026-05-25
+type: Update
+title: Profile form — generic placeholders and month picker date inputs
+- components/ProfileForm.tsx: skills placeholder changed to "e.g. Project Management, Data Analysis, Public Speaking"; target roles placeholder changed to "e.g. Marketing Manager, Financial Analyst, Product Designer"; experience job title placeholder changed from "Software Engineer" to "Account Manager"
+- components/ProfileForm.tsx: experience start_date and end_date inputs changed from type="text" to type="month"; styled with background #1a1a1a, border 1px solid #2a2a2a, color #f2f2f2, borderRadius 6px, padding 8px 12px, colorScheme dark; end_date remains disabled and cleared when Current role is checked

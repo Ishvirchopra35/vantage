@@ -98,6 +98,7 @@ export async function POST(request: Request): Promise<Response> {
   const job = jobResult.data;
   const resume = resumeResult.data;
   const resumeHtml = (profileResult.data as { resume_html: string | null } | null)?.resume_html ?? null;
+  console.log('[tailor-resume] resumeHtml length:', resumeHtml?.length ?? 'null');
 
   const ctx = await buildUserContext(user.id);
   const contextStr = formatContextForPrompt(ctx);
@@ -110,18 +111,29 @@ export async function POST(request: Request): Promise<Response> {
   let rawOutput: string;
   try {
     if (resumeHtml) {
-      // Surgical HTML update — preserves layout and keeps PDF to one page
+      // Surgical HTML update — only bullet text changes, everything else is frozen
+      console.log('[tailor-resume] before AI call', { mode: 'html', jobId, userId: user.id });
       const systemPrompt =
-        `You are editing an existing resume's HTML to tailor it for a specific job. ` +
-        `Preserve the EXACT HTML structure — only modify bullet text and the summary if present.\n\n` +
-        `Rules:\n` +
-        `1. Keep every HTML tag, attribute, and hyperlink exactly as-is\n` +
-        `2. Only modify: text inside <li> elements, and the summary/objective <p> if present\n` +
-        `3. Weave in job keywords naturally — do not keyword-stuff\n` +
-        `4. Do NOT add new <li> items, new sections, or remove existing ones\n` +
-        `5. Do NOT change the name, contact info, job titles, company names, or education dates\n` +
-        `6. Return ONLY the modified HTML body content — no <html>/<head>/<body> tags\n` +
-        `7. On the very last line after the HTML, write: SKILL_GAPS: [comma-separated required_skills absent from the resume]`;
+        `You are performing a surgical edit on an existing resume's HTML. ` +
+        `Your only job is to rewrite bullet point text to better match the target job description.\n\n` +
+        `ABSOLUTE RULES — violating any of these is a failure:\n` +
+        `1. Keep every HTML tag, attribute, href, and hyperlink byte-for-byte identical\n` +
+        `2. Keep the candidate's name, contact info, email, phone, LinkedIn, and all URLs exactly as-is\n` +
+        `3. Keep every section heading (h1, h2, h3) exactly as-is — do not rename, reorder, or remove any section\n` +
+        `4. Keep job titles, company names, dates, and education entries exactly as-is\n` +
+        `5. Only rewrite the text content inside <li> elements — nothing else\n` +
+        `6. Do NOT add new <li> items or remove existing ones — the bullet count per section must stay identical\n` +
+        `7. Do NOT reorder sections or move bullets between sections\n` +
+        `8. Each rewritten bullet must stay under 20 words\n` +
+        `9. Write in the same direct, first-person-implied tone as the original — never add phrases like "demonstrating my ability to", "showcasing my", "leveraging my expertise in", or similar filler\n` +
+        `10. Weave in relevant ATS keywords naturally only where they fit the bullet's existing context\n` +
+        `11. Preserve ALL specific numbers, percentages, dollar amounts, and metrics verbatim — "45s to 38s", "R² = 0.89", "$45K+", "99%", "~20%" must appear exactly as in the original\n` +
+        `12. A rewritten bullet must contain every quantitative fact from the original bullet — if the original has a metric, the rewrite must include it unchanged\n` +
+        `13. Do NOT force job keywords into every bullet — only weave in a keyword if it fits naturally without changing the meaning. Never append animation-related terms, framework names, or unrelated technology to a bullet about a different topic\n` +
+        `14. Maximum 1–2 keywords per bullet, only where they genuinely fit the existing context\n` +
+        `15. The tech stack line under each project heading (e.g. "Python, OpenCV, Pickle...") must be preserved exactly — do not remove, shorten, or modify it\n` +
+        `16. Return ONLY the modified HTML body content — no <html>, <head>, or <body> tags\n` +
+        `17. On the very last line after the HTML, write: SKILL_GAPS: [comma-separated required_skills absent from the resume]`;
 
       const userPrompt =
         `${contextStr}\n\n` +
@@ -130,40 +142,52 @@ export async function POST(request: Request): Promise<Response> {
         `Required skills: ${jobSkills}\n` +
         `Nice to have: ${jobNiceToHave}\n` +
         `Key responsibilities: ${jobResponsibilities}\n` +
-        `ATS keywords to weave in: ${jobKeywords}\n\n` +
-        `ORIGINAL RESUME HTML (modify only <li> text and summary — keep everything else identical):\n` +
+        `ATS keywords to weave in naturally: ${jobKeywords}\n\n` +
+        `ORIGINAL RESUME HTML — rewrite ONLY <li> text, leave everything else byte-for-byte identical:\n` +
         `${resumeHtml}`;
 
       rawOutput = await withTimeout(generateText(systemPrompt, userPrompt, 4000), 30000, 'tailor-resume');
+      console.log('[tailor-resume] after AI call', { mode: 'html', jobId, userId: user.id });
     } else {
       // Fallback: plain-text tailoring when no HTML is available
-      const systemPrompt =
-        `You are an expert resume writer specializing in students and new graduates. ` +
-        `Your output will be submitted directly to ATS systems.\n\n` +
-        `Rules:\n` +
-        `1. NEVER add experience, skills, or facts not in the original resume\n` +
-        `2. Preserve the candidate's authentic voice\n` +
-        `3. Reorder bullets, rephrase existing content, and adjust the summary freely\n` +
-        `4. Weave in ATS keywords naturally where they genuinely fit\n` +
-        `5. Return ONLY the complete resume text — no commentary\n` +
-        `6. End with exactly: SKILL_GAPS: [comma-separated missing required_skills]`;
+      console.log('[tailor-resume] before AI call', { mode: 'text', jobId, userId: user.id });
+      try {
+        const systemPrompt =
+          `You are an expert resume writer specializing in students and new graduates. ` +
+          `Your output will be submitted directly to ATS systems.\n\n` +
+          `Rules:\n` +
+          `1. NEVER add experience, skills, or facts not in the original resume\n` +
+          `2. Preserve the candidate's authentic voice\n` +
+          `3. Reorder bullets, rephrase existing content, and adjust the summary freely\n` +
+          `4. Weave in ATS keywords naturally where they genuinely fit\n` +
+          `5. Return ONLY the complete resume text — no commentary\n` +
+          `6. End with exactly: SKILL_GAPS: [comma-separated missing required_skills]`;
 
-      const userPrompt =
-        `Tailor this resume for the job below.\n\n` +
-        `${contextStr}\n\n` +
-        `TARGET JOB:\n` +
-        `Title: ${job.title} at ${job.company}\n` +
-        `Required skills: ${jobSkills}\n` +
-        `Nice to have: ${jobNiceToHave}\n` +
-        `Key responsibilities: ${jobResponsibilities}\n` +
-        `ATS keywords: ${jobKeywords}\n\n` +
-        `Instructions:\n` +
-        `- Reorder bullets so the most relevant experience appears first\n` +
-        `- Use WORK EXPERIENCE and PROJECTS sections above to tailor bullets to key_responsibilities\n` +
-        `- Rewrite the summary/objective for this specific role and company\n\n` +
-        `ORIGINAL RESUME:\n${resume.raw_text}`;
+        const userPrompt =
+          `Tailor this resume for the job below.\n\n` +
+          `${contextStr}\n\n` +
+          `TARGET JOB:\n` +
+          `Title: ${job.title} at ${job.company}\n` +
+          `Required skills: ${jobSkills}\n` +
+          `Nice to have: ${jobNiceToHave}\n` +
+          `Key responsibilities: ${jobResponsibilities}\n` +
+          `ATS keywords: ${jobKeywords}\n\n` +
+          `Instructions:\n` +
+          `- Reorder bullets so the most relevant experience appears first\n` +
+          `- Use WORK EXPERIENCE and PROJECTS sections above to tailor bullets to key_responsibilities\n` +
+          `- Rewrite the summary/objective for this specific role and company\n\n` +
+          `ORIGINAL RESUME:\n${resume.raw_text}`;
 
-      rawOutput = await withTimeout(generateText(systemPrompt, userPrompt, 4000), 30000, 'tailor-resume');
+        rawOutput = await withTimeout(generateText(systemPrompt, userPrompt, 4000), 30000, 'tailor-resume');
+      } catch (err) {
+        console.error('[tailor-resume] AI call failed:', err);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        if (errorMessage.includes('rate_limit_exceeded') || errorMessage.includes('429')) {
+          return err('Our AI is temporarily over capacity. Please try again in a little while.', 429);
+        }
+        return serverError(new Error('Failed to generate tailored resume'));
+      }
+      console.log('[tailor-resume] after AI call', { mode: 'text', jobId, userId: user.id });
     }
   } catch (e) {
     await logRoute('/api/tailor-resume', user.id, Date.now() - start, 500);
@@ -193,6 +217,7 @@ export async function POST(request: Request): Promise<Response> {
   let pdfUrl: string | null = null;
   if (tailoredResumeText.trim().startsWith('<')) {
     try {
+      console.log('[tailor-resume] before PDF generation', { jobId, userId: user.id, documentId: savedDoc.id });
       const { generateResumeBuffer } = await import('@/lib/generatePdf');
       const pdfBuffer = await generateResumeBuffer(tailoredResumeText);
       if (pdfBuffer) {
@@ -206,6 +231,7 @@ export async function POST(request: Request): Promise<Response> {
           await supabase.from('documents').update({ pdf_url: pdfUrl }).eq('id', savedDoc.id);
         }
       }
+      console.log('[tailor-resume] after PDF generation', { jobId, userId: user.id, documentId: savedDoc.id, hasPdf: !!pdfBuffer, pdfUrl });
     } catch {
       // PDF generation is non-critical
     }
@@ -247,6 +273,7 @@ Return JSON with:
       'ats-score-inline'
     );
 
+    console.log('[tailor-resume] before Supabase insert', { jobId, userId: user.id, hasPdf: !!pdfUrl });
     const { data: atsRow } = await supabase
       .from('ats_scores')
       .insert({
