@@ -179,9 +179,9 @@ export async function POST(request: Request): Promise<Response> {
           `ORIGINAL RESUME:\n${resume.raw_text}`;
 
         rawOutput = await withTimeout(generateText(systemPrompt, userPrompt, 4000), 30000, 'tailor-resume');
-      } catch (err) {
-        console.error('[tailor-resume] AI call failed:', err);
-        const errorMessage = err instanceof Error ? err.message : String(err);
+      } catch (aiError) {
+        console.error('[tailor-resume] AI call failed:', aiError);
+        const errorMessage = aiError instanceof Error ? aiError.message : String(aiError);
         if (errorMessage.includes('rate_limit_exceeded') || errorMessage.includes('429')) {
           return err('Our AI is temporarily over capacity. Please try again in a little while.', 429);
         }
