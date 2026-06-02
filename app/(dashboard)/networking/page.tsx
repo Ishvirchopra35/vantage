@@ -13,9 +13,9 @@ interface Contact {
   name: string
   title: string
   company: string
-  linkedin_url: string | null
-  relevance_reason: string
-  job_relevance_score?: number
+  linkedin: string
+  snippet: string
+  source: 'serpapi'
 }
 
 interface Job {
@@ -71,32 +71,30 @@ function ContactCard({ contact, onUse }: { contact: Contact; onUse: (c: Contact)
           {contact.name}
         </div>
         <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-          {contact.title} · {contact.company}
+          {contact.title}{contact.title && contact.company ? ' · ' : ''}{contact.company}
         </div>
       </div>
-      {contact.relevance_reason && (
-        <div style={{ fontSize: '11px', color: 'var(--muted)', fontStyle: 'italic' }}>
-          {contact.relevance_reason}
+      {contact.snippet && (
+        <div style={{ fontSize: '11px', color: 'var(--muted)', lineHeight: 1.4 }}>
+          {contact.snippet}
         </div>
       )}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        {contact.linkedin_url && (
-          <a
-            href={contact.linkedin_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontSize: '12px',
-              color: 'var(--muted)',
-              textDecoration: 'none',
-              border: '1px solid var(--border)',
-              borderRadius: '6px',
-              padding: '4px 10px',
-            }}
-          >
-            LinkedIn ↗
-          </a>
-        )}
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <a
+          href={contact.linkedin}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontSize: '12px',
+            color: 'var(--muted)',
+            textDecoration: 'none',
+            border: '1px solid var(--border)',
+            borderRadius: '6px',
+            padding: '4px 10px',
+          }}
+        >
+          View Profile ↗
+        </a>
         <button
           type="button"
           onClick={() => onUse(contact)}
@@ -185,7 +183,7 @@ export default function NetworkingPage() {
     setContactName(contact.name)
     setContactTitle(contact.title)
     setContactCompany(contact.company)
-    setContactLinkedinUrl(contact.linkedin_url ?? '')
+    setContactLinkedinUrl(contact.linkedin)
     setMessageType('connection_request')
     setGeneratedText('')
     setEditedText('')

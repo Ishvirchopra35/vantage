@@ -396,3 +396,12 @@ type: Fix
 title: Networking — inline delete confirmation, remove AI-generated contact fallback
 - app/api/find-contacts/route.ts: removed generateFallbackContacts AI fallback entirely; removed ai_generated field from Contact interface; search now cascades LinkedIn via Jina → Google via Jina only; AI extraction prompt explicitly forbids fabricating contacts; returns empty array when no real contacts found
 - app/(dashboard)/networking/page.tsx: removed ai_generated field from Contact interface; removed AI-suggested amber banner; removed AI badge from ContactCard; replaced window.confirm delete dialog with inline "Delete? Yes / Cancel" confirmation using confirmingDeleteId state
+
+---
+date: 2026-05-25
+type: Update
+title: Networking — Apollo People Search replaces Jina/AI contact scraping
+- app/api/find-contacts/route.ts: replaced Jina + AI extraction pipeline with a direct POST to Apollo api/v1/mixed_people/api_search; sends person_titles array (recruiter, talent acquisition, technical recruiter, hiring manager, engineering manager, hr manager, + optional role param) and q_organization_name; maps response to { id, name (first_name + last_name_obfuscated), title, company, linkedin (search URL), hasEmail, source: 'apollo' }; returns { contacts, total, message }; removed Jina fetch, generateJSON, buildUserContext, and all scraping logic
+- app/(dashboard)/networking/page.tsx: Contact interface updated to Apollo shape (id, linkedin, hasEmail, source); ContactCard updated — "Search on LinkedIn ↗" link always shown (search URL), "Has email on file" greyed badge with tooltip shown when hasEmail is true; prefillFromContact uses contact.linkedin instead of contact.linkedin_url
+- .env.local: APOLLO_API_KEY= placeholder added (fill in master key from app.apollo.io/settings/integrations/api)
+- new env var required: APOLLO_API_KEY (master key — the people search endpoint requires it)
