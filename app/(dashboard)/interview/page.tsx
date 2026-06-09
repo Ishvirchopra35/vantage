@@ -11,6 +11,7 @@ interface InterviewQuestions {
   technical_questions: string[]
   role_specific_questions: string[]
   tips: string[]
+  _meta?: { title: string; company: string }
 }
 
 interface Assessment {
@@ -87,6 +88,8 @@ export default function InterviewPage() {
   const [activeSession, setActiveSession] = useState<InterviewSession | null>(null)
   const [creating, setCreating] = useState(false)
   const [selectedJobId, setSelectedJobId] = useState('')
+  const [useManual, setUseManual] = useState(false)
+  const [manualJob, setManualJob] = useState({ title: '', company: '', description: '' })
   const [tab, setTab] = useState<Tab>('behavioral')
   const [error, setError] = useState<string | null>(null)
 
@@ -105,18 +108,33 @@ export default function InterviewPage() {
   useEffect(() => {
     async function load() {
       setLoading(true)
-      const [{ data: sessionsData }, { data: jobs }] = await Promise.all([
+      interface AppRow {
+        job_id: string
+        role: string
+        company: string
+        jobs: { id: string; title: string; company: string } | null
+      }
+      const [{ data: sessionsData }, { data: appsData }] = await Promise.all([
         supabase
           .from('interview_sessions')
           .select('id, job_id, questions, practice_answers, feedback, created_at')
           .order('created_at', { ascending: false }),
         supabase
-          .from('jobs')
-          .select('id, title, company, applications!inner(id)')
+          .from('applications')
+          .select('job_id, role, company, jobs(id, title, company)')
+          .is('deleted_at', null)
           .order('created_at', { ascending: false }),
       ])
       setSessions((sessionsData ?? []) as InterviewSession[])
-      setJobsList((jobs ?? []).map(({ id, title, company }) => ({ id, title, company })))
+      const seen = new Set<string>()
+      const uniqueJobs = ((appsData ?? []) as unknown as AppRow[])
+        .filter(a => a.jobs && !seen.has(a.job_id) && !!seen.add(a.job_id))
+        .map(a => ({
+          id: a.job_id,
+          title: a.jobs?.title || a.role,
+          company: a.jobs?.company || a.company,
+        }))
+      setJobsList(uniqueJobs)
       setLoading(false)
     }
     void load()
@@ -221,14 +239,21 @@ export default function InterviewPage() {
   }
 
   async function handleStartSession() {
-    if (!selectedJobId) return
+    if (useManual) {
+      if (!manualJob.title.trim() || !manualJob.company.trim()) return
+    } else {
+      if (!selectedJobId) return
+    }
     setError(null)
     setCreating(true)
+    const payload = useManual
+      ? { title: manualJob.title.trim(), company: manualJob.company.trim(), description: manualJob.description.trim() || undefined }
+      : { jobId: selectedJobId }
     try {
       const res = await fetch('/api/interview-prep/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: selectedJobId }),
+        body: JSON.stringify(payload),
       })
       const json = await res.json() as { session?: InterviewSession; error?: string }
       if (!res.ok || !json.session) {
@@ -265,27 +290,84 @@ export default function InterviewPage() {
         {/* Start session card */}
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '24px', marginBottom: '20px' }}>
           <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '14px' }}>Start a new session</div>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <select
-              value={selectedJobId}
-              onChange={e => setSelectedJobId(e.target.value)}
-              style={{ ...inputStyle, flex: 1 }}
-            >
-              <option value="">Select a job…</option>
-              {jobsList.map(j => (
-                <option key={j.id} value={j.id}>{j.title} — {j.company}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => void handleStartSession()}
-              disabled={!selectedJobId || creating}
-              style={{ ...primaryBtn, opacity: !selectedJobId || creating ? 0.6 : 1 }}
-            >
-              {creating && <Spinner size="sm" />}
-              {creating ? 'Generating…' : 'Start new session'}
-            </button>
-          </div>
+
+          {!useManual ? (
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <select
+                value={selectedJobId}
+                onChange={e => setSelectedJobId(e.target.value)}
+                style={{ ...inputStyle, flex: 1 }}
+              >
+                <option value="">Select a job from your tracker…</option>
+                {jobsList.map(j => (
+                  <option key={j.id} value={j.id}>{j.title} — {j.company}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => void handleStartSession()}
+                disabled={!selectedJobId || creating}
+                style={{ ...primaryBtn, opacity: !selectedJobId || creating ? 0.6 : 1 }}
+              >
+                {creating && <Spinner size="sm" />}
+                {creating ? 'Generating…' : 'Start new session'}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--muted)', marginBottom: '5px' }}>Job Title</label>
+                  <input
+                    type="text"
+                    value={manualJob.title}
+                    onChange={e => setManualJob(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="e.g. Software Engineer"
+                    style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--muted)', marginBottom: '5px' }}>Company</label>
+                  <input
+                    type="text"
+                    value={manualJob.company}
+                    onChange={e => setManualJob(prev => ({ ...prev, company: e.target.value }))}
+                    placeholder="e.g. Stripe"
+                    style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--muted)', marginBottom: '5px' }}>Job Description (optional)</label>
+                <textarea
+                  value={manualJob.description}
+                  onChange={e => setManualJob(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Paste the job description here…"
+                  rows={4}
+                  style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }}
+                />
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => void handleStartSession()}
+                  disabled={!manualJob.title.trim() || !manualJob.company.trim() || creating}
+                  style={{ ...primaryBtn, opacity: !manualJob.title.trim() || !manualJob.company.trim() || creating ? 0.6 : 1 }}
+                >
+                  {creating && <Spinner size="sm" />}
+                  {creating ? 'Generating…' : 'Start new session'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => { setUseManual(v => !v); setSelectedJobId(''); setManualJob({ title: '', company: '', description: '' }) }}
+            style={{ marginTop: '10px', background: 'none', border: 'none', fontSize: '12px', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+          >
+            {useManual ? '← Select from tracker instead' : "Don't see your job? Enter it manually"}
+          </button>
 
           {error && (
             <div style={{ marginTop: '14px', padding: '12px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '13px', color: '#ef4444' }}>
@@ -316,6 +398,9 @@ export default function InterviewPage() {
               <tbody>
                 {sessions.map(s => {
                   const job = jobsList.find(j => j.id === s.job_id)
+                  const meta = !s.job_id ? s.questions?._meta : null
+                  const displayCompany = job?.company ?? meta?.company ?? '—'
+                  const displayTitle = job?.title ?? meta?.title ?? null
                   const qs = s.questions
                   const total = (qs?.behavioral_questions?.length ?? 0) +
                     (qs?.technical_questions?.length ?? 0) +
@@ -324,8 +409,8 @@ export default function InterviewPage() {
                   return (
                     <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '12px 12px 12px 0', color: 'var(--text)', fontWeight: 500 }}>
-                        {job?.company ?? '—'}
-                        {job && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {job.title}</span>}
+                        {displayCompany}
+                        {displayTitle && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {displayTitle}</span>}
                       </td>
                       <td style={{ padding: '12px 12px 12px 0', color: 'var(--muted)', whiteSpace: 'nowrap', fontSize: '12px' }}>
                         {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

@@ -192,55 +192,70 @@ function JobCard({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+interface Filters {
+  location: string
+  jobType: string
+  remote: boolean
+  salaryMin: string
+  datePosted: string
+}
+
+const EMPTY_FILTERS: Filters = { location: '', jobType: '', remote: false, salaryMin: '', datePosted: '' }
+
+const JOB_TYPE_TO_CONTRACT: Record<string, string[]> = {
+  'full-time': ['permanent'],
+  'part-time': ['part_time'],
+  'contract': ['contract', 'temporary'],
+  'internship': ['internship'],
+}
+
 export default function JobsPage() {
-  const [jobs, setJobs] = useState<JobFeedItem[]>([])
+  const [allJobs, setAllJobs] = useState<JobFeedItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
   const [noTargetRoles, setNoTargetRoles] = useState(false)
-  const [employmentFilter, setEmploymentFilter] = useState('all')
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
   const [initialLoadDone, setInitialLoadDone] = useState(false)
 
-  async function loadJobs(forceRefresh = false) {
-    if (forceRefresh) setRefreshing(true)
-    else setLoading(true)
+  const hasActiveFilters = filters.location !== '' || filters.jobType !== '' || filters.remote || filters.salaryMin !== '' || filters.datePosted !== ''
 
+  function clearFilters() { setFilters(EMPTY_FILTERS) }
+
+  // Only called when user clicks "Fetch New Jobs" — never on filter change
+  async function fetchJobs() {
+    setLoading(true)
     try {
-      const url = forceRefresh ? '/api/discover-jobs?refresh=true' : '/api/discover-jobs'
-      const res = await fetch(url, { cache: 'no-store' })
+      const res = await fetch('/api/discover-jobs?refresh=true', { cache: 'no-store' })
       const json = await res.json()
 
       if (json.noTargetRoles) {
         setNoTargetRoles(true)
-        setJobs([])
+        setAllJobs([])
         localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles: true, jobs: [] }))
       } else {
         setNoTargetRoles(false)
         const jobsList = (json.jobs ?? []) as JobFeedItem[]
-        setJobs(jobsList)
+        setAllJobs(jobsList)
         localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles: false, jobs: jobsList }))
       }
     } catch {
       // fail silently — keep existing list
     } finally {
       setLoading(false)
-      setRefreshing(false)
       setInitialLoadDone(true)
     }
   }
 
-  // Load cached jobs from localStorage on mount (no API call)
+  // Load cached jobs from localStorage on mount — no API call
   useEffect(() => {
     try {
       const cached = localStorage.getItem('jobFeedCache')
       if (cached) {
         const parsed = JSON.parse(cached)
         if (parsed.jobs && Array.isArray(parsed.jobs)) {
-          setJobs(parsed.jobs as JobFeedItem[])
+          setAllJobs(parsed.jobs as JobFeedItem[])
         }
-        if (parsed.noTargetRoles) {
-          setNoTargetRoles(true)
-        }
+        if (parsed.noTargetRoles) setNoTargetRoles(true)
       }
     } catch {
       // fail silently
@@ -258,8 +273,8 @@ export default function JobsPage() {
         body: JSON.stringify({ is_saved: !currentValue }),
       })
       if (res.ok) {
-        const updated = jobs.map(j => j.id === id ? { ...j, is_saved: !currentValue } : j)
-        setJobs(updated)
+        const updated = allJobs.map(j => j.id === id ? { ...j, is_saved: !currentValue } : j)
+        setAllJobs(updated)
         localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles, jobs: updated }))
       }
     } catch {}
@@ -269,37 +284,59 @@ export default function JobsPage() {
   }
 
   function handleDismiss(id: string) {
-    const updated = jobs.map(j => j.id === id ? { ...j, is_dismissed: true } : j)
-    setJobs(updated)
+    const updated = allJobs.map(j => j.id === id ? { ...j, is_dismissed: true } : j)
+    setAllJobs(updated)
     localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles, jobs: updated }))
     fetch(`/api/job-feed/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_dismissed: true }),
     }).catch(() => {
-      const reverted = jobs.map(j => j.id === id ? { ...j, is_dismissed: false } : j)
-      setJobs(reverted)
+      const reverted = allJobs.map(j => j.id === id ? { ...j, is_dismissed: false } : j)
+      setAllJobs(reverted)
       localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles, jobs: reverted }))
     })
   }
 
-  const employmentTypes = useMemo(() => {
-    const types = new Set(
-      jobs.filter(j => !j.is_dismissed && j.employment_type).map(j => j.employment_type as string)
-    )
-    return Array.from(types)
-  }, [jobs])
-
+  // Derived — filters allJobs client-side, never triggers an API call
   const visible = useMemo(() => {
-    let list = jobs.filter(j => !j.is_dismissed)
-    if (employmentFilter !== 'all') {
-      list = list.filter(j => j.employment_type === employmentFilter)
+    let list = allJobs.filter(j => !j.is_dismissed)
+
+    if (filters.jobType === 'internship') {
+      list = list.filter(j => j.title.toLowerCase().includes('intern'))
+    } else if (filters.jobType === 'full-time') {
+      list = list.filter(j => {
+        const et = (j.employment_type ?? '').toLowerCase()
+        return et.includes('permanent') || et.includes('full')
+      })
+    } else if (filters.jobType === 'part-time') {
+      list = list.filter(j => {
+        const et = (j.employment_type ?? '').toLowerCase()
+        return et.includes('part')
+      })
+    } else if (filters.jobType === 'contract') {
+      list = list.filter(j => {
+        const et = (j.employment_type ?? '').toLowerCase()
+        return et.includes('contract') || j.title.toLowerCase().includes('contract')
+      })
     }
+
+    if (filters.location) {
+      const loc = filters.location.toLowerCase()
+      list = list.filter(j => j.location.toLowerCase().includes(loc))
+    }
+    if (filters.remote) {
+      list = list.filter(j =>
+        j.location.toLowerCase().includes('remote') ||
+        j.title.toLowerCase().includes('remote')
+      )
+    }
+
     return [...list].sort((a, b) => {
       if (a.is_saved !== b.is_saved) return a.is_saved ? -1 : 1
       return b.relevance_score - a.relevance_score
     })
-  }, [jobs, employmentFilter])
+  }, [allJobs, filters])
 
   const smallBtn: React.CSSProperties = {
     background: 'transparent',
@@ -325,38 +362,81 @@ export default function JobsPage() {
             Personalized listings matched to your target roles
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {employmentTypes.length > 0 && (
-            <select
-              value={employmentFilter}
-              onChange={e => setEmploymentFilter(e.target.value)}
-              style={{
-                background: 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                color: 'var(--text)',
-                fontSize: '13px',
-                padding: '6px 10px',
-                cursor: 'pointer',
-                outline: 'none',
-              }}
-            >
-              <option value="all">All types</option>
-              {employmentTypes.map(t => (
-                <option key={t} value={t}>{EMPLOYMENT_LABEL[t] ?? t}</option>
-              ))}
-            </select>
-          )}
+        <button
+          type="button"
+          onClick={() => void fetchJobs()}
+          disabled={loading}
+          style={{ ...smallBtn, opacity: loading ? 0.6 : 1 }}
+        >
+          {loading && <Spinner size="sm" />}
+          {loading ? 'Fetching…' : 'Fetch New'}
+        </button>
+      </div>
+
+      {/* ── Filter bar ──────────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex',
+        gap: '10px',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        marginBottom: '16px',
+        padding: '12px 16px',
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: '10px',
+      }}>
+        <input
+          type="text"
+          placeholder="Location"
+          value={filters.location}
+          onChange={e => setFilters(prev => ({ ...prev, location: e.target.value }))}
+          style={{ padding: '6px 10px', borderRadius: '7px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '12px', outline: 'none', width: '120px' }}
+        />
+        <select
+          value={filters.jobType}
+          onChange={e => setFilters(prev => ({ ...prev, jobType: e.target.value }))}
+          style={{ padding: '6px 10px', borderRadius: '7px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '12px', outline: 'none', cursor: 'pointer' }}
+        >
+          <option value="">Any type</option>
+          <option value="full-time">Full-time</option>
+          <option value="part-time">Part-time</option>
+          <option value="contract">Contract</option>
+          <option value="internship">Internship</option>
+        </select>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--muted)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          <input
+            type="checkbox"
+            checked={filters.remote}
+            onChange={e => setFilters(prev => ({ ...prev, remote: e.target.checked }))}
+          />
+          Remote only
+        </label>
+        <input
+          type="number"
+          placeholder="Min salary"
+          value={filters.salaryMin}
+          onChange={e => setFilters(prev => ({ ...prev, salaryMin: e.target.value }))}
+          style={{ padding: '6px 10px', borderRadius: '7px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '12px', outline: 'none', width: '110px' }}
+        />
+        <select
+          value={filters.datePosted}
+          onChange={e => setFilters(prev => ({ ...prev, datePosted: e.target.value }))}
+          style={{ padding: '6px 10px', borderRadius: '7px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '12px', outline: 'none', cursor: 'pointer' }}
+        >
+          <option value="">Any time</option>
+          <option value="today">Today</option>
+          <option value="week">This week</option>
+          <option value="month">This month</option>
+        </select>
+        {hasActiveFilters && (
           <button
             type="button"
-            onClick={() => loadJobs(true)}
-            disabled={refreshing || loading}
-            style={{ ...smallBtn, opacity: refreshing || loading ? 0.6 : 1 }}
+            onClick={clearFilters}
+            style={{ fontSize: '12px', color: 'var(--muted)', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
-            {(refreshing || loading) && <Spinner size="sm" />}
-            {refreshing || loading ? 'Fetching…' : 'Fetch New'}
+            Clear filters
           </button>
-        </div>
+        )}
       </div>
 
       {/* ── Content ─────────────────────────────────────────────────────── */}
@@ -379,14 +459,14 @@ export default function JobsPage() {
               No jobs yet
             </div>
             <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
-              {employmentFilter !== 'all' ? 'No jobs match this filter. Try a different type.' : 'Click the button below to fetch personalized jobs.'}
+              {hasActiveFilters ? 'No jobs match your filters. Try adjusting or clearing them.' : 'Click the button below to fetch personalized jobs.'}
             </div>
           </div>
-          {employmentFilter === 'all' && (
+          {!hasActiveFilters && (
             <button
               type="button"
-              onClick={() => loadJobs(true)}
-              disabled={loading || refreshing}
+              onClick={() => void fetchJobs()}
+              disabled={loading}
               style={{
                 background: 'var(--accent)',
                 border: 'none',
@@ -399,22 +479,25 @@ export default function JobsPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                opacity: loading || refreshing ? 0.6 : 1,
+                opacity: loading ? 0.6 : 1,
               }}
             >
-              {loading || refreshing ? <Spinner size="sm" /> : null}
-              {loading || refreshing ? 'Fetching…' : 'Fetch Jobs'}
+              {loading ? <Spinner size="sm" /> : null}
+              {loading ? 'Fetching…' : 'Fetch Jobs'}
             </button>
           )}
         </div>
       ) : (
         <>
           {loading && (
-            <div style={{ marginBottom: '20px', padding: '12px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--muted)' }}>
+            <div style={{ marginBottom: '16px', padding: '12px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--muted)' }}>
               <Spinner size="sm" />
               Fetching new jobs…
             </div>
           )}
+          <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '12px' }}>
+            {visible.length} result{visible.length !== 1 ? 's' : ''} found
+          </div>
           <div className="jobs-grid">
             {visible.map(job => (
               <JobCard
