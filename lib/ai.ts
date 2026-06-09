@@ -261,29 +261,47 @@ Respond ONLY with valid JSON. No markdown, no backticks, no explanation.`;
 async function generateTextCerebras(
   systemPrompt: string,
   userPrompt: string,
-  maxTokens = 1000
+  maxTokens = 2000
 ): Promise<string> {
   const apiKey = process.env.CEREBRAS_API_KEY
   if (!apiKey) throw new Error('CEREBRAS_API_KEY is not set')
+
+  // gpt-oss-120b may not support system role — combine into a single user message
+  const combinedUserMessage = `${systemPrompt}\n\n${userPrompt}`
+
+  const requestBody = {
+    model: 'gpt-oss-120b',
+    max_tokens: 2000,
+    messages: [
+      { role: 'user', content: combinedUserMessage },
+    ],
+  }
+
+  console.log('[Cerebras] Sending request with model gpt-oss-120b, max_tokens:', requestBody.max_tokens)
+
   const res = await fetch('https://api.cerebras.ai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: 'gpt-oss-120b',
-      max_tokens: maxTokens,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-    }),
+    body: JSON.stringify(requestBody),
   })
-  const data = await res.json() as {
-    choices?: Array<{ message?: { content?: string } }>
-    error?: { message: string }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data = await res.json() as any
+
+  console.log('[Cerebras] Raw response:', JSON.stringify(data, null, 2))
+
+  if (!res.ok) {
+    console.error('[Cerebras] HTTP error:', res.status, JSON.stringify(data))
+    throw new Error(data?.error?.message ?? JSON.stringify(data))
   }
-  if (!res.ok) throw new Error(data.error?.message ?? JSON.stringify(data))
-  const content = data.choices?.[0]?.message?.content
-  if (!content?.trim()) throw new Error('Empty response from Cerebras')
+
+  const content: string | undefined = data?.choices?.[0]?.message?.content
+
+  if (!content || content.trim() === '') {
+    console.error('[Cerebras] Empty content. Full response:', JSON.stringify(data))
+    throw new Error('Empty response from Cerebras')
+  }
+
   return content.trim()
 }
 
