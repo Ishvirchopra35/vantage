@@ -18,7 +18,9 @@
       "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('stripe:', p.dependencies.stripe, '@stripe/stripe-js:', p.dependencies['@stripe/stripe-js']\\)\")",
       "Bash(node *)",
       "Bash(Remove-Item -Recurse -Force \".next\" -ErrorAction SilentlyContinue)",
-      "Bash(findstr NEXT_PUBLIC_SUPABASE_URL)"
+      "Bash(findstr NEXT_PUBLIC_SUPABASE_URL)",
+      "Bash(Get-Content \"C:\\\\Users\\\\ishvi\\\\OneDrive\\\\Desktop\\\\Code\\\\Projects\\\\Vantage\\\\vantage\\\\content\\\\changelog\\\\latest.mdx\")",
+      "Bash(Select-Object -Last 10)"
     ]
   }
 }

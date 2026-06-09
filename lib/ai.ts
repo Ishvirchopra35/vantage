@@ -269,7 +269,7 @@ async function generateTextCerebras(
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: 'llama3.1-70b',
+      model: 'gpt-oss-120b',
       max_tokens: maxTokens,
       messages: [
         { role: 'system', content: systemPrompt },

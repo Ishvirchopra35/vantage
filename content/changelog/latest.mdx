@@ -235,7 +235,7 @@ title: Networking contact search — URL encoding, logging, and AI fallback
 date: 2026-05-17
 type: Feature
 title: Cerebras AI for interview prep + full UI restyle
-- lib/ai.ts: added generateTextCerebras and generateJSONCerebras using Cerebras OpenAI-compatible API (https://api.cerebras.ai/v1, model llama-3.3-70b) — separate rate limit from Groq
+- lib/ai.ts: added generateTextCerebras and generateJSONCerebras using Cerebras OpenAI-compatible API (https://api.cerebras.ai/v1, model gpt-oss-120b) — separate rate limit from Groq
 - app/api/interview-prep/generate/route.ts: switched from generateJSON (Groq) to generateJSONCerebras; removed forceSecondary logic; fixed JSON prompt format to use explicit object template; typed result as InterviewQuestions instead of any
 - app/api/interview-prep/assess/route.ts: switched to generateJSONCerebras; fixed JSON prompt format; typed assessment as Assessment interface instead of any; simplified feedback keying (uses question text directly, consistent with client); removed qHash
 - app/(dashboard)/interview/page.tsx: full restyle — landing page with Start session card and past sessions table (Company/Date/Progress columns); practice session with pill category tabs, redesigned question cards (question left, buttons right), Voice/Type toggle pills, "I don't know" link, typed textarea, assessment grid with Strengths/Improve columns and filler word badges
@@ -405,3 +405,9 @@ title: Networking — Apollo People Search replaces Jina/AI contact scraping
 - app/(dashboard)/networking/page.tsx: Contact interface updated to Apollo shape (id, linkedin, hasEmail, source); ContactCard updated — "Search on LinkedIn ↗" link always shown (search URL), "Has email on file" greyed badge with tooltip shown when hasEmail is true; prefillFromContact uses contact.linkedin instead of contact.linkedin_url
 - .env.local: APOLLO_API_KEY= placeholder added (fill in master key from app.apollo.io/settings/integrations/api)
 - new env var required: APOLLO_API_KEY (master key — the people search endpoint requires it)
+
+---
+date: 2026-06-09
+type: Update
+title: Cerebras model updated to gpt-oss-120b
+- lib/ai.ts: updated Cerebras model string from llama3.1-70b to gpt-oss-120b in generateTextCerebras
