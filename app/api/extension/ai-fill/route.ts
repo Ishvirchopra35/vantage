@@ -112,7 +112,7 @@ Return a bare JSON array (no wrapper object), one entry per question, preserving
     let fields: FieldAnswer[]
     try {
       // Strip any non-JSON prefix/suffix
-      const match = raw.match(/(\[[\s\S]*\]|\{[\s\S]*\})/)
+      const match = raw.match(/(\[[\s\S]*?\]|\{[\s\S]*?\})/)
       if (!match) throw new Error('No JSON found')
 
       const parsed = JSON.parse(match[1])
