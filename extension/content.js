@@ -420,7 +420,9 @@
     await new Promise(r => setTimeout(r, 800));
 
     const survey = document.getElementById('countrySurvey');
-    if (!survey || survey.classList.contains('hidden')) return;
+    if (!survey || survey.classList.contains('hidden')) return 0;
+
+    let filled = 0;
 
     // Age range radio — default to 21-29
     const ageTarget = '21-29';
@@ -428,6 +430,7 @@
     for (const radio of ageRadios) {
       if (radio.value === ageTarget && !radio.checked) {
         radio.closest('label')?.click();
+        filled++;
         break;
       }
     }
@@ -439,9 +442,12 @@
     for (const radio of eduRadios) {
       if (radio.value === 'Bachelor' && !radio.checked) {
         radio.closest('label')?.click();
+        filled++;
         break;
       }
     }
+
+    return filled;
   }
 
   // ── Checkbox handler ─────────────────────────────────────────────────────────
@@ -598,15 +604,23 @@
 
   // Hardcode-fills Greenhouse question_ fields that React synthetic events require
   function fillGreenhouseDirectFields(kit) {
+    let filled = 0;
+    if (kit.firstName && document.getElementById('question_64567483')) filled++;
+    if (kit.lastName && document.getElementById('question_64567484')) filled++;
+    if (kit.linkedin && document.getElementById('question_64567485')) filled++;
+
     reactFill(document.getElementById('question_64567483'), kit.firstName);
     reactFill(document.getElementById('question_64567484'), kit.lastName);
     reactFill(document.getElementById('question_64567485'), kit.linkedin);
     // question_66194211 is filled by AI answer via fillPlainTextFields
+
+    return filled;
   }
 
   // Fills input[type="text"] and textarea elements by matching aria-labelledby/aria-label
   // against AI answer labels — handles Greenhouse question_ fields and similar React inputs
   function fillPlainTextFields(fields) {
+    let filled = 0;
     const inputs = document.querySelectorAll(
       'input[type="text"]:not([role="combobox"]):not([tabindex="-1"]), textarea'
     );
@@ -621,10 +635,13 @@
         if (!answer || answer === 'null') continue;
         if (labelsMatch(elLabel, targetLabel)) {
           reactFill(input, answer);
+          filled++;
           break;
         }
       }
     }
+
+    return filled;
   }
 
   function labelsMatch(elLabel, targetLabel) {
@@ -639,7 +656,7 @@
 
   async function fillLocationField(city) {
     const locationInput = document.getElementById('candidate-location');
-    if (!locationInput || !city) return;
+    if (!locationInput || !city) return 0;
 
     locationInput.focus();
     locationInput.click();
@@ -659,11 +676,15 @@
       if (firstOption) {
         firstOption.click();
         console.log('[Vantage] Location selected:', firstOption.textContent?.trim());
+        return 1;
       }
     }
+
+    return 0;
   }
 
   async function fillGreenhouseReactSelects(fields) {
+    let filled = 0;
     for (const { label: targetLabel, answer } of fields) {
       if (!answer || answer === 'null' || answer === null) continue;
 
@@ -713,6 +734,7 @@
         if (match) {
           match.click();
           console.log('[Vantage] Clicked:', match.textContent?.trim());
+          filled++;
         } else {
           input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         }
@@ -721,6 +743,8 @@
         break;
       }
     }
+
+    return filled;
   }
 
   // ── Workday detection and fill ────────────────────────────────────────────────
@@ -855,11 +879,11 @@
     // ── Pass 2: Greenhouse location field ─────────────────────────────────────
     const locationField = fields.find(f => /\blocation\b|\bcity\b/i.test(f.label));
     if (locationField?.answer && locationField.answer !== 'null') {
-      await fillLocationField(locationField.answer);
+      filled += await fillLocationField(locationField.answer);
     }
 
     // ── Pass 3: Greenhouse React Select comboboxes ────────────────────────────
-    await fillGreenhouseReactSelects(fields);
+    filled += await fillGreenhouseReactSelects(fields);
 
     // ── Pass 4: AI guidelines checkbox ────────────────────────────────────────
     const aiCheckbox = document.getElementById('question_64567494[]_651433054') ||
@@ -867,13 +891,13 @@
     if (aiCheckbox && !aiCheckbox.checked) aiCheckbox.click();
 
     // ── Pass 5: plain text + textarea fields via aria-label (React-compatible) ──
-    fillPlainTextFields(fields);
+    filled += fillPlainTextFields(fields);
 
     // ── Greenhouse direct fields (firstName/lastName/linkedin bypass AI) ──────
-    fillGreenhouseDirectFields(kit);
+    filled += fillGreenhouseDirectFields(kit);
 
     // ── Lever demographic survey (hidden until location fills; waits 800ms) ───
-    await fillLeverSurveyIfVisible(kit);
+    filled += await fillLeverSurveyIfVisible(kit);
 
     return { filled };
   }
