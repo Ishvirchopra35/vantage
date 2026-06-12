@@ -258,7 +258,7 @@ Respond ONLY with valid JSON. No markdown, no backticks, no explanation.`;
 // ── Cerebras (OpenAI-compatible) ─────────────────────────────────────────────
 // Used for interview prep routes — separate rate limit from Groq.
 
-async function generateTextCerebras(
+export async function generateTextCerebras(
   systemPrompt: string,
   userPrompt: string,
   maxTokens = 2000

@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
-import { ok, unauthorized, serverError } from '@/lib/apiResponse'
+import { unauthorized } from '@/lib/apiResponse'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
-import { generateJSONCerebras } from '@/lib/ai'
+import { generateTextCerebras } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -104,22 +104,33 @@ Return a bare JSON array (no wrapper object), one entry per question, preserving
 [{ "label": "exact label text", "answer": "verbatim option or written answer or null" }]`
 
     const raw = await withTimeout(
-      generateJSONCerebras<unknown>(systemPrompt, userPrompt),
+      generateTextCerebras(systemPrompt, userPrompt, 2000),
       30000,
       'extension-ai-fill'
     )
 
     let fields: FieldAnswer[]
-    if (Array.isArray(raw)) {
-      fields = raw as FieldAnswer[]
-    } else if (raw && typeof raw === 'object' && Array.isArray((raw as Record<string, unknown>).fields)) {
-      fields = (raw as { fields: FieldAnswer[] }).fields
-    } else {
-      fields = []
+    try {
+      const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim()
+      const parsed = JSON.parse(cleaned)
+
+      // Handle both formats
+      if (Array.isArray(parsed)) {
+        fields = parsed
+      } else if (parsed.fields) {
+        fields = parsed.fields
+      } else {
+        fields = Object.values(parsed)
+      }
+    } catch (e) {
+      return Response.json(
+        { error: `Failed to parse JSON from cerebras response. Raw (first 200 chars): ${raw.substring(0, 200)}` },
+        { status: 500 }
+      )
     }
 
-    return ok({ fields })
+    return Response.json({ fields })
   } catch (e) {
-    return serverError(e)
+    return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })
   }
 }
