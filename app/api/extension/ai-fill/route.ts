@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { unauthorized } from '@/lib/apiResponse'
+import { ok, unauthorized, serverError } from '@/lib/apiResponse'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
 import { generateTextCerebras } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
