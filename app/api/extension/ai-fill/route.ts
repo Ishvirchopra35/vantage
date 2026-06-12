@@ -111,10 +111,12 @@ Return a bare JSON array (no wrapper object), one entry per question, preserving
 
     let fields: FieldAnswer[]
     try {
-      const cleaned = raw.replace(/```json/g, '').replace(/```/g, '').trim()
-      const parsed = JSON.parse(cleaned)
+      // Strip any non-JSON prefix/suffix
+      const match = raw.match(/(\[[\s\S]*\]|\{[\s\S]*\})/)
+      if (!match) throw new Error('No JSON found')
 
-      // Handle both formats
+      const parsed = JSON.parse(match[1])
+
       if (Array.isArray(parsed)) {
         fields = parsed
       } else if (parsed.fields) {
@@ -123,6 +125,7 @@ Return a bare JSON array (no wrapper object), one entry per question, preserving
         fields = Object.values(parsed)
       }
     } catch (e) {
+      console.error('[ai-fill] Parse error:', e, 'Raw:', raw.substring(0, 500))
       return Response.json(
         { error: `Failed to parse JSON from cerebras response. Raw (first 200 chars): ${raw.substring(0, 200)}` },
         { status: 500 }
