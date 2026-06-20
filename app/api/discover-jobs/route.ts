@@ -1,9 +1,10 @@
 import { requireAuth } from '@/lib/requireAuth'
 import { logRoute } from '@/lib/logger'
 import { buildUserContext } from '@/lib/userContext'
-import { generateJSONSecondary } from '@/lib/ai'
+import { generateJSON } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
 
 export const maxDuration = 60
 
@@ -111,6 +112,20 @@ export async function GET(request: Request): Promise<Response> {
   const { searchParams } = new URL(request.url)
   const refresh = searchParams.get('refresh') === 'true'
 
+  // Only rate-limit the expensive refresh path (AI calls happen there)
+  if (refresh) {
+    const rateLimit = await checkRateLimit({
+      key: 'discover-jobs-refresh',
+      userId: user.id,
+      maxRequests: 10,
+      windowMinutes: 60,
+    })
+    if (!rateLimit.allowed) {
+      await logRoute(ROUTE, user.id, Date.now() - start, 429)
+      return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining)
+    }
+  }
+
   const supabase = await createClient()
 
   // ── Cache hit — return stored jobs immediately ─────────────────────────────
@@ -192,7 +207,7 @@ export async function GET(request: Request): Promise<Response> {
 
       try {
         const scored = await withTimeout(
-          generateJSONSecondary<{ relevance_score: number; reason: string }>(systemPrompt, userPrompt),
+          generateJSON<{ relevance_score: number; reason: string }>(systemPrompt, userPrompt),
           20000,
           'score-job'
         )

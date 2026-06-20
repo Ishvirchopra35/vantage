@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
 import { ok, err, notFound, rateLimited, serverError } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
-import { checkLimit, LIMITS } from '@/lib/rateLimit';
+import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 import { withTimeout } from '@/lib/withTimeout';
 import { generateText, generateJSON } from '@/lib/ai';
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext';
@@ -60,6 +60,17 @@ export async function POST(request: Request): Promise<Response> {
   if (!limitCheck.allowed) {
     await logRoute('/api/tailor-resume', user.id, Date.now() - start, 429);
     return rateLimited('resume tailoring', LIMITS.tailoring, 30);
+  }
+
+  const rateLimit = await checkRateLimit({
+    key: 'tailor-resume',
+    userId: user.id,
+    maxRequests: 5,
+    windowMinutes: 60,
+  });
+  if (!rateLimit.allowed) {
+    await logRoute('/api/tailor-resume', user.id, Date.now() - start, 429);
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining);
   }
 
   const supabase = await createClient();

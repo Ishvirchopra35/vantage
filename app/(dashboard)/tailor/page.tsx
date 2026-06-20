@@ -293,8 +293,8 @@ export default function TailorPage() {
     const job = jobOverride ?? parsedJob
     if (!job) return
     if (jobOverride) setParsedJob(jobOverride)
-    setLogCompany(job.company)
-    setLogRole(job.title)
+    setLogCompany(job.company || '')
+    setLogRole(job.title || '')
 
     const supabase = createClient()
     const [limitsRes, userRes] = await Promise.all([
@@ -458,7 +458,7 @@ export default function TailorPage() {
   }
 
   async function logApplication() {
-    if (!parsedJob || !logCompany.trim() || !logRole.trim()) return
+    if (!parsedJob || !logCompany?.trim() || !logRole?.trim()) return
     setLogLoading(true)
     const supabase = createClient()
     const { data: userData } = await supabase.auth.getUser()
@@ -469,8 +469,8 @@ export default function TailorPage() {
       user_id: userId,
       job_id: parsedJob.id,
       job_url: parsedJob.url || null,
-      company: logCompany.trim(),
-      role: logRole.trim(),
+      company: (logCompany || '').trim(),
+      role: (logRole || '').trim(),
       status: 'applied',
       applied_date: new Date().toISOString().slice(0, 10),
       resume_doc_id: tailoredDoc?.id ?? null,
@@ -1077,22 +1077,22 @@ export default function TailorPage() {
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <input
                     placeholder="Company"
-                    value={logCompany}
+                    value={logCompany || ''}
                     onChange={e => setLogCompany(e.target.value)}
                     style={{ ...inputStyle, flex: '1 1 160px' }}
                   />
                   <input
                     placeholder="Role"
-                    value={logRole}
+                    value={logRole || ''}
                     onChange={e => setLogRole(e.target.value)}
                     style={{ ...inputStyle, flex: '1 1 160px' }}
                   />
                   <button
                     onClick={logApplication}
-                    disabled={logLoading || !logCompany.trim() || !logRole.trim()}
+                    disabled={logLoading || !logCompany?.trim() || !logRole?.trim()}
                     style={{
                       ...primaryBtn,
-                      opacity: logLoading || !logCompany.trim() || !logRole.trim() ? 0.5 : 1,
+                      opacity: logLoading || !logCompany?.trim() || !logRole?.trim() ? 0.5 : 1,
                     }}
                   >
                     {logLoading ? <Spinner /> : 'Log'}

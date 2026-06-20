@@ -2,7 +2,7 @@ import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
 import { ok, err, serverError, rateLimited } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
-import { checkLimit, LIMITS } from '@/lib/rateLimit';
+import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 import { withTimeout } from '@/lib/withTimeout';
 import { generateText } from '@/lib/ai';
 import { createClient } from '@/lib/supabase/server';
@@ -60,6 +60,17 @@ export async function POST(request: Request): Promise<Response> {
     if (!limitCheck.allowed) {
       await logRoute('/api/parse-job', user.id, Date.now() - start, 429);
       return rateLimited('job parsing', LIMITS.tailoring, 30);
+    }
+
+    const rateLimit = await checkRateLimit({
+      key: 'parse-job',
+      userId: user.id,
+      maxRequests: 20,
+      windowMinutes: 60,
+    });
+    if (!rateLimit.allowed) {
+      await logRoute('/api/parse-job', user.id, Date.now() - start, 429);
+      return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining);
     }
 
     const body = await request.json().catch(() => null);

@@ -4,7 +4,7 @@ import { ok, err, serverError, notFound, rateLimited } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
 import { withTimeout } from '@/lib/withTimeout';
 import { generateJSON } from '@/lib/ai';
-import { checkLimit, LIMITS } from '@/lib/rateLimit';
+import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext';
 import { createClient } from '@/lib/supabase/server';
 
@@ -44,6 +44,17 @@ export async function POST(request: Request): Promise<Response> {
   if (!limitCheck.allowed) {
     await logRoute('/api/ats-score', user.id, Date.now() - start, 429);
     return rateLimited('ATS scoring', LIMITS.tailoring, 30);
+  }
+
+  const rateLimit = await checkRateLimit({
+    key: 'ats-score',
+    userId: user.id,
+    maxRequests: 10,
+    windowMinutes: 60,
+  });
+  if (!rateLimit.allowed) {
+    await logRoute('/api/ats-score', user.id, Date.now() - start, 429);
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining);
   }
 
   const supabase = await createClient();

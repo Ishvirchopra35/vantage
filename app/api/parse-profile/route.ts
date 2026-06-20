@@ -5,6 +5,7 @@ import { logRoute } from '@/lib/logger'
 import { generateJSON } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
 
 interface WorkExperience {
   company: string
@@ -44,6 +45,17 @@ export async function POST(request: Request): Promise<Response> {
   const auth = await requireAuth()
   if ('error' in auth) return auth.error
   const { user } = auth
+
+  const rateLimit = await checkRateLimit({
+    key: 'parse-profile',
+    userId: user.id,
+    maxRequests: 10,
+    windowMinutes: 60,
+  })
+  if (!rateLimit.allowed) {
+    await logRoute('/api/parse-profile', user.id, Date.now() - start, 429)
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining)
+  }
 
   const body = await request.json().catch(() => null)
   const validation = validateBody<{ rawText: string }>(body, ['rawText'])

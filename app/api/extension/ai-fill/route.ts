@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { ok, unauthorized, serverError } from '@/lib/apiResponse'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
-import { generateTextCerebras } from '@/lib/ai'
+import { generateText } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -47,6 +48,18 @@ export async function POST(request: Request): Promise<Response> {
 
   if (profileError || !profile) return unauthorized()
 
+  const resolvedUserId = profile.id as string
+
+  const rateLimit = await checkRateLimit({
+    key: 'extension-ai-fill',
+    userId: resolvedUserId,
+    maxRequests: 20,
+    windowMinutes: 60,
+  })
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining)
+  }
+
   let body: { questions: Question[]; jobUrl?: string }
   try {
     body = await request.json()
@@ -61,7 +74,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const ctx = await buildUserContext(profile.id as string)
+    const ctx = await buildUserContext(resolvedUserId)
     const contextStr = formatContextForPrompt(ctx)
     const resumeText = ctx.baseResume ?? 'No resume uploaded'
 
@@ -104,7 +117,7 @@ Return a bare JSON array (no wrapper object), one entry per question, preserving
 [{ "label": "exact label text", "answer": "verbatim option or written answer or null" }]`
 
     const raw = await withTimeout(
-      generateTextCerebras(systemPrompt, userPrompt, 2000),
+      generateText(systemPrompt, userPrompt, 2000),
       30000,
       'extension-ai-fill'
     )

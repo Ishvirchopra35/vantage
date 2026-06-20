@@ -192,4 +192,77 @@ export async function getRemainingLimits(userId: string): Promise<Record<string,
   return out;
 }
 
+// ── Sliding-window per-route rate limiter ─────────────────────────────────────
+// Uses the rate_limit_logs table. Each row is one API call; we count rows
+// within the rolling window. This is separate from the monthly feature quota.
+
+interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  resetAt: Date;
+}
+
+export async function checkRateLimit({
+  key,
+  userId,
+  maxRequests,
+  windowMinutes,
+}: {
+  key: string;
+  userId: string;
+  maxRequests: number;
+  windowMinutes: number;
+}): Promise<RateLimitResult> {
+  const svc = serviceClient();
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - windowMinutes * 60 * 1000);
+  const resetAt = new Date(now.getTime() + windowMinutes * 60 * 1000);
+
+  try {
+    // Count requests in window
+    const { count, error: countError } = await svc
+      .from('rate_limit_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('key', key)
+      .eq('user_id', userId)
+      .gte('created_at', windowStart.toISOString());
+
+    if (countError) {
+      // Fail open — don't block on DB errors
+      console.error('[checkRateLimit] count error:', countError);
+      return { allowed: true, remaining: maxRequests, resetAt };
+    }
+
+    const used = typeof count === 'number' ? count : 0;
+
+    if (used >= maxRequests) {
+      return { allowed: false, remaining: 0, resetAt };
+    }
+
+    // Log this request
+    await svc.from('rate_limit_logs').insert({ key, user_id: userId });
+
+    return { allowed: true, remaining: Math.max(0, maxRequests - used - 1), resetAt };
+  } catch (e) {
+    console.error('[checkRateLimit] unexpected error:', e);
+    // Fail open
+    return { allowed: true, remaining: maxRequests, resetAt };
+  }
+}
+
+export function rateLimitResponse(resetAt: Date, remaining: number): Response {
+  const resetInMinutes = Math.ceil((resetAt.getTime() - Date.now()) / 60000);
+  return new Response(
+    JSON.stringify({
+      error: `You've reached the limit. Try again in ${resetInMinutes} minute${resetInMinutes !== 1 ? 's' : ''}.`,
+      resetAt: resetAt.toISOString(),
+      remaining,
+    }),
+    {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    }
+  );
+}
+
 export default { checkLimit, getRemainingLimits, LIMITS };

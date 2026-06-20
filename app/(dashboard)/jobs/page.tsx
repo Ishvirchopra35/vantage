@@ -216,6 +216,7 @@ export default function JobsPage() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
   const [initialLoadDone, setInitialLoadDone] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const hasActiveFilters = filters.location !== '' || filters.jobType !== '' || filters.remote || filters.salaryMin !== '' || filters.datePosted !== ''
 
@@ -224,9 +225,15 @@ export default function JobsPage() {
   // Only called when user clicks "Fetch New Jobs" — never on filter change
   async function fetchJobs() {
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch('/api/discover-jobs?refresh=true', { cache: 'no-store' })
       const json = await res.json()
+
+      if (!res.ok) {
+        setError(json.error || 'Failed to fetch jobs.')
+        return
+      }
 
       if (json.noTargetRoles) {
         setNoTargetRoles(true)
@@ -239,7 +246,7 @@ export default function JobsPage() {
         localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles: false, jobs: jobsList }))
       }
     } catch {
-      // fail silently — keep existing list
+      setError('Network error. Please try again.')
     } finally {
       setLoading(false)
       setInitialLoadDone(true)
@@ -353,6 +360,20 @@ export default function JobsPage() {
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+
+      {error && (
+        <div style={{
+          marginBottom: '16px',
+          padding: '12px 14px',
+          borderRadius: '10px',
+          background: 'rgba(239,68,68,0.08)',
+          border: '1px solid rgba(239,68,68,0.2)',
+          fontSize: '13px',
+          color: 'var(--score-red)',
+        }}>
+          {error}
+        </div>
+      )}
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', gap: '12px', flexWrap: 'wrap' }}>

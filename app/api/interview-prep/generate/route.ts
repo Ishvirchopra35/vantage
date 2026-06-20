@@ -1,9 +1,9 @@
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, err, notFound, rateLimited, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkLimit, LIMITS } from '@/lib/rateLimit'
+import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
-import { generateJSONCerebras, generateJSONSecondary } from '@/lib/ai'
+import { generateJSON } from '@/lib/ai'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
 import { createClient } from '@/lib/supabase/server'
 
@@ -39,6 +39,17 @@ export async function POST(request: Request): Promise<Response> {
   if (!limitCheck.allowed) {
     await logRoute(ROUTE, user.id, Date.now() - start, 429)
     return rateLimited('interview practice', LIMITS.interview, 30)
+  }
+
+  const rateLimit = await checkRateLimit({
+    key: 'interview-prep-generate',
+    userId: user.id,
+    maxRequests: 10,
+    windowMinutes: 60,
+  })
+  if (!rateLimit.allowed) {
+    await logRoute(ROUTE, user.id, Date.now() - start, 429)
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining)
   }
 
   const supabase = await createClient()
@@ -112,24 +123,13 @@ export async function POST(request: Request): Promise<Response> {
     `  "tips": [3 specific preparation tips for THIS interview that reference the candidate's experience gaps relative to the role, not generic advice]\n` +
     `}`
 
-  console.error('[interview-prep/generate] Cerebras key present:', !!process.env.CEREBRAS_API_KEY)
-
   let result: InterviewQuestions
   try {
-    if (process.env.CEREBRAS_API_KEY) {
-      result = await withTimeout(
-        generateJSONCerebras<InterviewQuestions>(systemPrompt, userPrompt),
-        30000,
-        'interview-generate'
-      )
-    } else {
-      console.error('[interview-prep/generate] No Cerebras key — falling back to Groq secondary')
-      result = await withTimeout(
-        generateJSONSecondary<InterviewQuestions>(systemPrompt, userPrompt),
-        45000,
-        'interview-generate-groq'
-      )
-    }
+    result = await withTimeout(
+      generateJSON<InterviewQuestions>(systemPrompt, userPrompt),
+      60000,
+      'interview-generate'
+    )
   } catch (e) {
     console.error('[interview-prep/generate] AI error:', e)
     await logRoute(ROUTE, user.id, Date.now() - start, 500)

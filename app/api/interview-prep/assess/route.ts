@@ -3,7 +3,8 @@ import { validateBody } from '@/lib/validateRequest'
 import { ok, err, notFound, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
 import { withTimeout } from '@/lib/withTimeout'
-import { generateJSONCerebras, generateJSONSecondary } from '@/lib/ai'
+import { generateJSON } from '@/lib/ai'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
 import { createClient } from '@/lib/supabase/server'
 
@@ -25,6 +26,16 @@ export async function POST(request: Request): Promise<Response> {
   const auth = await requireAuth()
   if ('error' in auth) return auth.error
   const { user } = auth
+
+  const rateLimit = await checkRateLimit({
+    key: 'interview-prep-assess',
+    userId: user.id,
+    maxRequests: 20,
+    windowMinutes: 60,
+  })
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining)
+  }
 
   const body = await request.json().catch(() => null)
   const validation = validateBody<{
@@ -83,24 +94,13 @@ export async function POST(request: Request): Promise<Response> {
     `  "better_answer_hint": "one sentence under 30 words"\n` +
     `}`
 
-  console.error('[interview-prep/assess] Cerebras key present:', !!process.env.CEREBRAS_API_KEY)
-
   let assessment: Assessment
   try {
-    if (process.env.CEREBRAS_API_KEY) {
-      assessment = await withTimeout(
-        generateJSONCerebras<Assessment>(systemPrompt, userPrompt),
-        20000,
-        'interview-assess'
-      )
-    } else {
-      console.error('[interview-prep/assess] No Cerebras key — falling back to Groq secondary')
-      assessment = await withTimeout(
-        generateJSONSecondary<Assessment>(systemPrompt, userPrompt),
-        30000,
-        'interview-assess-groq'
-      )
-    }
+    assessment = await withTimeout(
+      generateJSON<Assessment>(systemPrompt, userPrompt),
+      30000,
+      'interview-assess'
+    )
   } catch (e) {
     console.error('[interview-prep/assess] AI error:', e)
     await logRoute(ROUTE, user.id, Date.now() - start, 500)

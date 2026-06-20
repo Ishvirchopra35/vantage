@@ -2,7 +2,7 @@ import { requireAuth } from '@/lib/requireAuth'
 import { validateBody } from '@/lib/validateRequest'
 import { ok, err, serverError, rateLimited } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkLimit } from '@/lib/rateLimit'
+import { checkLimit, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
 import { generateText } from '@/lib/ai'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
@@ -36,6 +36,17 @@ export async function POST(request: Request): Promise<Response> {
 
   const limitCheck = await checkLimit(user.id, 'networking')
   if (!limitCheck.allowed) return rateLimited('networking message', 15, 30)
+
+  const rateLimit = await checkRateLimit({
+    key: 'networking-outreach',
+    userId: user.id,
+    maxRequests: 10,
+    windowMinutes: 60,
+  })
+  if (!rateLimit.allowed) {
+    await logRoute(ROUTE, user.id, Date.now() - start, 429)
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining)
+  }
 
   const supabase = await createClient()
 

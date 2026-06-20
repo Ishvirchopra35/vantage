@@ -101,13 +101,18 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
   }, [initialData]);
 
   async function handleUploadComplete(rawText: string) {
+    setError('');
     try {
       const res = await fetch('/api/parse-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rawText }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || 'Failed to auto-parse profile from resume.');
+        return;
+      }
       const { profile: p } = await res.json();
       if (p.full_name) setFullName(prev => prev || p.full_name);
       if (p.university) setUniversity(prev => prev || p.university);
@@ -125,7 +130,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
         });
       }
     } catch {
-      // silent — resume upload already succeeded
+      setError('Failed to parse profile due to a network error.');
     }
   }
 
