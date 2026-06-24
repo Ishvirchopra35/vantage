@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { ok, unauthorized, serverError } from '@/lib/apiResponse'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
-import { generateText } from '@/lib/ai'
+import { generateJSON } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
 
@@ -116,33 +116,19 @@ Rules for non-dropdown fields:
 Return a bare JSON array (no wrapper object), one entry per question, preserving the exact label:
 [{ "label": "exact label text", "answer": "verbatim option or written answer or null" }]`
 
-    const raw = await withTimeout(
-      generateText(systemPrompt, userPrompt, 2000),
+    const parsed = await withTimeout(
+      generateJSON<unknown>(systemPrompt, userPrompt),
       30000,
       'extension-ai-fill'
     )
 
     let fields: FieldAnswer[]
-    try {
-      // Strip any non-JSON prefix/suffix
-      const match = raw.match(/(\[[\s\S]*?\]|\{[\s\S]*?\})/)
-      if (!match) throw new Error('No JSON found')
-
-      const parsed = JSON.parse(match[1])
-
-      if (Array.isArray(parsed)) {
-        fields = parsed
-      } else if (parsed.fields) {
-        fields = parsed.fields
-      } else {
-        fields = Object.values(parsed)
-      }
-    } catch (e) {
-      console.error('[ai-fill] Parse error:', e, 'Raw:', raw.substring(0, 500))
-      return Response.json(
-        { error: `Failed to parse JSON from cerebras response. Raw (first 200 chars): ${raw.substring(0, 200)}` },
-        { status: 500 }
-      )
+    if (Array.isArray(parsed)) {
+      fields = parsed as FieldAnswer[]
+    } else if (parsed && typeof parsed === 'object' && 'fields' in parsed) {
+      fields = (parsed as { fields: FieldAnswer[] }).fields
+    } else {
+      fields = Object.values(parsed as Record<string, FieldAnswer>)
     }
 
     return Response.json({ fields })

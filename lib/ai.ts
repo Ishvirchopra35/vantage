@@ -85,17 +85,12 @@ export async function generateJSON<T = unknown>(
     if (!match) throw new Error('No JSON found in response');
     return JSON.parse(match[1]) as T;
   } catch {
-    throw new Error(
-      `Failed to parse JSON from Gemini response. Raw (first 200 chars): ${raw.substring(0, 200)}`
-    );
+    throw new Error('Failed to parse JSON from AI response.');
   }
 }
 
 // ── Aliases kept for backward compatibility ───────────────────────────────────
-// Routes that previously called Cerebras or the Groq secondary key now go
-// through the same Gemini model. The function signatures are identical.
+// Legacy routes now share the same Gemini-backed helpers.
 
-export const generateTextCerebras = generateText;
-export const generateJSONCerebras = generateJSON;
 export const generateTextSecondary = generateText;
 export const generateJSONSecondary = generateJSON;
