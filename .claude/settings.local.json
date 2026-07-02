@@ -20,7 +20,9 @@
       "Bash(Remove-Item -Recurse -Force \".next\" -ErrorAction SilentlyContinue)",
       "Bash(findstr NEXT_PUBLIC_SUPABASE_URL)",
       "Bash(Get-Content \"C:\\\\Users\\\\ishvi\\\\OneDrive\\\\Desktop\\\\Code\\\\Projects\\\\Vantage\\\\vantage\\\\content\\\\changelog\\\\latest.mdx\")",
-      "Bash(Select-Object -Last 10)"
+      "Bash(Select-Object -Last 10)",
+      "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -First 30)",
+      "PowerShell(node --check extension/content.js; node --check extension/popup.js; Write-Output \"syntax ok\")"
     ]
   }
 }

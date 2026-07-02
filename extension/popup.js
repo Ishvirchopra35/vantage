@@ -157,11 +157,11 @@ async function handleFill() {
   const btn = document.getElementById('btn-fill');
   const resultEl = document.getElementById('fill-result');
   btn.disabled = true;
-  btn.textContent = 'Verifying token...';
+  btn.textContent = 'Fetching your profile...';
   resultEl.innerHTML = '';
 
   try {
-    // 1. Validate token
+    // 1. Fetch the user kit (also validates the token)
     const kitUrl = `${VANTAGE_URL}/api/extension/kit?url=${encodeURIComponent(currentTabUrl)}`;
     const kitRes = await fetch(kitUrl, {
       headers: { Authorization: `Bearer ${currentToken}` },
@@ -172,95 +172,79 @@ async function handleFill() {
       return;
     }
     if (!kitRes.ok) {
-      resultEl.innerHTML = '<div class="result-box result-error mt-8">Failed to verify token.</div>';
+      resultEl.innerHTML = '<div class="result-box result-error mt-8">Failed to load your profile.</div>';
       return;
     }
 
     const kitData = await kitRes.json();
     const userKit = kitData?.data?.kit || {};
 
-    btn.textContent = 'Reading form...';
-
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    // 2. Extract questions from the page
-    let questions;
+    // 2. Tier 1 — direct fill from kit data, no AI involved
+    const isWorkday = currentTabUrl.includes('myworkdayjobs.com') || currentTabUrl.includes('workday.com');
+    btn.textContent = isWorkday ? 'Filling your details (~30s)...' : 'Filling your details...';
+
+    let direct;
     try {
-      questions = await sendMessage(tab.id, { type: 'EXTRACT_QUESTIONS' });
-    } catch (e) {
-      console.error('[Vantage] EXTRACT_QUESTIONS failed:', e);
-      resultEl.innerHTML = '<div class="result-box result-error mt-8">Could not reach page. Make sure you are on a job application form and try again.</div>';
+      direct = await sendMessage(tab.id, { type: 'DIRECT_FILL', kit: userKit });
+    } catch {
+      resultEl.innerHTML = '<div class="result-box result-error mt-8">Could not reach the page. Make sure you are on a job application form and try again.</div>';
       return;
     }
 
-    console.log('[Vantage] Extracted questions:', questions);
+    let totalFilled = direct?.filled ?? 0;
 
-    if (!questions || questions.length === 0) {
-      resultEl.innerHTML = '<div class="result-box result-info mt-8">No form fields detected on this page.</div>';
-      return;
-    }
-
-    btn.textContent = 'Generating answers...';
-
-    // 3. Get AI-generated answers
-    const aiRes = await fetch(`${VANTAGE_URL}/api/extension/ai-fill`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${currentToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ questions, jobUrl: tab.url }),
-    });
-
-    console.log('[Vantage] AI fill response status:', aiRes.status);
-    const aiBody = await aiRes.text();
-    console.log('[Vantage] AI fill response body:', aiBody);
-
-    if (aiRes.status === 401) {
-      resultEl.innerHTML = '<div class="result-box result-error mt-8">Token expired. Reconnect from your profile.</div>';
-      return;
-    }
-    if (!aiRes.ok) {
-      resultEl.innerHTML = `<div class="result-box result-error mt-8">API error: ${aiRes.status} — ${aiBody}</div>`;
-      return;
-    }
-
-    const parsed = JSON.parse(aiBody);
-    console.log('[Vantage] Parsed response:', parsed);
-    const fields = parsed?.data?.fields || parsed?.fields || [];
-    console.log('[Vantage] Fields to fill:', fields);
-
-    if (!fields.length) {
-      resultEl.innerHTML = '<div class="result-box result-info mt-8">AI returned no fields to fill.</div>';
-      return;
-    }
-
-    const onWorkday = currentTabUrl.includes('myworkdayjobs.com') || currentTabUrl.includes('workday.com');
-    btn.textContent = onWorkday ? 'Filling Workday form (~30s)...' : 'Filling form...';
-
-    // 4. Fill the answers into the form
-    let result;
+    // 3. Tier 2 — extract only genuinely open-ended questions
+    btn.textContent = 'Reading form questions...';
+    let questions = [];
     try {
-      result = await chrome.tabs.sendMessage(tab.id, { type: 'FILL_ANSWERS', fields, kit: userKit });
-    } catch (e) {
-      console.error('[Vantage] FILL_ANSWERS failed:', e);
-      resultEl.innerHTML = '<div class="result-box result-error mt-8">Could not fill the form. Try refreshing and try again.</div>';
-      return;
+      questions = (await sendMessage(tab.id, { type: 'EXTRACT_QUESTIONS' })) || [];
+    } catch {
+      questions = [];
     }
 
-    console.log('[Vantage] Fill result:', result);
+    // 4. AI answers for open-ended questions only
+    if (questions.length > 0) {
+      btn.textContent = 'Writing answers...';
 
-    // Second pass — fill Lever demographic survey after location dropdown triggers it
-    chrome.tabs.sendMessage(tab.id, { type: 'FILL_LEVER_SURVEY', kit: userKit }).catch(() => {});
+      const aiRes = await fetch(`${VANTAGE_URL}/api/extension/ai-fill`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ questions, jobUrl: tab.url }),
+      });
 
-    const count = result?.filled ?? 0;
-    if (count === 0) {
-      resultEl.innerHTML = '<div class="result-box result-info mt-8">No matching fields filled.</div>';
+      if (aiRes.status === 401) {
+        resultEl.innerHTML = '<div class="result-box result-error mt-8">Token expired. Reconnect from your profile.</div>';
+        return;
+      }
+
+      if (aiRes.ok) {
+        const parsed = await aiRes.json();
+        const fields = parsed?.data?.fields || parsed?.fields || [];
+
+        if (fields.length > 0) {
+          btn.textContent = isWorkday ? 'Filling answers (~30s)...' : 'Filling answers...';
+          try {
+            const applied = await sendMessage(tab.id, { type: 'FILL_ANSWERS', fields });
+            totalFilled += applied?.filled ?? 0;
+          } catch {
+            // Direct fills already landed — report what we have
+          }
+        }
+      }
+      // If the AI call fails, Tier 1 fills still stand — report those.
+    }
+
+    if (totalFilled === 0) {
+      resultEl.innerHTML = '<div class="result-box result-info mt-8">No fillable fields matched your profile. Fields without data in your profile are left blank on purpose.</div>';
     } else {
-      resultEl.innerHTML = `<div class="result-box result-success mt-8">Filled ${count} field${count === 1 ? '' : 's'}. Review and submit.</div>`;
+      resultEl.innerHTML = `<div class="result-box result-success mt-8">Filled ${totalFilled} field${totalFilled === 1 ? '' : 's'}. Unknown fields were left blank — review before submitting.</div>`;
     }
-  } catch (e) {
-    console.error('[Vantage] Unexpected error in handleFill:', e);
+  } catch {
     resultEl.innerHTML = '<div class="result-box result-error mt-8">Unexpected error. Try again.</div>';
   } finally {
     filling = false;

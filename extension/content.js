@@ -1,85 +1,29 @@
 // Vantage Auto-fill content script
 // IMPORTANT: Never call form.submit() or click Submit/Apply buttons.
+//
+// Fill philosophy: NEVER invent data. If the kit doesn't have it, the field
+// stays blank. Tier 1 fills factual fields directly from the kit. Tier 2
+// extracts only genuinely open-ended questions for the AI. Demographics,
+// pronouns, and "how did you hear" are handled deterministically, never by AI.
 
 (function () {
   'use strict';
 
-  // Guard against duplicate injection
   if (window.__vantageFillLoaded) return;
   window.__vantageFillLoaded = true;
 
-  // ── Setters ──────────────────────────────────────────────────────────────────
-
-  function setInput(el, value) {
-    const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
-    if (descriptor && descriptor.set) {
-      descriptor.set.call(el, value);
-    } else {
-      el.value = value;
-    }
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-    el.dispatchEvent(new Event('blur', { bubbles: true }));
+  const DEBUG = false;
+  function log(...args) {
+    if (DEBUG) console.log('[Vantage]', ...args);
   }
 
-  function setTextarea(el, value) {
-    const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
-    if (descriptor && descriptor.set) {
-      descriptor.set.call(el, value);
-    } else {
-      el.value = value;
-    }
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-    el.dispatchEvent(new Event('blur', { bubbles: true }));
-  }
+  // ── Utilities ────────────────────────────────────────────────────────────────
 
-  function reactFill(el, value) {
-    if (!el || !value) return;
-    if (el.tagName === 'TEXTAREA') {
-      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-      if (setter) {
-        setter.call(el, value);
-      } else {
-        el.value = value;
-      }
-    } else {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-      if (setter) {
-        setter.call(el, value);
-      } else {
-        el.value = value;
-      }
-    }
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-  }
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const rand = (min, max) => min + Math.random() * (max - min);
 
-  const selectNativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
-
-  function fillSelect(el, value) {
-    const lowerVal = value.toLowerCase();
-    const match = Array.from(el.options).find(o => {
-      if (!o.text.trim() || o.disabled) return false;
-      const optText = o.text.toLowerCase();
-      const optValue = o.value.toLowerCase();
-      const cleanText = optText.replace(/[^a-z]/g, '');
-      return (
-        optText.includes(lowerVal) ||
-        optValue.includes(lowerVal) ||
-        (cleanText.length > 0 && lowerVal.includes(cleanText))
-      );
-    });
-    if (match) {
-      if (selectNativeSetter) selectNativeSetter.call(el, match.value);
-      else el.value = match.value;
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    return !!match;
-  }
-
-  // ── Shadow DOM walker ─────────────────────────────────────────────────────────
+  // Elements we already filled this session — never double-fill or double-count.
+  const filledEls = new WeakSet();
 
   function queryShadow(root, selector) {
     const results = [];
@@ -95,16 +39,158 @@
     return results;
   }
 
-  // ── Label helpers ─────────────────────────────────────────────────────────────
+  function isFillable(el) {
+    if (!el || el.disabled || el.readOnly) return false;
+    if (el.type === 'hidden') return false;
+    return !!(el.offsetParent || el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+  }
 
-  // Returns a human-readable label for use in AI prompts (preserves original case).
-  function getLabel(el) {
+  function hasExistingValue(el) {
+    return !!(el.value && el.value !== el.placeholder);
+  }
+
+  // ── Platform detection ───────────────────────────────────────────────────────
+
+  function detectPlatform() {
+    const host = window.location.hostname;
+    if (host.includes('myworkdayjobs.com') || host.includes('workday.com')) return 'workday';
+    if (host.includes('greenhouse')) return 'greenhouse';
+    if (host.includes('lever.co')) return 'lever';
+    if (document.querySelector('[data-automation-id]')) return 'workday';
+    return 'generic';
+  }
+
+  // ── Value setters ────────────────────────────────────────────────────────────
+
+  // nativeSetter pattern: direct .value= is silently ignored by React's fiber
+  // reconciler, so we go through the prototype setter then dispatch events.
+  function nativeSetValue(el, value) {
+    const proto = el.tagName === 'TEXTAREA'
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    if (setter) setter.call(el, value);
+    else el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+  }
+
+  // Workday detects and breaks on synthetic events — type character by
+  // character via execCommand with human-like delays instead.
+  async function workdayTypeValue(el, value) {
+    el.click();
+    el.focus();
+    await sleep(300);
+    el.select?.();
+    document.execCommand('selectAll');
+    document.execCommand('delete');
+    await sleep(100);
+    for (const char of String(value)) {
+      document.execCommand('insertText', false, char);
+      await sleep(rand(20, 50));
+    }
+    el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+    await sleep(200);
+  }
+
+  // Returns true only if the value was actually set (rule 15: count real fills).
+  async function setTextValue(el, value, platform) {
+    if (!value || !isFillable(el) || filledEls.has(el)) return false;
+    if (hasExistingValue(el)) return false;
+    if (platform === 'workday') {
+      await workdayTypeValue(el, value);
+      await sleep(500); // Workday needs breathing room between fields
+    } else {
+      nativeSetValue(el, value);
+    }
+    filledEls.add(el);
+    return true;
+  }
+
+  const selectNativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+
+  // Native <select>: exact option-text match first, then containment.
+  // Returns true only if an option was actually selected.
+  function fillNativeSelect(el, value) {
+    if (!value || el.disabled || filledEls.has(el)) return false;
+    if (el.selectedIndex > 0) return false; // respect an existing selection
+    const target = String(value).toLowerCase().trim();
+    const options = Array.from(el.options).filter(o => !o.disabled && o.text.trim());
+    const match =
+      options.find(o => o.text.toLowerCase().trim() === target) ||
+      options.find(o => o.text.toLowerCase().includes(target)) ||
+      options.find(o => target.includes(o.text.toLowerCase().trim()) && o.text.trim().length > 2);
+    if (!match) return false;
+    if (selectNativeSetter) selectNativeSetter.call(el, match.value);
+    else el.value = match.value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    filledEls.add(el);
+    return true;
+  }
+
+  function clickCheckbox(cb) {
+    if (!cb || cb.checked || cb.disabled || filledEls.has(cb)) return false;
+    // Click the wrapping label when present — Lever (and others) toggle via
+    // CSS pseudo-elements on the label, not the input.
+    const label = cb.closest('label');
+    (label || cb).click();
+    filledEls.add(cb);
+    return true;
+  }
+
+  // React Select / custom combobox: focus, type, wait for menu, click option.
+  // exactOnly=true refuses fuzzy matches (used for AI dropdown answers).
+  async function fillCombobox(input, value, { exactOnly = false, waitMs = 400, firstOption = false } = {}) {
+    if (!value || !isFillable(input) || filledEls.has(input)) return false;
+
+    input.focus();
+    input.click();
+    await sleep(200);
+
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (setter) setter.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: String(value)[0] }));
+
+    await sleep(waitMs);
+
+    const menu = document.querySelector('.select__menu, [role="listbox"]');
+    if (!menu) {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      input.blur();
+      return false;
+    }
+
+    const options = Array.from(menu.querySelectorAll('[class*="option"], [role="option"]'));
+    const target = String(value).toLowerCase().trim();
+    let match = options.find(o => o.textContent?.toLowerCase().trim() === target);
+    if (!match && firstOption) match = options[0];
+    if (!match && !exactOnly) {
+      match = options.find(o => o.textContent?.toLowerCase().trim().includes(target));
+    }
+
+    if (!match) {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      input.blur();
+      return false;
+    }
+
+    match.click();
+    await sleep(300);
+    filledEls.add(input);
+    return true;
+  }
+
+  // ── Label resolution ─────────────────────────────────────────────────────────
+
+  // Human-readable label (original case) — used for AI question extraction.
+  function getReadableLabel(el) {
     if (el.id) {
       const labelEl = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
-      if (labelEl) {
-        const text = labelEl.textContent.trim();
-        if (text) return text;
-      }
+      const text = labelEl?.textContent?.trim();
+      if (text) return text;
     }
 
     const labelledBy = el.getAttribute('aria-labelledby');
@@ -126,90 +212,102 @@
       if (text) return text;
     }
 
+    // Workday and similar: nearest labelled ancestor
+    let node = el.parentElement;
+    for (let i = 0; i < 4 && node; i++) {
+      const label = node.querySelector('label, legend, [data-automation-id*="Label"], [class*="Label"]');
+      const text = label?.textContent?.trim();
+      if (text && text.length < 300) return text;
+      node = node.parentElement;
+    }
+
     return el.placeholder?.trim() || el.name?.trim() || '';
   }
 
-  // ── Field detection ───────────────────────────────────────────────────────────
+  // Match-text sources in priority order (rule 11):
+  // 1. name/id/data-automation-id  2. label text  3. placeholder  4. aria-label
+  function getMatchSources(el) {
+    const sources = [];
 
-  function getFieldLabel(el) {
-    const parts = [];
+    const attrs = [el.name, el.id, el.getAttribute('data-automation-id')]
+      .filter(Boolean).join(' ');
+    if (attrs) sources.push(attrs);
 
-    if (el.placeholder) parts.push(el.placeholder);
-
-    const ariaLabel = el.getAttribute('aria-label');
-    if (ariaLabel) parts.push(ariaLabel);
-
-    if (el.name) parts.push(el.name);
-    if (el.id) parts.push(el.id);
-
+    const labelParts = [];
     if (el.id) {
       const labelEl = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
-      if (labelEl) parts.push(labelEl.textContent);
+      if (labelEl) labelParts.push(labelEl.textContent);
     }
     const parentLabel = el.closest('label');
-    if (parentLabel) parts.push(parentLabel.textContent);
-
+    if (parentLabel) labelParts.push(parentLabel.textContent);
     const labelledBy = el.getAttribute('aria-labelledby');
     if (labelledBy) {
       labelledBy.split(' ').forEach(id => {
         const refEl = document.getElementById(id);
-        if (refEl) parts.push(refEl.textContent);
+        if (refEl) labelParts.push(refEl.textContent);
       });
     }
+    const labelText = labelParts.join(' ').trim();
+    if (labelText) sources.push(labelText);
 
-    return parts.join(' ').toLowerCase();
+    if (el.placeholder) sources.push(el.placeholder);
+
+    const ariaLabel = el.getAttribute('aria-label');
+    if (ariaLabel) sources.push(ariaLabel);
+
+    return sources.map(s => s.toLowerCase().replace(/\s+/g, ' ').trim()).filter(Boolean);
   }
 
-  // Field matchers — ordered by specificity (most specific first)
-  const INPUT_MATCHERS = [
-    { key: 'firstName',   patterns: [/\bfirst.?name\b/i, /\bgiven.?name\b/i, /\bprenom\b/i] },
-    { key: 'lastName',    patterns: [/\blast.?name\b/i, /\bsurname\b/i, /\bfamily.?name\b/i] },
-    { key: 'fullName',    patterns: [/\bfull.?name\b/i, /\byour.?name\b/i, /^name$/i, /\bcandidate.?name\b/i] },
-    { key: 'email',       patterns: [/\bemail\b/i, /\be-mail\b/i] },
-    { key: 'phone',       patterns: [/\bphone\b/i, /\bmobile\b/i, /\btelephone\b/i, /\btel\b/i, /\bcell\b/i] },
-    { key: 'linkedin',    patterns: [/\blinkedin\b/i] },
-    { key: 'portfolio',   patterns: [/\bportfolio\b/i, /\bpersonal.?website\b/i, /\bpersonal.?site\b/i] },
-    { key: 'github',      patterns: [/\bgithub\b/i, /\bgit.?hub\b/i] },
-    { key: 'location',    patterns: [/\blocation\b/i, /\bwhere are you located\b/i, /\bcity\b/i] },
+  // ── Tier 1 field matching ────────────────────────────────────────────────────
+
+  // Order matters: more specific keys first so "first name" never hits fullName,
+  // and "linkedin profile url" never hits portfolio's "website" pattern.
+  const TIER1_MATCHERS = [
+    ['firstName',      /\bfirst[\s_-]?name\b|\bgiven[\s_-]?name\b|\bfname\b|^first$/],
+    ['lastName',       /\blast[\s_-]?name\b|\bfamily[\s_-]?name\b|\bsurname\b|\blname\b|^last$/],
+    ['email',          /e-?mail/],
+    ['linkedin',       /linked[\s_-]?in/],
+    ['github',         /git[\s_-]?hub/],
+    ['phone',          /\bphone\b|\bmobile\b|\btelephone\b|\bcell\b|^tel$/],
+    ['portfolio',      /\bportfolio\b|personal[\s_-]?(web[\s_-]?)?site|\byour[\s_-]?website\b|^website$|^url$/],
+    ['fullName',       /\bfull[\s_-]?name\b|\byour[\s_-]?name\b|\bcandidate[\s_-]?name\b|\blegal[\s_-]?name\b|^name$/],
+    ['city',           /\bcity\b/],
+    ['location',       /current[\s_-]?location|where[\s_-]?do[\s_-]?you[\s_-]?(currently[\s_-]?)?live|^location$|\blocation\b/],
+    ['currentCompany', /current[\s_-]?(company|employer)|\bemployer\b|^company$|^org$|^organization$/],
+    ['currentTitle',   /current[\s_-]?(job[\s_-]?)?(title|role|position)|\bjob[\s_-]?title\b/],
   ];
 
-  const TEXTAREA_MATCHERS = [
-    { key: 'coverLetter', patterns: [/\bcover.?letter\b/i, /\bcovering.?letter\b/i, /\bmotivation.?letter\b/i] },
-  ];
+  // Fields Tier 1 must never touch, no matter what else matched:
+  // demographics, pronouns, referral source, URLs we don't have, legal questions.
+  const TIER1_EXCLUDE = /gender|ethnic|race\b|hispanic|latino|veteran|disab|sexual[\s_-]?orientation|transgender|pronoun|how[\s_-]?did[\s_-]?you[\s_-]?hear|referral|hear[\s_-]?about|twitter|facebook|instagram|sponsor|authoriz|clearance|salary|compensation|cover[\s_-]?letter|resume|\bcv\b/;
 
-  function matchKey(label, matchers) {
-    for (const { key, patterns } of matchers) {
-      if (patterns.some(p => p.test(label))) return key;
+  function matchTier1Key(el) {
+    const sources = getMatchSources(el);
+    if (sources.some(s => TIER1_EXCLUDE.test(s))) return null;
+    for (const src of sources) {
+      for (const [key, pattern] of TIER1_MATCHERS) {
+        if (pattern.test(src)) return key;
+      }
     }
-    return null;
-  }
-
-  // ── Type-based fallbacks ──────────────────────────────────────────────────────
-
-  function keyForInputType(el) {
+    // Input-type fallback: these are unambiguous regardless of label
     if (el.type === 'email') return 'email';
     if (el.type === 'tel') return 'phone';
     return null;
   }
 
-  // ── Dropdown value resolver ───────────────────────────────────────────────────
-
-  function selectValueForLabel(label, kit) {
-    if (/comfortable|compensation|pay range|salary range/i.test(label)) return 'Yes';
-    if (/authorized to work|work authorization|legally authorized/i.test(label)) return 'Yes';
-    if (/visa sponsorship|require sponsorship|need sponsorship/i.test(label)) return 'No';
-    if (/non-compete|non-solicitation|confidentiality agreement/i.test(label)) return 'No';
-    if (/how did you hear|how did you find|referral source/i.test(label)) return kit.referralSource || 'LinkedIn';
-    return null;
+  function cityOf(location) {
+    return (location || '').split(',')[0].trim();
   }
 
-  // ── Main fill function ────────────────────────────────────────────────────────
+  function countryOf(location) {
+    const parts = (location || '').split(',');
+    return parts.length > 1 ? parts[parts.length - 1].trim() : '';
+  }
 
-  async function fillForm(kit) {
-    console.log('[Vantage] fillForm called, kit keys:', Object.keys(kit));
-    let filled = 0;
-
-    const values = {
+  // Only values that actually exist in the kit. Missing → '' → field stays blank.
+  function buildTier1Values(kit) {
+    const exp0 = Array.isArray(kit.experience) ? kit.experience[0] : null;
+    return {
       firstName: kit.firstName || '',
       lastName: kit.lastName || '',
       fullName: kit.fullName || '',
@@ -219,280 +317,432 @@
       portfolio: kit.portfolio || '',
       github: kit.github || '',
       location: kit.location || '',
-      coverLetter: kit.coverLetter || '',
-      ...(kit.answers || {}),
+      city: cityOf(kit.location),
+      currentCompany: exp0?.company || '',
+      currentTitle: exp0?.title || '',
     };
+  }
 
-    // ── Text inputs ───────────────────────────────────────────────────────────
+  // ── Deterministic label classification ──────────────────────────────────────
 
-    const inputs = queryShadow(document, 'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="file"])');
+  const DEMOGRAPHIC_RE = /gender|ethnic|race\b|hispanic|latino|veteran|disab|sexual[\s_-]?orientation|transgender|pronoun|lgbtq|demographic/i;
+  const HEAR_ABOUT_RE = /how[\s_-]?did[\s_-]?you[\s_-]?hear|how[\s_-]?did[\s_-]?you[\s_-]?(find|learn)[\s_-]?(out[\s_-]?)?about|hear[\s_-]?about[\s_-]?(us|this)|referral[\s_-]?source|\bsource\b.*\bapplication\b/i;
+  const DECLINE_RE = /don'?t\s+wish|prefer\s+not|decline\s+to|rather\s+not/i;
+  const UNTOUCHABLE_URL_RE = /twitter|facebook|instagram|\bx\.com\b/i;
 
+  function isTier1Label(label) {
+    const l = label.toLowerCase();
+    return TIER1_MATCHERS.some(([, p]) => p.test(l));
+  }
+
+  // Anything here is never sent to the AI (rule 2: no factual data to AI).
+  function isDeterministicLabel(label) {
+    return isTier1Label(label) ||
+      DEMOGRAPHIC_RE.test(label) ||
+      HEAR_ABOUT_RE.test(label) ||
+      UNTOUCHABLE_URL_RE.test(label);
+  }
+
+  // Open-ended = worth an AI answer. Short factual prompts are not.
+  function looksOpenEnded(label) {
+    return label.includes('?') || label.trim().split(/\s+/).length >= 5;
+  }
+
+  // ── Date helpers (rule 13: MM/YYYY) ─────────────────────────────────────────
+
+  const MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+
+  function toMonthYear(raw) {
+    if (!raw) return '';
+    const s = String(raw).trim();
+    let m = s.match(/^(\d{4})[-/](\d{1,2})/);          // 2023-06
+    if (m) return `${m[2].padStart(2, '0')}/${m[1]}`;
+    m = s.match(/^(\d{1,2})[-/](\d{4})$/);             // 6/2023
+    if (m) return `${m[1].padStart(2, '0')}/${m[2]}`;
+    m = s.match(/^([a-z]+)\.?\s+(\d{4})$/i);           // June 2023
+    if (m) {
+      const idx = MONTHS.findIndex(mo => mo.startsWith(m[1].toLowerCase()));
+      if (idx >= 0) return `${String(idx + 1).padStart(2, '0')}/${m[2]}`;
+    }
+    m = s.match(/^(\d{4})$/);                          // 2023
+    if (m) return `01/${m[1]}`;
+    return '';
+  }
+
+  // ── Tier 1: direct fill ──────────────────────────────────────────────────────
+
+  async function directFill(kit) {
+    const platform = detectPlatform();
+    const values = buildTier1Values(kit);
+    let filled = 0;
+
+    if (platform === 'workday') {
+      filled += await workdayDirectFill(kit, values);
+      return { filled, platform };
+    }
+
+    // Text inputs
+    const inputs = queryShadow(document,
+      'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="date"])'
+    );
     for (const el of inputs) {
-      if (!el.offsetParent && el.offsetWidth === 0 && el.offsetHeight === 0) continue;
-      if (el.disabled || el.readOnly) continue;
-
-      const label = getFieldLabel(el);
-      let key = matchKey(label, INPUT_MATCHERS) || keyForInputType(el);
-
-      if (!key && /\bname\b/i.test(label)) key = 'fullName';
+      if (!isFillable(el) || filledEls.has(el)) continue;
+      if (el.getAttribute('role') === 'combobox') continue; // handled per-platform
+      const key = matchTier1Key(el);
       if (!key) continue;
-
-      const value = values[key];
-      if (!value) continue;
-
-      if (el.value && el.value !== el.placeholder) continue;
-
-      setInput(el, value);
-      filled++;
+      if (await setTextValue(el, values[key], platform)) filled++;
     }
 
-    // ── Select / dropdown fields ──────────────────────────────────────────────
+    // Cover letter and saved (user-approved) answers into textareas — this is
+    // real user data from the kit, not AI generation.
+    filled += fillSavedContent(kit);
 
-    const selects = queryShadow(document, 'select');
+    // "How did you hear about us" — deterministic, never AI (rule 3)
+    filled += fillHearAboutUs();
 
-    for (const el of selects) {
-      if (el.disabled) continue;
+    // Consent checkboxes + "how did you hear" checkboxes
+    filled += fillCheckboxesPass(kit);
 
-      const label = getFieldLabel(el);
-      const value = selectValueForLabel(label, kit);
-      if (!value) continue;
-
-      // Don't overwrite a user's existing selection (index 0 is usually the placeholder)
-      if (el.selectedIndex > 0) continue;
-
-      const matched = fillSelect(el, value);
-      if (matched) filled++;
+    // Country selects driven by kit.location
+    if (values.location) {
+      for (const el of queryShadow(document, 'select')) {
+        const sources = getMatchSources(el).join(' ');
+        if (/country/.test(sources) && !DEMOGRAPHIC_RE.test(sources)) {
+          if (fillNativeSelect(el, countryOf(values.location) || values.location)) filled++;
+        }
+      }
     }
 
-    // ── Textareas ─────────────────────────────────────────────────────────────
+    // Best-effort work experience section (rule 4 + 13)
+    filled += await fillExperienceSection(kit, platform);
 
+    // Platform-specific extras
+    if (platform === 'lever') filled += await leverDirectFill(kit, values);
+    if (platform === 'greenhouse') filled += await greenhouseDirectFill(kit, values);
+
+    return { filled, platform };
+  }
+
+  // Cover letter + saved application answers (from the Vantage app) → textareas
+  function fillSavedContent(kit) {
+    let filled = 0;
     const textareas = queryShadow(document, 'textarea');
 
     for (const el of textareas) {
-      if (!el.offsetParent && el.offsetWidth === 0 && el.offsetHeight === 0) continue;
-      if (el.disabled || el.readOnly) continue;
+      if (!isFillable(el) || filledEls.has(el) || hasExistingValue(el)) continue;
+      const label = getReadableLabel(el);
 
-      const label = getFieldLabel(el);
-      const key = matchKey(label, TEXTAREA_MATCHERS);
-      let value = key ? values[key] : null;
-
-      if (!value && kit.applicationQuestions) {
-        if (
-          label.includes('excites you') ||
-          label.includes('career goals') ||
-          label.includes('why do you want') ||
-          label.includes('why are you interested') ||
-          label.includes('tell us about yourself') ||
-          label.includes('what would you contribute') ||
-          label.includes('long-term') ||
-          label.includes('passion') ||
-          label.includes('motivated')
-        ) {
-          value = kit.applicationQuestions.excited || kit.applicationQuestions.goals || '';
-        }
+      if (kit.coverLetter && /cover.?letter|covering.?letter|motivation.?letter/i.test(label)) {
+        nativeSetValue(el, kit.coverLetter);
+        filledEls.add(el);
+        filled++;
+        continue;
       }
 
-      if (!value) continue;
-
-      if (el.value && el.value !== el.placeholder) continue;
-
-      setTextarea(el, value);
-      filled++;
-    }
-
-    // ── Application question textareas (fuzzy match) ──────────────────────────
-
-    if (kit.answers && Object.keys(kit.answers).length > 0) {
-      for (const el of textareas) {
-        if (el.disabled || el.readOnly) continue;
-        if (el.value) continue;
-
-        const label = getFieldLabel(el);
+      // Saved answers: fuzzy-match question text against the field label
+      if (kit.answers) {
         for (const [question, answer] of Object.entries(kit.answers)) {
           if (!answer) continue;
           const words = question.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-          const hits = words.filter(w => label.includes(w)).length;
+          const hits = words.filter(w => label.toLowerCase().includes(w)).length;
           if (words.length > 0 && hits / words.length >= 0.5) {
-            setTextarea(el, answer);
+            nativeSetValue(el, answer);
+            filledEls.add(el);
             filled++;
             break;
           }
         }
       }
     }
-
-    // ── Checkboxes ────────────────────────────────────────────────────────────
-    fillCheckboxes();
-
-    // ── Lever-specific fields ─────────────────────────────────────────────────
-    if (window.location.hostname.includes('lever.co')) {
-      const leverResult = await fillLeverForm(kit);
-      filled += leverResult.filled;
-    }
-
-    return { filled };
+    return filled;
   }
 
-  // ── Lever checkbox helper ─────────────────────────────────────────────────────
-
-  function checkLeverCheckbox(input) {
-    if (!input) return;
-    const label = input.closest('label');
-    if (label) {
-      label.click();
-      return;
-    }
-    input.click();
-  }
-
-  // ── Lever form fill ───────────────────────────────────────────────────────────
-
-  async function fillLeverForm(kit) {
+  // Rule 3: "How did you hear about us" → "Job Board" if available, else blank.
+  function fillHearAboutUs() {
     let filled = 0;
 
-    // Full name — Lever uses name="name"
-    const nameInput = document.querySelector('input[name="name"]');
-    if (nameInput && kit.fullName && !nameInput.value) {
-      setInput(nameInput, kit.fullName);
+    // Native selects
+    for (const el of queryShadow(document, 'select')) {
+      const sources = getMatchSources(el).join(' ');
+      if (!HEAR_ABOUT_RE.test(sources)) continue;
+      if (fillNativeSelect(el, 'Job Board')) filled++;
+    }
+
+    // Text inputs (rare, but some forms use free text)
+    for (const el of queryShadow(document, 'input[type="text"], input:not([type])')) {
+      if (!isFillable(el) || filledEls.has(el) || hasExistingValue(el)) continue;
+      if (el.getAttribute('role') === 'combobox') continue;
+      const sources = getMatchSources(el).join(' ');
+      if (!HEAR_ABOUT_RE.test(sources)) continue;
+      nativeSetValue(el, 'Job Board');
+      filledEls.add(el);
       filled++;
     }
 
-    // Email
-    const emailInput = document.querySelector('input[type="email"]');
-    if (emailInput && kit.email && !emailInput.value) {
-      setInput(emailInput, kit.email);
-      filled++;
-    }
-
-    // Phone
-    const phoneInput = document.querySelector('input[type="tel"]');
-    if (phoneInput && kit.phone && !phoneInput.value) {
-      setInput(phoneInput, kit.phone);
-      filled++;
-    }
-
-    // Location text input (city string)
-    const locationTextInput = document.getElementById('location-input');
-    if (locationTextInput && kit.location && !locationTextInput.value) {
-      setInput(locationTextInput, kit.location);
-      filled++;
-    }
-
-    // Location country select — extract country from "City, Country" strings
-    const locationSelect = document.querySelector('select.candidate-location, select[data-qa="candidate-location-select"]');
-    if (locationSelect && kit.location) {
-      const country = kit.location.split(',').pop()?.trim() || kit.location;
-      if (fillSelect(locationSelect, country)) filled++;
-    }
-
-    // LinkedIn
-    const linkedinInput = document.querySelector('input[name="urls[LinkedIn]"]') ||
-                          document.querySelector('input[placeholder*="linkedin" i]') ||
-                          document.querySelector('input[name="linkedin"]');
-    if (linkedinInput && kit.linkedin && !linkedinInput.value) {
-      setInput(linkedinInput, kit.linkedin);
-      filled++;
-    }
-
-    // Portfolio / website
-    const portfolioInput = document.querySelector('input[name="urls[Portfolio]"]') ||
-                           document.querySelector('input[name="urls[Other]"]');
-    if (portfolioInput && kit.portfolio && !portfolioInput.value) {
-      setInput(portfolioInput, kit.portfolio);
-      filled++;
-    }
-
-    // Checkboxes — click the wrapping label so Lever's CSS pseudo-element toggles correctly
-    const marketingCb = document.querySelector('input[name="consent[marketing]"]');
-    if (marketingCb && !marketingCb.checked) checkLeverCheckbox(marketingCb);
-
-    // Pronouns — default to "Use name only"
-    const useNameOnlyCb = document.getElementById('useNameOnlyPronounsOption') ||
-                          document.querySelector('input[name="pronouns"][value="Use name only"]');
-    if (useNameOnlyCb && !useNameOnlyCb.checked) checkLeverCheckbox(useNameOnlyCb);
-
-    return { filled };
+    return filled;
   }
 
-  // ── Lever demographic survey (hidden until location is filled) ───────────────
-
-  async function fillLeverSurveyIfVisible(kit) {
-    await new Promise(r => setTimeout(r, 800));
-
-    const survey = document.getElementById('countrySurvey');
-    if (!survey || survey.classList.contains('hidden')) return 0;
-
+  // Rule 8: consent → check; "currently work here" → from kit; demographics → skip.
+  function fillCheckboxesPass(kit) {
     let filled = 0;
+    const checkboxes = queryShadow(document, 'input[type="checkbox"]');
 
-    // Age range radio — default to 21-29
-    const ageTarget = '21-29';
-    const ageRadios = survey.querySelectorAll('input[type="radio"][name*="field0"]');
-    for (const radio of ageRadios) {
-      if (radio.value === ageTarget && !radio.checked) {
-        radio.closest('label')?.click();
-        filled++;
-        break;
+    for (const cb of checkboxes) {
+      if (cb.disabled || cb.checked || filledEls.has(cb)) continue;
+
+      const container = cb.closest('[class*="field"],[class*="question"],[class*="form-group"],[class*="checkbox"],li,label');
+      const forLabel = cb.id ? document.querySelector(`label[for="${CSS.escape(cb.id)}"]`) : null;
+      const labelText = (
+        forLabel?.textContent ||
+        container?.textContent ||
+        cb.getAttribute('aria-label') ||
+        ''
+      ).toLowerCase().trim();
+
+      if (!labelText) continue;
+
+      // Never touch demographic or pronoun checkboxes (rules 7 + 8)
+      if (DEMOGRAPHIC_RE.test(labelText)) continue;
+
+      // "How did you hear" checkbox groups → only the Job Board option (rule 3)
+      const groupText = (container?.parentElement?.textContent || '').toLowerCase();
+      if (HEAR_ABOUT_RE.test(labelText) || HEAR_ABOUT_RE.test(groupText)) {
+        const ownText = ((cb.value || '') + ' ' + (forLabel?.textContent || cb.closest('label')?.textContent || '')).toLowerCase();
+        if (/\bjob\s*boards?\b/.test(ownText)) {
+          if (clickCheckbox(cb)) filled++;
+        }
+        continue;
       }
-    }
 
-    await new Promise(r => setTimeout(r, 100));
-
-    // Education radio — default to Bachelor
-    const eduRadios = survey.querySelectorAll('input[type="radio"][name*="field3"]');
-    for (const radio of eduRadios) {
-      if (radio.value === 'Bachelor' && !radio.checked) {
-        radio.closest('label')?.click();
-        filled++;
-        break;
+      // Consent / privacy / acknowledgement → check (user consents by using the extension)
+      if (/privacy|consent|terms|acknowledge|agree|contact me|future (job )?opportunities|can contact/i.test(labelText)) {
+        if (clickCheckbox(cb)) filled++;
       }
     }
 
     return filled;
   }
 
-  // ── Checkbox handler ─────────────────────────────────────────────────────────
+  // Rule 4/13: best-effort work-experience section for standard forms.
+  async function fillExperienceSection(kit, platform) {
+    const exp = Array.isArray(kit.experience) ? kit.experience : [];
+    if (!exp.length) return 0;
+    const exp0 = exp[0];
+    let filled = 0;
 
-  function fillCheckboxes() {
-    const checkboxes = queryShadow(document.body, 'input[type="checkbox"]');
-    for (const cb of checkboxes) {
-      if (cb.disabled) continue;
+    // Start/end date inputs near work-experience context
+    const dateInputs = queryShadow(document, 'input[type="text"], input[type="month"], input:not([type])');
+    for (const el of dateInputs) {
+      if (!isFillable(el) || filledEls.has(el) || hasExistingValue(el)) continue;
+      const sources = getMatchSources(el).join(' ');
+      const inExpContext = /experience|employment|work history|job/.test(
+        (el.closest('fieldset, section, [class*="experience"], [class*="employment"]')?.textContent || '').toLowerCase()
+      );
+      if (!inExpContext) continue;
 
-      const container = cb.closest('[class*="field"],[class*="question"],[class*="form-group"],li,label');
-      const forLabel = cb.id
-        ? document.querySelector(`label[for="${CSS.escape(cb.id)}"]`)
-        : null;
-      const labelText = (
-        container?.textContent ||
-        forLabel?.textContent ||
-        cb.getAttribute('aria-label') ||
-        ''
-      ).toLowerCase().trim();
-
-      if (
-        labelText.includes('contact me') ||
-        labelText.includes('future job opportunities') ||
-        labelText.includes('can contact')
-      ) {
-        if (!cb.checked) cb.click();
-      } else if (labelText.includes('use name only')) {
-        if (!cb.checked) cb.click();
+      if (/start[\s_-]?date|from[\s_-]?date|date[\s_-]?from/.test(sources)) {
+        const v = el.type === 'month'
+          ? toMonthYear(exp0.start_date).split('/').reverse().join('-')
+          : toMonthYear(exp0.start_date);
+        if (v && await setTextValue(el, v, platform)) filled++;
+      } else if (/end[\s_-]?date|to[\s_-]?date|date[\s_-]?to/.test(sources)) {
+        if (exp0.current) continue; // current role: start date only (rule 13)
+        const v = el.type === 'month'
+          ? toMonthYear(exp0.end_date).split('/').reverse().join('-')
+          : toMonthYear(exp0.end_date);
+        if (v && await setTextValue(el, v, platform)) filled++;
       }
-      // Skip pronoun checkboxes (he/him, she/her, they/them, etc.)
     }
+
+    // "I currently work here" — only when the kit says so
+    if (exp0.current === true) {
+      for (const cb of queryShadow(document, 'input[type="checkbox"]')) {
+        if (cb.checked || cb.disabled) continue;
+        const label = (cb.closest('label')?.textContent ||
+          (cb.id && document.querySelector(`label[for="${CSS.escape(cb.id)}"]`)?.textContent) ||
+          '').toLowerCase();
+        if (/currently work here|current(ly)? (role|position|job)|i work here/.test(label)) {
+          if (clickCheckbox(cb)) filled++;
+        }
+      }
+    }
+
+    return filled;
   }
 
-  // ── fill() helper ────────────────────────────────────────────────────────────
+  // ── Workday direct fill ──────────────────────────────────────────────────────
 
-  function fill(el, value) {
-    if (el.tagName === 'TEXTAREA') {
-      setTextarea(el, value);
-    } else {
-      setInput(el, value);
+  const WORKDAY_FIELD_MAP = [
+    { key: 'firstName', selectors: ['[data-automation-id="legalNameSection_firstName"]', '[data-automation-id="firstName"]'], labels: ['first name', 'given name'] },
+    { key: 'lastName',  selectors: ['[data-automation-id="legalNameSection_lastName"]', '[data-automation-id="lastName"]'], labels: ['last name', 'family name'] },
+    { key: 'email',     selectors: ['[data-automation-id="email"]', 'input[type="email"]'], labels: ['email'] },
+    { key: 'phone',     selectors: ['[data-automation-id="phone-number"]'], labels: ['phone number'] },
+    { key: 'city',      selectors: ['[data-automation-id="addressSection_city"]'], labels: ['city'] },
+    { key: 'linkedin',  selectors: ['input[data-automation-id*="linkedin" i]'], labels: ['linkedin'] },
+  ];
+
+  function findWorkdayInputByLabel(labelText) {
+    const allLabels = document.querySelectorAll(
+      '[data-automation-id*="FormLabel"], label, [class*="css-"][class*="Label"]'
+    );
+    for (const label of allLabels) {
+      if (label.textContent.toLowerCase().includes(labelText.toLowerCase())) {
+        const container = label.closest('[data-automation-id]') || label.parentElement;
+        const input = container?.querySelector('input, textarea');
+        if (input) return input;
+      }
     }
+    return null;
   }
 
-  // ── Greenhouse option extraction ─────────────────────────────────────────────
+  async function fillWorkdayDropdown(labelText, optionText) {
+    const input = findWorkdayInputByLabel(labelText);
+    if (!input || filledEls.has(input)) return false;
+    input.click();
+    input.focus();
+    await sleep(500);
+    document.execCommand('insertText', false, optionText.substring(0, 3));
+    await sleep(600);
+    const options = document.querySelectorAll(
+      '[data-automation-id="promptOption"], [role="option"]'
+    );
+    const match = Array.from(options).find(o =>
+      o.textContent.trim().toLowerCase().includes(optionText.toLowerCase())
+    );
+    if (!match) {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return false;
+    }
+    match.click();
+    await sleep(300);
+    filledEls.add(input);
+    return true;
+  }
 
+  async function workdayDirectFill(kit, values) {
+    let filled = 0;
+
+    for (const { key, selectors, labels } of WORKDAY_FIELD_MAP) {
+      const value = values[key];
+      if (!value) continue;
+
+      let input = null;
+      for (const sel of selectors) {
+        input = document.querySelector(sel);
+        if (input) break;
+      }
+      if (!input) {
+        for (const l of labels) {
+          input = findWorkdayInputByLabel(l);
+          if (input) break;
+        }
+      }
+      if (!input || input.tagName !== 'INPUT' && input.tagName !== 'TEXTAREA') continue;
+
+      if (await setTextValue(input, value, 'workday')) filled++;
+    }
+
+    // "How did you hear about us" prompt → Job Board only (rule 3)
+    if (await fillWorkdayDropdown('how did you hear', 'Job Board')) filled++;
+
+    return filled;
+  }
+
+  // ── Lever direct fill ────────────────────────────────────────────────────────
+
+  async function leverDirectFill(kit, values) {
+    let filled = 0;
+
+    const targets = [
+      ['input[name="name"]', values.fullName],
+      ['input[name="org"]', values.currentCompany],
+      ['input[name="urls[LinkedIn]"]', values.linkedin],
+      ['input[name="urls[GitHub]"], input[name="urls[Github]"]', values.github],
+      ['input[name="urls[Portfolio]"]', values.portfolio],
+      // urls[Twitter], urls[Other] → intentionally never filled (rule 9)
+      ['#location-input', values.location],
+    ];
+    for (const [sel, value] of targets) {
+      const el = document.querySelector(sel);
+      if (el && await setTextValue(el, value, 'lever')) filled++;
+    }
+
+    // Country select uses ISO codes as values — match by country name text
+    const locationSelect = document.querySelector('select.candidate-location, select[data-qa="candidate-location-select"]');
+    if (locationSelect && values.location) {
+      if (fillNativeSelect(locationSelect, countryOf(values.location) || values.location)) filled++;
+    }
+
+    // Pronouns: only if explicitly set in the kit (rule 7 — never default)
+    if (kit.pronouns) {
+      const pronounCb = document.querySelector(`input[name="pronouns"][value="${CSS.escape(kit.pronouns)}"]`);
+      if (pronounCb && clickCheckbox(pronounCb)) filled++;
+    }
+
+    return filled;
+  }
+
+  // Lever demographic survey (#countrySurvey) appears after location fills.
+  // Rule 8: demographics stay blank — we only pick explicit decline options.
+  async function fillLeverSurveyIfVisible() {
+    await sleep(800);
+    const survey = document.getElementById('countrySurvey');
+    if (!survey || survey.classList.contains('hidden')) return 0;
+
+    let filled = 0;
+    const groups = new Map();
+    for (const radio of survey.querySelectorAll('input[type="radio"]')) {
+      if (!groups.has(radio.name)) groups.set(radio.name, []);
+      groups.get(radio.name).push(radio);
+    }
+
+    for (const radios of groups.values()) {
+      if (radios.some(r => r.checked)) continue;
+      const decline = radios.find(r =>
+        DECLINE_RE.test(r.value || '') ||
+        DECLINE_RE.test(r.closest('label')?.textContent || '')
+      );
+      if (decline) {
+        decline.closest('label')?.click();
+        filled++;
+        await sleep(100);
+      }
+    }
+
+    return filled;
+  }
+
+  // ── Greenhouse direct fill ───────────────────────────────────────────────────
+
+  async function greenhouseDirectFill(kit, values) {
+    let filled = 0;
+
+    // Location autocomplete — seeded with the user's real city, first result
+    const locationInput = document.getElementById('candidate-location');
+    if (locationInput && values.city && !filledEls.has(locationInput)) {
+      if (await fillCombobox(locationInput, values.city, { waitMs: 1200, firstOption: true })) filled++;
+    }
+
+    // Demographic React Selects → "I don't wish to answer" (rule 10, Greenhouse)
+    for (const input of document.querySelectorAll('input[role="combobox"]')) {
+      if (filledEls.has(input)) continue;
+      const label = getReadableLabel(input);
+      if (!DEMOGRAPHIC_RE.test(label)) continue;
+      if (await fillCombobox(input, "I don't wish to answer", { waitMs: 400 })) filled++;
+    }
+
+    // Demographic native selects, same default
+    for (const el of queryShadow(document, 'select')) {
+      const sources = getMatchSources(el).join(' ');
+      if (!DEMOGRAPHIC_RE.test(sources)) continue;
+      if (fillNativeSelect(el, "I don't wish to answer") || fillNativeSelect(el, 'Decline To Self Identify')) filled++;
+    }
+
+    return filled;
+  }
+
+  // Greenhouse embeds question options in window.__remixContext — extract them
+  // so the AI picks from exact option text instead of free-styling.
   function getGreenhouseQuestionOptions() {
     try {
       const scriptEl = Array.from(document.querySelectorAll('script')).find(s =>
@@ -509,7 +759,6 @@
       if (!jobPost) return {};
 
       const optionMap = {};
-
       for (const q of jobPost.questions || []) {
         for (const field of q.fields || []) {
           if (field.values?.length) {
@@ -520,418 +769,186 @@
           }
         }
       }
-
-      for (const dq of jobPost.demographic_questions?.questions || []) {
-        optionMap[String(dq.id)] = {
-          label: dq.name,
-          options: dq.answer_options.map(o => o.name),
-        };
-      }
-
       return optionMap;
-    } catch (e) {
-      console.error('[Vantage] Failed to parse greenhouse options:', e);
+    } catch (_) {
       return {};
     }
   }
 
-  // ── AI-driven question extraction ─────────────────────────────────────────────
+  // ── Tier 2: question extraction (AI-worthy fields only) ─────────────────────
 
-  function extractFormQuestions() {
-    if (isWorkday()) return extractWorkdayQuestions();
+  function extractQuestions() {
+    const platform = detectPlatform();
+    if (platform === 'workday') return extractWorkdayQuestions();
 
     const questions = [];
     const seen = new Set();
-
-    const ghOptions = (window.location.hostname.includes('greenhouse') || window.location.hostname.includes('boards.greenhouse'))
-      ? getGreenhouseQuestionOptions()
-      : {};
-
-    // Native inputs/textareas/selects — exclude combobox inputs (handled separately below)
-    const inputs = queryShadow(document.body,
-      'input:not([type=submit]):not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio]):not([role=combobox]), textarea, select'
-    );
-    for (const el of inputs) {
-      if (el.disabled || el.readOnly) continue;
-      const label = getLabel(el);
-      if (label && label.length > 2 && !seen.has(label)) {
-        seen.add(label);
-        questions.push({ label, tag: el.tagName, type: el.type || null });
+    const push = q => {
+      if (q.label && q.label.length > 2 && !seen.has(q.label)) {
+        seen.add(q.label);
+        questions.push(q);
       }
+    };
+
+    const ghOptions = platform === 'greenhouse' ? getGreenhouseQuestionOptions() : {};
+
+    // Open-ended textareas
+    for (const el of queryShadow(document, 'textarea')) {
+      if (!isFillable(el) || filledEls.has(el) || hasExistingValue(el)) continue;
+      const label = getReadableLabel(el);
+      if (!label || isDeterministicLabel(label)) continue;
+      push({ label, kind: 'textarea' });
     }
 
-    // React Select combobox inputs — resolve label via aria-labelledby, attach options when available
-    const comboboxInputs = document.querySelectorAll('input[role="combobox"]');
-    for (const input of comboboxInputs) {
+    // Text inputs that read like actual questions (not factual short fields)
+    for (const el of queryShadow(document, 'input[type="text"], input:not([type])')) {
+      if (!isFillable(el) || filledEls.has(el) || hasExistingValue(el)) continue;
+      if (el.getAttribute('role') === 'combobox') continue;
+      const label = getReadableLabel(el);
+      if (!label || isDeterministicLabel(label) || !looksOpenEnded(label)) continue;
+      push({ label, kind: 'text' });
+    }
+
+    // Native selects with concrete options (authorization, custom questions…)
+    for (const el of queryShadow(document, 'select')) {
+      if (!isFillable(el) || filledEls.has(el) || el.selectedIndex > 0) continue;
+      const label = getReadableLabel(el);
+      if (!label || isDeterministicLabel(label)) continue;
+      const options = Array.from(el.options)
+        .filter(o => !o.disabled && o.text.trim() && o.value)
+        .map(o => o.text.trim())
+        .slice(0, 40);
+      if (options.length) push({ label, kind: 'select', options });
+    }
+
+    // React Select comboboxes (Greenhouse custom questions)
+    for (const input of document.querySelectorAll('input[role="combobox"]')) {
+      if (!isFillable(input) || filledEls.has(input)) continue;
       if (input.id === 'candidate-location' || input.id === 'country') continue;
-
-      const labelId = input.getAttribute('aria-labelledby');
-      const labelEl = labelId ? document.getElementById(labelId) : null;
-      const label = (labelEl?.textContent || input.getAttribute('aria-label') || '').trim();
-      const lowerLabel = label.toLowerCase();
-
-      if (!label || label.length <= 2) continue;
-      if (lowerLabel.includes('phone') || lowerLabel.includes('country')) continue;
-      if (seen.has(label)) continue;
-      seen.add(label);
+      const label = getReadableLabel(input);
+      if (!label || label.length <= 2 || isDeterministicLabel(label)) continue;
+      if (/phone|country/i.test(label)) continue;
 
       const optionData = ghOptions[input.id];
       if (optionData?.options?.length) {
-        questions.push({ label, tag: 'SELECT_CUSTOM', type: 'dropdown', options: optionData.options, fieldId: input.id });
+        push({ label, kind: 'combobox', options: optionData.options });
       } else {
-        questions.push({ label, tag: 'SELECT_CUSTOM', type: 'select' });
+        push({ label, kind: 'combobox' });
       }
-    }
-
-    // Greenhouse special plain-input fields with question_ prefixed IDs
-    // (no role="combobox", skipped by the combobox pass above)
-    const specialFields = ['question_64567483', 'question_64567484', 'question_64567485', 'question_66194211'];
-    for (const id of specialFields) {
-      const el = document.getElementById(id);
-      if (!el) continue;
-      const labelId = el.getAttribute('aria-labelledby');
-      const labelEl = labelId ? document.getElementById(labelId) : null;
-      const labelText = labelEl?.textContent?.trim() || el.getAttribute('aria-label') || id;
-      if (seen.has(labelText)) continue;
-      seen.add(labelText);
-      questions.push({ label: labelText, type: el.tagName === 'TEXTAREA' ? 'textarea' : 'text', fieldId: id });
     }
 
     return questions;
-  }
-
-  // ── AI answer fill ────────────────────────────────────────────────────────────
-
-  // Hardcode-fills Greenhouse question_ fields that React synthetic events require
-  function fillGreenhouseDirectFields(kit) {
-    let filled = 0;
-    if (kit.firstName && document.getElementById('question_64567483')) filled++;
-    if (kit.lastName && document.getElementById('question_64567484')) filled++;
-    if (kit.linkedin && document.getElementById('question_64567485')) filled++;
-
-    reactFill(document.getElementById('question_64567483'), kit.firstName);
-    reactFill(document.getElementById('question_64567484'), kit.lastName);
-    reactFill(document.getElementById('question_64567485'), kit.linkedin);
-    // question_66194211 is filled by AI answer via fillPlainTextFields
-
-    return filled;
-  }
-
-  // Fills input[type="text"] and textarea elements by matching aria-labelledby/aria-label
-  // against AI answer labels — handles Greenhouse question_ fields and similar React inputs
-  function fillPlainTextFields(fields) {
-    let filled = 0;
-    const inputs = document.querySelectorAll(
-      'input[type="text"]:not([role="combobox"]):not([tabindex="-1"]), textarea'
-    );
-    for (const input of inputs) {
-      if (input.disabled || input.readOnly || input.value) continue;
-      const labelId = input.getAttribute('aria-labelledby');
-      const labelEl = labelId ? document.getElementById(labelId) : null;
-      const elLabel = (labelEl?.textContent || input.getAttribute('aria-label') || '').trim();
-      if (!elLabel) continue;
-
-      for (const { label: targetLabel, answer } of fields) {
-        if (!answer || answer === 'null') continue;
-        if (labelsMatch(elLabel, targetLabel)) {
-          reactFill(input, answer);
-          filled++;
-          break;
-        }
-      }
-    }
-
-    return filled;
-  }
-
-  function labelsMatch(elLabel, targetLabel) {
-    const clean = s => s.toLowerCase().replace(/\*/g, '').replace(/\s+/g, ' ').trim();
-    const a = clean(elLabel);
-    const b = clean(targetLabel);
-    if (a === b) return true;
-    if (a.includes(b.substring(0, 30)) || b.includes(a.substring(0, 30))) return true;
-    if (a.substring(0, 20) === b.substring(0, 20)) return true;
-    return false;
-  }
-
-  async function fillLocationField(city) {
-    const locationInput = document.getElementById('candidate-location');
-    if (!locationInput || !city) return 0;
-
-    locationInput.focus();
-    locationInput.click();
-    await new Promise(r => setTimeout(r, 200));
-
-    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-    if (nativeSetter) nativeSetter.call(locationInput, city);
-    locationInput.dispatchEvent(new Event('input', { bubbles: true }));
-    locationInput.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: city[0] }));
-
-    // Wait for location search API to respond
-    await new Promise(r => setTimeout(r, 1200));
-
-    const menu = document.querySelector('.select__menu');
-    if (menu) {
-      const firstOption = menu.querySelector('[class*="option"]');
-      if (firstOption) {
-        firstOption.click();
-        console.log('[Vantage] Location selected:', firstOption.textContent?.trim());
-        return 1;
-      }
-    }
-
-    return 0;
-  }
-
-  async function fillGreenhouseReactSelects(fields) {
-    let filled = 0;
-    for (const { label: targetLabel, answer } of fields) {
-      if (!answer || answer === 'null' || answer === null) continue;
-
-      const allComboboxes = document.querySelectorAll('input[role="combobox"]');
-
-      for (const input of allComboboxes) {
-        const labelId = input.getAttribute('aria-labelledby');
-        const labelEl = labelId ? document.getElementById(labelId) : null;
-        const elLabel = (labelEl?.textContent || input.getAttribute('aria-label') || '').toLowerCase().trim();
-        const cleanTarget = targetLabel.toLowerCase().replace(/\*/g, '').trim();
-
-        if (elLabel.includes('country') || elLabel.includes('phone') || input.id === 'country') continue;
-
-        const matches = elLabel.includes(cleanTarget.substring(0, 25)) ||
-                        cleanTarget.includes(elLabel.substring(0, 25));
-        if (!matches) continue;
-
-        console.log('[Vantage] Filling React Select:', elLabel, '→', answer);
-
-        input.focus();
-        input.click();
-        await new Promise(r => setTimeout(r, 200));
-
-        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-        if (nativeSetter) nativeSetter.call(input, answer);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: answer[0] }));
-
-        await new Promise(r => setTimeout(r, 400));
-
-        const menu = document.querySelector('.select__menu');
-        if (!menu) {
-          console.log('[Vantage] No menu found for:', elLabel);
-          input.blur();
-          continue;
-        }
-
-        const options = menu.querySelectorAll('[class*="option"]');
-        console.log('[Vantage] Options:', Array.from(options).map(o => o.textContent?.trim()));
-
-        const match = Array.from(options).find(o =>
-          o.textContent?.trim() === answer
-        ) || Array.from(options).find(o =>
-          o.textContent?.toLowerCase().trim().includes(answer.toLowerCase())
-        );
-
-        if (match) {
-          match.click();
-          console.log('[Vantage] Clicked:', match.textContent?.trim());
-          filled++;
-        } else {
-          input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        }
-
-        await new Promise(r => setTimeout(r, 300));
-        break;
-      }
-    }
-
-    return filled;
-  }
-
-  // ── Workday detection and fill ────────────────────────────────────────────────
-
-  function isWorkday() {
-    return window.location.hostname.includes('myworkdayjobs.com') ||
-           window.location.hostname.includes('workday.com') ||
-           document.querySelector('[data-automation-id]') !== null;
-  }
-
-  async function fillWorkdayInput(el, value) {
-    if (!el) return;
-    el.click();
-    el.focus();
-    await new Promise(r => setTimeout(r, 300));
-    el.select?.();
-    document.execCommand('selectAll');
-    document.execCommand('delete');
-    await new Promise(r => setTimeout(r, 100));
-    for (const char of value) {
-      document.execCommand('insertText', false, char);
-      await new Promise(r => setTimeout(r, 20 + Math.random() * 30));
-    }
-    el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
-    await new Promise(r => setTimeout(r, 200));
-  }
-
-  async function findWorkdayInputByLabel(labelText) {
-    const allLabels = document.querySelectorAll(
-      '[data-automation-id*="FormLabel"], label, [class*="css-"][class*="Label"]'
-    );
-    for (const label of allLabels) {
-      if (label.textContent.toLowerCase().includes(labelText.toLowerCase())) {
-        const container = label.closest('[data-automation-id]') || label.parentElement;
-        const input = container?.querySelector('input, textarea');
-        if (input) return input;
-      }
-    }
-    return null;
-  }
-
-  async function fillWorkdayDropdown(labelText, optionText) {
-    const input = await findWorkdayInputByLabel(labelText);
-    if (!input) return;
-    input.click();
-    input.focus();
-    await new Promise(r => setTimeout(r, 500));
-    document.execCommand('insertText', false, optionText.substring(0, 3));
-    await new Promise(r => setTimeout(r, 600));
-    const options = document.querySelectorAll(
-      '[data-automation-id="promptOption"], [role="option"], [class*="option"]'
-    );
-    const match = Array.from(options).find(o =>
-      o.textContent.trim().toLowerCase().includes(optionText.toLowerCase())
-    );
-    if (match) {
-      match.click();
-      await new Promise(r => setTimeout(r, 300));
-    }
   }
 
   function extractWorkdayQuestions() {
     const questions = [];
-    const inputs = document.querySelectorAll(
-      'input[type="text"]:not([type="hidden"]), input[type="email"], input[type="tel"], textarea'
-    );
-    for (const input of inputs) {
-      let labelText = '';
-      let el = input.parentElement;
-      for (let i = 0; i < 5; i++) {
-        const label = el?.querySelector('label, [class*="Label"], [data-automation-id*="Label"]');
-        if (label) {
-          labelText = label.textContent.trim();
-          break;
-        }
-        el = el?.parentElement;
-      }
-      if (labelText) questions.push({ label: labelText, type: 'text' });
+    const seen = new Set();
+    for (const input of document.querySelectorAll('textarea, input[type="text"]')) {
+      if (!isFillable(input) || filledEls.has(input) || hasExistingValue(input)) continue;
+      const label = getReadableLabel(input);
+      if (!label || isDeterministicLabel(label) || seen.has(label)) continue;
+      if (input.tagName === 'INPUT' && !looksOpenEnded(label)) continue;
+      seen.add(label);
+      questions.push({ label, kind: input.tagName === 'TEXTAREA' ? 'textarea' : 'text' });
     }
     return questions;
   }
 
-  async function fillWorkdayForm(fields) {
-    let filled = 0;
-    for (const { label: targetLabel, answer } of fields) {
-      if (!answer || answer === 'null') continue;
-      const input = await findWorkdayInputByLabel(targetLabel);
-      if (!input) continue;
-      await fillWorkdayInput(input, answer);
-      filled++;
-      await new Promise(r => setTimeout(r, 500));
-    }
-    return { filled };
+  // ── Applying AI answers ──────────────────────────────────────────────────────
+
+  function labelsMatch(a, b) {
+    const clean = s => String(s).toLowerCase().replace(/[*✱]/g, '').replace(/\s+/g, ' ').trim();
+    const x = clean(a);
+    const y = clean(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    if (x.length >= 15 && y.length >= 15 && (x.includes(y.slice(0, 30)) || y.includes(x.slice(0, 30)))) return true;
+    return false;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
+  function isUsableAnswer(answer) {
+    if (answer === null || answer === undefined) return false;
+    const s = String(answer).trim();
+    return s !== '' && s.toLowerCase() !== 'null' && s.toUpperCase() !== 'SKIP';
+  }
 
-  const SPECIAL_QUESTION_IDS = ['question_64567483', 'question_64567484', 'question_64567485', 'question_66194211'];
-
-  async function fillWithAIAnswers(fields, kit = {}) {
-    if (isWorkday()) return fillWorkdayForm(fields);
-
+  async function applyAnswers(fields) {
+    const platform = detectPlatform();
     let filled = 0;
 
-    // ── Pass 1: native inputs, textareas, and <select> elements ──────────────
-    for (const { label: targetLabel, answer } of fields) {
-      if (!answer || answer === 'null') continue;
+    for (const field of fields || []) {
+      const { label: targetLabel, answer } = field;
+      if (!isUsableAnswer(answer)) continue;
+      // Defense in depth: never let an AI answer land in a factual/demographic field
+      if (isDeterministicLabel(targetLabel)) continue;
 
-      const allInputs = queryShadow(document.body,
-        'input:not([type=submit]):not([type=hidden]):not([type=file]):not([role=combobox]), textarea, select'
-      );
+      let applied = false;
 
-      for (const el of allInputs) {
-        if (el.disabled || el.readOnly) continue;
-        const elLabel = getLabel(el);
-        console.log('[Vantage] Trying to fill:', targetLabel, '| answer:', answer, '| el:', el?.tagName, el?.id || el?.name || '');
-        if (!labelsMatch(elLabel, targetLabel)) continue;
-
-        if (el.tagName === 'SELECT') {
-          if (fillSelect(el, answer)) filled++;
-        } else if (SPECIAL_QUESTION_IDS.includes(el.id)) {
-          reactFill(el, answer);
+      // Textareas + open text inputs
+      const textEls = queryShadow(document, 'textarea, input[type="text"], input:not([type])');
+      for (const el of textEls) {
+        if (!isFillable(el) || filledEls.has(el) || hasExistingValue(el)) continue;
+        if (el.getAttribute('role') === 'combobox') continue;
+        if (!labelsMatch(getReadableLabel(el), targetLabel)) continue;
+        if (await setTextValue(el, String(answer), platform)) {
           filled++;
-        } else {
-          fill(el, answer);
-          filled++;
+          applied = true;
         }
+        break;
+      }
+      if (applied) continue;
+
+      // Native selects — answer must resolve to a real option
+      for (const el of queryShadow(document, 'select')) {
+        if (!isFillable(el) || filledEls.has(el)) continue;
+        if (!labelsMatch(getReadableLabel(el), targetLabel)) continue;
+        if (fillNativeSelect(el, String(answer))) {
+          filled++;
+          applied = true;
+        }
+        break;
+      }
+      if (applied) continue;
+
+      // React Select comboboxes — exact option match only for AI answers
+      for (const input of document.querySelectorAll('input[role="combobox"]')) {
+        if (!isFillable(input) || filledEls.has(input)) continue;
+        if (/phone|country/i.test(getReadableLabel(input))) continue;
+        if (!labelsMatch(getReadableLabel(input), targetLabel)) continue;
+        if (await fillCombobox(input, String(answer), { exactOnly: false, waitMs: 400 })) filled++;
         break;
       }
     }
 
-    // ── Pass 2: Greenhouse location field ─────────────────────────────────────
-    const locationField = fields.find(f => /\blocation\b|\bcity\b/i.test(f.label));
-    if (locationField?.answer && locationField.answer !== 'null') {
-      filled += await fillLocationField(locationField.answer);
-    }
-
-    // ── Pass 3: Greenhouse React Select comboboxes ────────────────────────────
-    filled += await fillGreenhouseReactSelects(fields);
-
-    // ── Pass 4: AI guidelines checkbox ────────────────────────────────────────
-    const aiCheckbox = document.getElementById('question_64567494[]_651433054') ||
-                       document.querySelector('input[name="question_64567494[]"]');
-    if (aiCheckbox && !aiCheckbox.checked) aiCheckbox.click();
-
-    // ── Pass 5: plain text + textarea fields via aria-label (React-compatible) ──
-    filled += fillPlainTextFields(fields);
-
-    // ── Greenhouse direct fields (firstName/lastName/linkedin bypass AI) ──────
-    filled += fillGreenhouseDirectFields(kit);
-
-    // ── Lever demographic survey (hidden until location fills; waits 800ms) ───
-    filled += await fillLeverSurveyIfVisible(kit);
+    // Lever demographic survey appears after location fill — decline-only pass
+    if (platform === 'lever') filled += await fillLeverSurveyIfVisible();
 
     return { filled };
   }
 
-  // ── Message listener ──────────────────────────────────────────────────────────
+  // ── Message listener ─────────────────────────────────────────────────────────
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type === 'VANTAGE_FILL') {
-      fillForm(message.kit)
+    if (message.type === 'DIRECT_FILL') {
+      directFill(message.kit || {})
         .then(result => sendResponse(result))
-        .catch(e => sendResponse({ filled: 0, error: String(e) }));
+        .catch(e => sendResponse({ filled: 0, platform: detectPlatform(), error: String(e) }));
       return true;
     }
 
     if (message.type === 'EXTRACT_QUESTIONS') {
       try {
-        sendResponse(extractFormQuestions());
-      } catch (e) {
+        sendResponse(extractQuestions());
+      } catch (_) {
         sendResponse([]);
       }
       return true;
     }
 
     if (message.type === 'FILL_ANSWERS') {
-      fillWithAIAnswers(message.fields || [], message.kit || {})
+      applyAnswers(message.fields || [])
         .then(result => sendResponse(result))
         .catch(e => sendResponse({ filled: 0, error: String(e) }));
-      return true;
-    }
-
-    if (message.type === 'FILL_LEVER_SURVEY') {
-      fillLeverSurveyIfVisible(message.kit || {})
-        .then(() => sendResponse({ ok: true }))
-        .catch(() => sendResponse({ ok: false }));
       return true;
     }
 
