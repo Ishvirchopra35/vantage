@@ -189,7 +189,7 @@ async function handleFill() {
 
     // 2. Tier 1 — direct fill from kit data, no AI involved
     const isWorkday = currentTabUrl.includes('myworkdayjobs.com') || currentTabUrl.includes('workday.com');
-    btn.textContent = isWorkday ? 'Filling your details (~30s)...' : 'Filling your details...';
+    btn.textContent = isWorkday ? 'Filling your details (1–2 min on Workday, keep this open)...' : 'Filling your details...';
 
     let direct;
     try {

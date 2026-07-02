@@ -86,9 +86,16 @@
     document.execCommand('selectAll');
     document.execCommand('delete');
     await sleep(100);
-    for (const char of String(value)) {
-      document.execCommand('insertText', false, char);
-      await sleep(rand(20, 50));
+    const text = String(value);
+    if (text.length > 60) {
+      // Long text (e.g. role descriptions): one insert — still a real input event,
+      // and char-by-char typing would take minutes
+      document.execCommand('insertText', false, text);
+    } else {
+      for (const char of text) {
+        document.execCommand('insertText', false, char);
+        await sleep(rand(20, 50));
+      }
     }
     el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
     await sleep(200);
@@ -672,9 +679,252 @@
       if (await setTextValue(input, value, 'workday')) filled++;
     }
 
+    // My Experience page: repeatable sections + skills + websites
+    filled += await fillWorkdayExperience(kit);
+    filled += await fillWorkdayEducation(kit);
+    filled += await fillWorkdaySkills(kit);
+    filled += await fillWorkdayWebsites(kit);
+
     // "How did you hear about us" prompt → Job Board only (rule 3)
     if (await fillWorkdayDropdown('how did you hear', 'Job Board')) filled++;
 
+    return filled;
+  }
+
+  // ── Workday repeatable sections (My Experience page) ─────────────────────────
+
+  function findWorkdaySectionEl(automationIds, headingRe) {
+    for (const id of automationIds) {
+      const el = document.querySelector(`[data-automation-id="${id}"]`);
+      if (el) return el;
+    }
+    // Fallback: locate the section heading, then its data-automation-id container
+    for (const h of document.querySelectorAll('h1, h2, h3, h4, [role="heading"]')) {
+      const text = (h.textContent || '').trim();
+      if (!text || text.length > 60 || !headingRe.test(text)) continue;
+      const container = h.closest('[data-automation-id*="section" i]');
+      if (container) return container;
+      let node = h.parentElement;
+      for (let i = 0; i < 3 && node; i++) {
+        if (findAddButton(node) || node.querySelector('input, textarea')) return node;
+        node = node.parentElement;
+      }
+    }
+    return null;
+  }
+
+  function findAddButton(scope) {
+    const direct = scope.querySelector('button[data-automation-id="add-button"], button[data-automation-id="Add"]');
+    if (direct && !direct.disabled) return direct;
+    return Array.from(scope.querySelectorAll('button')).find(b =>
+      !b.disabled && (
+        /^add(\s+another)?$/i.test((b.textContent || '').trim()) ||
+        /^add\b/i.test(b.getAttribute('aria-label') || '')
+      )
+    ) || null;
+  }
+
+  // Click Add/Add Another until the section has `needed` entries, waiting for
+  // each new panel's fields to render before the next click.
+  async function ensureWorkdayEntries(section, anchorSelector, needed) {
+    const count = () => section.querySelectorAll(anchorSelector).length;
+    let current = count();
+    let guard = 0;
+    while (current < needed && guard < needed + 2) {
+      guard++;
+      const btn = findAddButton(section);
+      if (!btn) break;
+      btn.click();
+      const before = current;
+      for (let i = 0; i < 10 && count() <= before; i++) await sleep(300);
+      current = count();
+      if (current <= before) break; // click had no effect — stop rather than loop
+      await sleep(300);
+    }
+    return current;
+  }
+
+  // One panel per anchor input: the largest ancestor (below the section) that
+  // still contains only that one anchor — i.e. the per-entry wrapper.
+  function collectPanels(section, anchorSelector) {
+    return Array.from(section.querySelectorAll(anchorSelector)).map(anchorEl => {
+      let panel = anchorEl.parentElement;
+      let node = anchorEl.parentElement;
+      while (node && node !== section && node !== document.body) {
+        if (node.querySelectorAll(anchorSelector).length > 1) break;
+        panel = node;
+        node = node.parentElement;
+      }
+      return panel;
+    });
+  }
+
+  async function fillWorkdayDate(monthEl, yearEl, mmYYYY) {
+    if (!mmYYYY) return 0;
+    const [mm, yyyy] = mmYYYY.split('/');
+    let n = 0;
+    if (monthEl && mm && await setTextValue(monthEl, mm, 'workday')) n++;
+    if (yearEl && yyyy && await setTextValue(yearEl, yyyy, 'workday')) n++;
+    return n;
+  }
+
+  const WD_MONTH = 'input[data-automation-id="dateSectionMonth-input"]';
+  const WD_YEAR = 'input[data-automation-id="dateSectionYear-input"]';
+
+  async function fillWorkdayExperience(kit) {
+    const experience = (Array.isArray(kit.experience) ? kit.experience : []).slice(0, 5);
+    if (!experience.length) return 0;
+
+    const section = findWorkdaySectionEl(['workExperienceSection'], /work\s+experience/i);
+    if (!section) return 0;
+
+    const anchor = 'input[data-automation-id="jobTitle"]';
+    await ensureWorkdayEntries(section, anchor, experience.length);
+    const panels = collectPanels(section, anchor);
+
+    let filled = 0;
+    for (let i = 0; i < panels.length && i < experience.length; i++) {
+      const exp = experience[i];
+      const panel = panels[i];
+
+      if (await setTextValue(panel.querySelector('input[data-automation-id="jobTitle"]'), exp.title, 'workday')) filled++;
+      if (await setTextValue(panel.querySelector('input[data-automation-id="company"]'), exp.company, 'workday')) filled++;
+      if (await setTextValue(panel.querySelector('input[data-automation-id="location"]'), exp.location, 'workday')) filled++;
+
+      // Dates before the "currently work here" toggle — checking it removes the To field
+      const months = panel.querySelectorAll(WD_MONTH);
+      const years = panel.querySelectorAll(WD_YEAR);
+      const startC = panel.querySelector('[data-automation-id="formField-startDate"]');
+      const endC = panel.querySelector('[data-automation-id="formField-endDate"]');
+      filled += await fillWorkdayDate(
+        startC?.querySelector(WD_MONTH) || months[0],
+        startC?.querySelector(WD_YEAR) || years[0],
+        toMonthYear(exp.start_date)
+      );
+      if (!exp.current) {
+        filled += await fillWorkdayDate(
+          endC?.querySelector(WD_MONTH) || months[1],
+          endC?.querySelector(WD_YEAR) || years[1],
+          toMonthYear(exp.end_date)
+        );
+      }
+
+      if (exp.current === true) {
+        const cb = panel.querySelector('input[data-automation-id="currentlyWorkHere"], input[type="checkbox"]');
+        if (clickCheckbox(cb)) {
+          filled++;
+          await sleep(300);
+        }
+      }
+
+      const bullets = Array.isArray(exp.bullets) ? exp.bullets.filter(Boolean).join('\n') : '';
+      if (bullets) {
+        const desc = panel.querySelector('textarea[data-automation-id="description"], textarea');
+        if (await setTextValue(desc, bullets, 'workday')) filled++;
+      }
+    }
+    return filled;
+  }
+
+  async function fillWorkdayEducation(kit) {
+    const education = (Array.isArray(kit.education) ? kit.education : []).slice(0, 3);
+    if (!education.length) return 0;
+
+    const section = findWorkdaySectionEl(['educationSection'], /education/i);
+    if (!section) return 0;
+
+    const anchor = 'input[data-automation-id="school"], input[data-automation-id="schoolName"], input[data-automation-id*="school" i]';
+    await ensureWorkdayEntries(section, anchor, education.length);
+    const panels = collectPanels(section, anchor);
+
+    let filled = 0;
+    for (let i = 0; i < panels.length && i < education.length; i++) {
+      const edu = education[i];
+      const school = panels[i].querySelector(anchor);
+      if (await setTextValue(school, edu.school, 'workday')) filled++;
+
+      // Graduation year → the last (To / Actual or Expected) year spinner
+      if (edu.graduation_year) {
+        const years = panels[i].querySelectorAll(WD_YEAR);
+        const last = years[years.length - 1];
+        if (last && await setTextValue(last, String(edu.graduation_year), 'workday')) filled++;
+      }
+      // Degree / field of study: no kit data — left blank on purpose
+    }
+    return filled;
+  }
+
+  // Skills is a single multiselect prompt: type each skill, pick the matching
+  // option. Skills the tenant's list doesn't have are skipped, never invented.
+  async function fillWorkdaySkills(kit) {
+    const skills = (Array.isArray(kit.skills) ? kit.skills : []).filter(Boolean).slice(0, 15);
+    if (!skills.length) return 0;
+
+    const section = findWorkdaySectionEl(['skillsSection', 'formField-skills'], /^skills\b/i);
+    if (!section) return 0;
+    const input = section.querySelector('input[type="text"], input:not([type])');
+    if (!input || !isFillable(input)) return 0;
+
+    let filled = 0;
+    for (const skill of skills) {
+      // Already selected — pills render inside the section
+      if ((section.textContent || '').toLowerCase().includes(skill.toLowerCase())) continue;
+
+      input.click();
+      input.focus();
+      await sleep(200);
+      document.execCommand('selectAll');
+      document.execCommand('delete');
+      document.execCommand('insertText', false, skill);
+
+      let match = null;
+      for (let i = 0; i < 5 && !match; i++) {
+        await sleep(400);
+        const options = Array.from(document.querySelectorAll(
+          '[data-automation-id="promptOption"], [data-automation-id="promptLeafNode"], [role="option"]'
+        ));
+        match = options.find(o => o.textContent.trim().toLowerCase() === skill.toLowerCase()) ||
+          options.find(o => o.textContent.trim().toLowerCase().includes(skill.toLowerCase()));
+      }
+
+      if (match) {
+        match.click();
+        filled++;
+        await sleep(400);
+      } else {
+        document.execCommand('selectAll');
+        document.execCommand('delete');
+      }
+    }
+    closeWorkdayPopup(input);
+    return filled;
+  }
+
+  // Websites 1..N: fill empty URL inputs in order with kit URLs not already on
+  // the page. LinkedIn only lands here when no dedicated LinkedIn field exists.
+  async function fillWorkdayWebsites(kit) {
+    const urls = [];
+    if (kit.linkedin && !document.querySelector('input[data-automation-id*="linkedin" i]')) urls.push(kit.linkedin);
+    if (kit.portfolio) urls.push(kit.portfolio);
+    if (kit.github) urls.push(kit.github);
+    if (!urls.length) return 0;
+
+    const section = findWorkdaySectionEl(['websiteSection'], /^websites?\b/i);
+    if (!section) return 0;
+
+    const anchor = 'input[data-automation-id="website"], input[data-automation-id*="website" i]';
+    await ensureWorkdayEntries(section, anchor, urls.length);
+    const inputs = Array.from(section.querySelectorAll(anchor));
+
+    const existing = inputs.map(el => (el.value || '').trim().toLowerCase()).filter(Boolean);
+    const remaining = urls.filter(u => !existing.some(v => v.includes(u.toLowerCase()) || u.toLowerCase().includes(v)));
+
+    let filled = 0;
+    for (const el of inputs) {
+      if (!remaining.length) break;
+      if (!isFillable(el) || filledEls.has(el) || hasExistingValue(el)) continue;
+      if (await setTextValue(el, remaining.shift(), 'workday')) filled++;
+    }
     return filled;
   }
 
