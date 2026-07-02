@@ -177,7 +177,13 @@ async function handleFill() {
     }
 
     const kitData = await kitRes.json();
-    const userKit = kitData?.data?.kit || {};
+    // The API returns { kit } at the top level (ok() does not wrap in data)
+    const userKit = kitData?.kit ?? kitData?.data?.kit ?? {};
+
+    if (!userKit.fullName && !userKit.email && !userKit.phone) {
+      resultEl.innerHTML = '<div class="result-box result-error mt-8">Your Vantage profile has no data to fill with. Add your details at Vantage → Profile.</div>';
+      return;
+    }
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -239,7 +245,9 @@ async function handleFill() {
       // If the AI call fails, Tier 1 fills still stand — report those.
     }
 
-    if (totalFilled === 0) {
+    if (totalFilled === 0 && direct?.error) {
+      resultEl.innerHTML = '<div class="result-box result-error mt-8">Filling failed on this page: ' + escapeHtml(direct.error) + '</div>';
+    } else if (totalFilled === 0) {
       resultEl.innerHTML = '<div class="result-box result-info mt-8">No fillable fields matched your profile. Fields without data in your profile are left blank on purpose.</div>';
     } else {
       resultEl.innerHTML = `<div class="result-box result-success mt-8">Filled ${totalFilled} field${totalFilled === 1 ? '' : 's'}. Unknown fields were left blank — review before submitting.</div>`;

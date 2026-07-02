@@ -583,16 +583,40 @@
 
   function findWorkdayInputByLabel(labelText) {
     const allLabels = document.querySelectorAll(
-      '[data-automation-id*="FormLabel"], label, [class*="css-"][class*="Label"]'
+      '[data-automation-id*="formLabel" i], label, legend, [class*="css-"][class*="Label"]'
     );
+    const target = labelText.toLowerCase();
     for (const label of allLabels) {
-      if (label.textContent.toLowerCase().includes(labelText.toLowerCase())) {
-        const container = label.closest('[data-automation-id]') || label.parentElement;
-        const input = container?.querySelector('input, textarea');
+      const text = label.textContent?.toLowerCase() || '';
+      if (!text.includes(target) || text.length > 200) continue;
+
+      // Prefer the explicit for="" association — Workday labels are siblings
+      // of their inputs, never ancestors, so closest()/descendant lookups miss.
+      const forId = label.htmlFor || label.getAttribute('for');
+      if (forId) {
+        const el = document.getElementById(forId);
+        if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return el;
+      }
+
+      // Walk up to the formField container and search inside it
+      let node = label.parentElement;
+      for (let i = 0; i < 4 && node; i++) {
+        const input = node.querySelector('input:not([type="hidden"]), textarea');
         if (input) return input;
+        node = node.parentElement;
       }
     }
     return null;
+  }
+
+  function closeWorkdayPopup(input) {
+    for (const type of ['keydown', 'keyup']) {
+      input.dispatchEvent(new KeyboardEvent(type, {
+        key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true,
+      }));
+    }
+    input.blur();
+    document.body.click(); // Workday popups also close on outside click
   }
 
   async function fillWorkdayDropdown(labelText, optionText) {
@@ -602,15 +626,21 @@
     input.focus();
     await sleep(500);
     document.execCommand('insertText', false, optionText.substring(0, 3));
-    await sleep(600);
-    const options = document.querySelectorAll(
-      '[data-automation-id="promptOption"], [role="option"]'
-    );
-    const match = Array.from(options).find(o =>
-      o.textContent.trim().toLowerCase().includes(optionText.toLowerCase())
-    );
+
+    // Options load from a search request — poll instead of a fixed wait
+    let match = null;
+    for (let attempt = 0; attempt < 6 && !match; attempt++) {
+      await sleep(500);
+      const options = document.querySelectorAll(
+        '[data-automation-id="promptOption"], [data-automation-id="promptLeafNode"], [role="option"]'
+      );
+      match = Array.from(options).find(o =>
+        o.textContent.trim().toLowerCase().includes(optionText.toLowerCase())
+      );
+    }
+
     if (!match) {
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      closeWorkdayPopup(input);
       return false;
     }
     match.click();
