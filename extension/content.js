@@ -12,7 +12,7 @@
   if (window.__vantageFillLoaded) return;
   window.__vantageFillLoaded = true;
 
-  const DEBUG = false;
+  const DEBUG = true; // section-fill diagnostics — set false for release
   function log(...args) {
     if (DEBUG) console.log('[Vantage]', ...args);
   }
@@ -78,10 +78,27 @@
 
   // Workday detects and breaks on synthetic events — type character by
   // character via execCommand with human-like delays instead.
+  // Returns true only if the value verifiably landed in the element.
   async function workdayTypeValue(el, value) {
     el.click();
     el.focus();
     await sleep(300);
+
+    // Workday re-renders on interaction — a detached or unfocused element means
+    // execCommand would type into the void (or the previously focused field)
+    if (!el.isConnected) {
+      log('typeValue: element detached before typing —', describe(el));
+      return false;
+    }
+    if (document.activeElement !== el) {
+      el.focus();
+      await sleep(150);
+    }
+    if (document.activeElement !== el) {
+      log('typeValue: could not focus', describe(el), '— active element is', describe(document.activeElement));
+      return false;
+    }
+
     el.select?.();
     document.execCommand('selectAll');
     document.execCommand('delete');
@@ -97,8 +114,11 @@
         await sleep(rand(20, 50));
       }
     }
+    const landed = !!(el.value && el.value.trim());
     el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
     await sleep(200);
+    if (!landed) log('typeValue: value did not stick on', describe(el));
+    return landed;
   }
 
   // Returns true only if the value was actually set (rule 15: count real fills).
@@ -106,8 +126,9 @@
     if (!value || !isFillable(el) || filledEls.has(el)) return false;
     if (hasExistingValue(el)) return false;
     if (platform === 'workday') {
-      await workdayTypeValue(el, value);
+      const landed = await workdayTypeValue(el, value);
       await sleep(500); // Workday needs breathing room between fields
+      if (!landed) return false; // don't count or mark fields that stayed empty
     } else {
       nativeSetValue(el, value);
     }
@@ -659,9 +680,15 @@
   async function workdayDirectFill(kit, values) {
     let filled = 0;
 
+    log('workday fill start — kit fields with data:',
+      Object.entries(values).filter(([, v]) => v).map(([k]) => k).join(', '));
+
     for (const { key, selectors, labels } of WORKDAY_FIELD_MAP) {
       const value = values[key];
-      if (!value) continue;
+      if (!value) {
+        log(`map.${key}: no kit value — skipped`);
+        continue;
+      }
 
       let input = null;
       for (const sel of selectors) {
@@ -674,9 +701,12 @@
           if (input) break;
         }
       }
-      if (!input || input.tagName !== 'INPUT' && input.tagName !== 'TEXTAREA') continue;
+      if (!input || input.tagName !== 'INPUT' && input.tagName !== 'TEXTAREA') {
+        log(`map.${key}: no matching element on page (selectors + label search)`);
+        continue;
+      }
 
-      if (await setTextValue(input, value, 'workday')) filled++;
+      if (await fillField(`map.${key}`, input, value)) filled++;
     }
 
     // My Experience page: repeatable sections + skills + websites
@@ -692,6 +722,38 @@
   }
 
   // ── Workday repeatable sections (My Experience page) ─────────────────────────
+
+  function describe(el) {
+    if (!el) return '(null)';
+    const aid = el.getAttribute?.('data-automation-id');
+    return `<${(el.tagName || '?').toLowerCase()}${aid ? ` data-automation-id="${aid}"` : ''}${el.id ? ` id="${el.id}"` : ''}>`;
+  }
+
+  // What automation-ids ARE on the page — logged when a section lookup misses,
+  // so the console shows what this tenant actually calls things.
+  function automationIdsLike(re) {
+    const ids = new Set();
+    document.querySelectorAll('[data-automation-id]').forEach(el => {
+      const v = el.getAttribute('data-automation-id');
+      if (v && re.test(v)) ids.add(v);
+    });
+    return Array.from(ids).slice(0, 30);
+  }
+
+  // Logged fill: says exactly which element was targeted, what value was tried,
+  // and why it was skipped or whether the value stuck.
+  async function fillField(name, el, value, platform = 'workday') {
+    if (!el) { log(name, ': element not found'); return false; }
+    if (!value) { log(name, ': no kit value — left blank'); return false; }
+    if (filledEls.has(el)) { log(name, ': already filled this run'); return false; }
+    if (!isFillable(el)) { log(name, ': not fillable (hidden/disabled)', describe(el)); return false; }
+    if (hasExistingValue(el)) { log(name, `: keeping existing value "${el.value}"`); return false; }
+    const okFill = await setTextValue(el, value, platform);
+    log(name, okFill
+      ? `: filled "${value}" → ${describe(el)}`
+      : `: FAILED "${value}" → ${describe(el)} (value after attempt: "${el.value}")`);
+    return okFill;
+  }
 
   function findWorkdaySectionEl(automationIds, headingRe) {
     for (const id of automationIds) {
@@ -744,13 +806,16 @@
     return current;
   }
 
-  // One panel per anchor input: the largest ancestor (below the section) that
-  // still contains only that one anchor — i.e. the per-entry wrapper.
-  function collectPanels(section, anchorSelector) {
-    return Array.from(section.querySelectorAll(anchorSelector)).map(anchorEl => {
+  // One panel per anchor input: the largest ancestor (below the scope) that
+  // still contains only that one anchor — i.e. the per-entry wrapper. Prefers
+  // Workday's explicit role="group" entry wrapper when present.
+  function collectPanels(scope, anchorSelector) {
+    return Array.from((scope || document).querySelectorAll(anchorSelector)).map(anchorEl => {
+      const group = anchorEl.closest('[role="group"]');
+      if (group && group.querySelectorAll(anchorSelector).length === 1) return group;
       let panel = anchorEl.parentElement;
       let node = anchorEl.parentElement;
-      while (node && node !== section && node !== document.body) {
+      while (node && node !== scope && node !== document.body) {
         if (node.querySelectorAll(anchorSelector).length > 1) break;
         panel = node;
         node = node.parentElement;
@@ -759,59 +824,73 @@
     });
   }
 
-  async function fillWorkdayDate(monthEl, yearEl, mmYYYY) {
-    if (!mmYYYY) return 0;
-    const [mm, yyyy] = mmYYYY.split('/');
-    let n = 0;
-    if (monthEl && mm && await setTextValue(monthEl, mm, 'workday')) n++;
-    if (yearEl && yyyy && await setTextValue(yearEl, yyyy, 'workday')) n++;
-    return n;
-  }
-
   const WD_MONTH = 'input[data-automation-id="dateSectionMonth-input"]';
   const WD_YEAR = 'input[data-automation-id="dateSectionYear-input"]';
 
+  function dateInput(panel, which, sel) {
+    if (!panel) return null;
+    const container = panel.querySelector(`[data-automation-id="formField-${which}Date"]`);
+    if (container) return container.querySelector(sel);
+    const all = panel.querySelectorAll(sel);
+    return (which === 'start' ? all[0] : all[1]) || null;
+  }
+
+  // Workday re-renders panels after every blur, so element references captured
+  // before a fill go stale — focus() on a detached node no-ops and typing lands
+  // nowhere. Every field lookup below is therefore done fresh, at fill time.
   async function fillWorkdayExperience(kit) {
     const experience = (Array.isArray(kit.experience) ? kit.experience : []).slice(0, 5);
-    if (!experience.length) return 0;
+    if (!experience.length) {
+      log('experience: no kit data — skipped');
+      return 0;
+    }
 
-    const section = findWorkdaySectionEl(['workExperienceSection'], /work\s+experience/i);
-    if (!section) return 0;
+    const getSection = () => findWorkdaySectionEl(['workExperienceSection'], /work\s+experience/i);
+    const anchor = 'input[data-automation-id="jobTitle"], input[data-automation-id*="jobtitle" i]';
 
-    const anchor = 'input[data-automation-id="jobTitle"]';
-    await ensureWorkdayEntries(section, anchor, experience.length);
-    const panels = collectPanels(section, anchor);
+    const section = getSection();
+    log('experience: section =', describe(section),
+      '| job-title inputs =', (section || document).querySelectorAll(anchor).length,
+      '| kit entries =', experience.length);
+    if (!section) log('experience: automation-ids on page matching /work|experience/:', automationIdsLike(/work|experience/i));
+
+    if (section) await ensureWorkdayEntries(section, anchor, experience.length);
+
+    const panelCount = collectPanels(getSection() || document, anchor).length;
+    if (!panelCount) {
+      log('experience: 0 entry panels found — nothing filled');
+      return 0;
+    }
 
     let filled = 0;
-    for (let i = 0; i < panels.length && i < experience.length; i++) {
+    for (let i = 0; i < panelCount && i < experience.length; i++) {
       const exp = experience[i];
-      const panel = panels[i];
+      const panel = () => collectPanels(getSection() || document, anchor)[i] || null;
+      const fieldEl = sel => panel()?.querySelector(sel) || null;
+      log(`experience[${i}]: panel =`, describe(panel()));
 
-      if (await setTextValue(panel.querySelector('input[data-automation-id="jobTitle"]'), exp.title, 'workday')) filled++;
-      if (await setTextValue(panel.querySelector('input[data-automation-id="company"]'), exp.company, 'workday')) filled++;
-      if (await setTextValue(panel.querySelector('input[data-automation-id="location"]'), exp.location, 'workday')) filled++;
+      if (await fillField(`experience[${i}].title`, fieldEl(anchor), exp.title)) filled++;
+      if (await fillField(`experience[${i}].company`, fieldEl('input[data-automation-id="company"]'), exp.company)) filled++;
+      if (await fillField(`experience[${i}].location`, fieldEl('input[data-automation-id="location"]'), exp.location)) filled++;
 
       // Dates before the "currently work here" toggle — checking it removes the To field
-      const months = panel.querySelectorAll(WD_MONTH);
-      const years = panel.querySelectorAll(WD_YEAR);
-      const startC = panel.querySelector('[data-automation-id="formField-startDate"]');
-      const endC = panel.querySelector('[data-automation-id="formField-endDate"]');
-      filled += await fillWorkdayDate(
-        startC?.querySelector(WD_MONTH) || months[0],
-        startC?.querySelector(WD_YEAR) || years[0],
-        toMonthYear(exp.start_date)
-      );
-      if (!exp.current) {
-        filled += await fillWorkdayDate(
-          endC?.querySelector(WD_MONTH) || months[1],
-          endC?.querySelector(WD_YEAR) || years[1],
-          toMonthYear(exp.end_date)
-        );
+      const start = toMonthYear(exp.start_date);
+      if (start) {
+        const [mm, yyyy] = start.split('/');
+        if (await fillField(`experience[${i}].startMonth`, dateInput(panel(), 'start', WD_MONTH), mm)) filled++;
+        if (await fillField(`experience[${i}].startYear`, dateInput(panel(), 'start', WD_YEAR), yyyy)) filled++;
       }
-
-      if (exp.current === true) {
-        const cb = panel.querySelector('input[data-automation-id="currentlyWorkHere"], input[type="checkbox"]');
+      if (exp.current !== true) {
+        const end = toMonthYear(exp.end_date);
+        if (end) {
+          const [mm, yyyy] = end.split('/');
+          if (await fillField(`experience[${i}].endMonth`, dateInput(panel(), 'end', WD_MONTH), mm)) filled++;
+          if (await fillField(`experience[${i}].endYear`, dateInput(panel(), 'end', WD_YEAR), yyyy)) filled++;
+        }
+      } else {
+        const cb = panel()?.querySelector('input[data-automation-id="currentlyWorkHere"], input[type="checkbox"]');
         if (clickCheckbox(cb)) {
+          log(`experience[${i}].currentlyWorkHere: checked`);
           filled++;
           await sleep(300);
         }
@@ -819,8 +898,7 @@
 
       const bullets = Array.isArray(exp.bullets) ? exp.bullets.filter(Boolean).join('\n') : '';
       if (bullets) {
-        const desc = panel.querySelector('textarea[data-automation-id="description"], textarea');
-        if (await setTextValue(desc, bullets, 'workday')) filled++;
+        if (await fillField(`experience[${i}].description`, fieldEl('textarea[data-automation-id="description"], textarea'), bullets)) filled++;
       }
     }
     return filled;
@@ -828,102 +906,186 @@
 
   async function fillWorkdayEducation(kit) {
     const education = (Array.isArray(kit.education) ? kit.education : []).slice(0, 3);
-    if (!education.length) return 0;
+    if (!education.length) {
+      log('education: no kit data — skipped');
+      return 0;
+    }
 
-    const section = findWorkdaySectionEl(['educationSection'], /education/i);
-    if (!section) return 0;
-
+    const getSection = () => findWorkdaySectionEl(['educationSection'], /education/i);
     const anchor = 'input[data-automation-id="school"], input[data-automation-id="schoolName"], input[data-automation-id*="school" i]';
-    await ensureWorkdayEntries(section, anchor, education.length);
-    const panels = collectPanels(section, anchor);
+
+    const section = getSection();
+    log('education: section =', describe(section),
+      '| school inputs =', (section || document).querySelectorAll(anchor).length,
+      '| kit entries =', education.length);
+    if (!section) log('education: automation-ids on page matching /edu|school/:', automationIdsLike(/edu|school/i));
+
+    if (section) await ensureWorkdayEntries(section, anchor, education.length);
+
+    const panelCount = collectPanels(getSection() || document, anchor).length;
+    if (!panelCount) {
+      log('education: 0 entry panels found — nothing filled');
+      return 0;
+    }
 
     let filled = 0;
-    for (let i = 0; i < panels.length && i < education.length; i++) {
+    for (let i = 0; i < panelCount && i < education.length; i++) {
       const edu = education[i];
-      const school = panels[i].querySelector(anchor);
-      if (await setTextValue(school, edu.school, 'workday')) filled++;
+      const panel = () => collectPanels(getSection() || document, anchor)[i] || null;
+      log(`education[${i}]: panel =`, describe(panel()));
+
+      if (await fillField(`education[${i}].school`, panel()?.querySelector(anchor), edu.school)) filled++;
 
       // Graduation year → the last (To / Actual or Expected) year spinner
       if (edu.graduation_year) {
-        const years = panels[i].querySelectorAll(WD_YEAR);
-        const last = years[years.length - 1];
-        if (last && await setTextValue(last, String(edu.graduation_year), 'workday')) filled++;
+        const years = panel()?.querySelectorAll(WD_YEAR) || [];
+        if (await fillField(`education[${i}].gradYear`, years[years.length - 1], String(edu.graduation_year))) filled++;
       }
       // Degree / field of study: no kit data — left blank on purpose
     }
     return filled;
   }
 
-  // Skills is a single multiselect prompt: type each skill, pick the matching
-  // option. Skills the tenant's list doesn't have are skipped, never invented.
+  // Skills is a tag/autocomplete input: typing alone registers nothing — the
+  // suggestion must be clicked, and the tag must appear before moving on.
+  // Skills the tenant's list doesn't offer are skipped, never invented.
   async function fillWorkdaySkills(kit) {
     const skills = (Array.isArray(kit.skills) ? kit.skills : []).filter(Boolean).slice(0, 15);
-    if (!skills.length) return 0;
+    if (!skills.length) {
+      log('skills: no kit data — skipped');
+      return 0;
+    }
 
-    const section = findWorkdaySectionEl(['skillsSection', 'formField-skills'], /^skills\b/i);
-    if (!section) return 0;
-    const input = section.querySelector('input[type="text"], input:not([type])');
-    if (!input || !isFillable(input)) return 0;
+    const getSection = () => findWorkdaySectionEl(['skillsSection', 'formField-skills'], /^skills\b/i);
+    let section = getSection();
+    log('skills: section =', describe(section), '| kit skills =', skills.join(', '));
+    if (!section) {
+      log('skills: automation-ids on page matching /skill/:', automationIdsLike(/skill/i));
+      return 0;
+    }
 
     let filled = 0;
     for (const skill of skills) {
-      // Already selected — pills render inside the section
-      if ((section.textContent || '').toLowerCase().includes(skill.toLowerCase())) continue;
+      section = getSection();
+      if (!section) break;
+      const hasTag = () => (getSection()?.textContent || '').toLowerCase().includes(skill.toLowerCase());
+
+      if (hasTag()) {
+        log(`skills: "${skill}" already added — skipped`);
+        continue;
+      }
+
+      // Re-query the search input every time — Workday re-renders the
+      // multiselect after each tag is added, detaching the old input
+      const input = section.querySelector('input[type="text"], input:not([type])');
+      if (!input || !isFillable(input)) {
+        log('skills: search input not found or not fillable —', describe(input));
+        break;
+      }
 
       input.click();
       input.focus();
-      await sleep(200);
+      await sleep(250);
+      if (document.activeElement !== input) {
+        log(`skills: could not focus search input for "${skill}" — skipped`);
+        continue;
+      }
       document.execCommand('selectAll');
       document.execCommand('delete');
       document.execCommand('insertText', false, skill);
 
+      // Wait for the suggestion dropdown, then click the match
       let match = null;
-      for (let i = 0; i < 5 && !match; i++) {
+      let lastOptions = [];
+      for (let i = 0; i < 8 && !match; i++) {
         await sleep(400);
-        const options = Array.from(document.querySelectorAll(
+        lastOptions = Array.from(document.querySelectorAll(
           '[data-automation-id="promptOption"], [data-automation-id="promptLeafNode"], [role="option"]'
         ));
-        match = options.find(o => o.textContent.trim().toLowerCase() === skill.toLowerCase()) ||
-          options.find(o => o.textContent.trim().toLowerCase().includes(skill.toLowerCase()));
+        match = lastOptions.find(o => o.textContent.trim().toLowerCase() === skill.toLowerCase()) ||
+          lastOptions.find(o => o.textContent.trim().toLowerCase().includes(skill.toLowerCase()));
       }
 
-      if (match) {
-        match.click();
-        filled++;
-        await sleep(400);
-      } else {
+      if (!match) {
+        log(`skills: no suggestion for "${skill}" — skipped.`,
+          lastOptions.length
+            ? `Suggestions shown: ${lastOptions.slice(0, 5).map(o => `"${o.textContent.trim()}"`).join(', ')}`
+            : 'No suggestion dropdown appeared.');
         document.execCommand('selectAll');
         document.execCommand('delete');
+        continue;
       }
+
+      log(`skills: clicking suggestion "${match.textContent.trim()}" for "${skill}"`);
+      match.click();
+
+      // Confirm it registered as a tag before typing the next skill
+      let registered = false;
+      for (let i = 0; i < 8 && !registered; i++) {
+        await sleep(300);
+        registered = hasTag();
+      }
+      log(`skills: "${skill}"`, registered ? 'added as tag' : 'suggestion click did NOT register as a tag');
+      if (registered) filled++;
     }
-    closeWorkdayPopup(input);
+
+    const searchInput = getSection()?.querySelector('input');
+    if (searchInput) closeWorkdayPopup(searchInput);
     return filled;
   }
 
-  // Websites 1..N: fill empty URL inputs in order with kit URLs not already on
-  // the page. LinkedIn only lands here when no dedicated LinkedIn field exists.
+  // Websites 1..N: one URL per slot, in kit order linkedin → portfolio → github.
+  // Inputs are re-queried before every fill — Workday re-renders slots on blur.
   async function fillWorkdayWebsites(kit) {
-    const urls = [];
-    if (kit.linkedin && !document.querySelector('input[data-automation-id*="linkedin" i]')) urls.push(kit.linkedin);
-    if (kit.portfolio) urls.push(kit.portfolio);
-    if (kit.github) urls.push(kit.github);
-    if (!urls.length) return 0;
+    const urls = [kit.linkedin, kit.portfolio, kit.github].filter(Boolean);
+    if (!urls.length) {
+      log('websites: no urls in kit — skipped');
+      return 0;
+    }
 
-    const section = findWorkdaySectionEl(['websiteSection'], /^websites?\b/i);
-    if (!section) return 0;
-
+    const getSection = () => findWorkdaySectionEl(['websiteSection'], /^websites?\b/i);
     const anchor = 'input[data-automation-id="website"], input[data-automation-id*="website" i]';
-    await ensureWorkdayEntries(section, anchor, urls.length);
-    const inputs = Array.from(section.querySelectorAll(anchor));
 
-    const existing = inputs.map(el => (el.value || '').trim().toLowerCase()).filter(Boolean);
-    const remaining = urls.filter(u => !existing.some(v => v.includes(u.toLowerCase()) || u.toLowerCase().includes(v)));
+    const section = getSection();
+    log('websites: section =', describe(section),
+      '| url slots =', (section || document).querySelectorAll(anchor).length,
+      '| kit urls =', urls.join(', '));
+    if (!section) {
+      log('websites: automation-ids on page matching /website|url|social/:', automationIdsLike(/website|url|social/i));
+      return 0;
+    }
+
+    await ensureWorkdayEntries(section, anchor, urls.length);
+    log('websites: url slots after auto-add =', (getSection() || document).querySelectorAll(anchor).length);
+
+    const slotInputs = () => Array.from((getSection() || document).querySelectorAll(anchor));
 
     let filled = 0;
-    for (const el of inputs) {
-      if (!remaining.length) break;
-      if (!isFillable(el) || filledEls.has(el) || hasExistingValue(el)) continue;
-      if (await setTextValue(el, remaining.shift(), 'workday')) filled++;
+    let slot = 0;
+    for (const url of urls) {
+      // Skip URLs already present in any slot (e.g. from a previous run)
+      const existing = slotInputs().map(el => (el.value || '').trim().toLowerCase()).filter(Boolean);
+      if (existing.some(v => v.includes(url.toLowerCase()) || url.toLowerCase().includes(v))) {
+        log(`websites: "${url}" already present on the page — skipped`);
+        continue;
+      }
+
+      // Fresh lookup: advance to the next empty slot
+      let target = null;
+      const inputs = slotInputs();
+      for (; slot < inputs.length; slot++) {
+        const el = inputs[slot];
+        if (isFillable(el) && !filledEls.has(el) && !hasExistingValue(el)) {
+          target = el;
+          break;
+        }
+      }
+      if (!target) {
+        log(`websites: no empty slot left for "${url}" (${inputs.length} slots total)`);
+        break;
+      }
+      if (await fillField(`websites[slot ${slot + 1}]`, target, url)) filled++;
+      slot++;
     }
     return filled;
   }
