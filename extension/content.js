@@ -760,17 +760,26 @@
       const el = document.querySelector(`[data-automation-id="${id}"]`);
       if (el) return el;
     }
-    // Fallback: locate the section heading, then its data-automation-id container
+    // Fallback: locate the section heading, then the smallest ancestor that
+    // actually contains form fields. Stopping at the first ancestor with an Add
+    // button returned the header ROW — which holds the button but none of the
+    // panels, making every field count inside it read 0.
     for (const h of document.querySelectorAll('h1, h2, h3, h4, [role="heading"]')) {
       const text = (h.textContent || '').trim();
       if (!text || text.length > 60 || !headingRe.test(text)) continue;
       const container = h.closest('[data-automation-id*="section" i]');
       if (container) return container;
       let node = h.parentElement;
-      for (let i = 0; i < 3 && node; i++) {
-        if (findAddButton(node) || node.querySelector('input, textarea')) return node;
+      let withAddButton = null;
+      for (let i = 0; i < 5 && node && node !== document.body; i++) {
+        if (node.matches?.('main, [role="main"]')) break; // page-level: too far
+        if (node.querySelector('input:not([type="hidden"]), textarea, [contenteditable="true"]')) return node;
+        if (!withAddButton && findAddButton(node)) withAddButton = node;
         node = node.parentElement;
       }
+      // Section with no entries yet has no fields — return the Add-button
+      // container so auto-add still works (counts re-resolve after each add)
+      if (withAddButton) return withAddButton;
     }
     return null;
   }
@@ -804,8 +813,8 @@
   // not the section element: Workday replaces the whole section node when a
   // panel is added, so a held reference goes stale after the first click and
   // every later click would hit a detached button.
-  async function ensureWorkdayEntries(getSection, anchorSelector, needed) {
-    const count = () => (getSection() || document).querySelectorAll(anchorSelector).length;
+  async function ensureWorkdayEntries(getSection, countFn, needed) {
+    const count = countFn;
     let current = count();
     let guard = 0;
     while (current < needed && guard < needed + 2) {
@@ -842,17 +851,69 @@
     return current;
   }
 
-  // One panel per anchor input: the largest ancestor (below the scope) that
-  // still contains only that one anchor — i.e. the per-entry wrapper. Prefers
-  // Workday's explicit role="group" entry wrapper when present.
-  function collectPanels(scope, anchorSelector) {
-    return Array.from((scope || document).querySelectorAll(anchorSelector)).map(anchorEl => {
-      const group = anchorEl.closest('[role="group"]');
-      if (group && group.querySelectorAll(anchorSelector).length === 1) return group;
-      let panel = anchorEl.parentElement;
-      let node = anchorEl.parentElement;
+  const FIELD_INPUT_SEL = 'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]), textarea, [contenteditable="true"], [role="textbox"]';
+
+  // Richer element description for the DOM diagnostics
+  function describeField(el) {
+    if (!el) return '(null)';
+    const bits = [(el.tagName || '?').toLowerCase()];
+    for (const attr of ['data-automation-id', 'id', 'name', 'type', 'placeholder', 'aria-label']) {
+      const v = el.getAttribute?.(attr);
+      if (v) bits.push(`${attr}="${v}"`);
+    }
+    return `<${bits.join(' ')}>`;
+  }
+
+  // Resolve inputs by their visible labels — for tenants whose panels carry no
+  // standard data-automation-id values. for="" association first, then the
+  // label's sibling field container, then a bounded ancestor walk.
+  function inputsByLabelIn(scope, labelRe) {
+    const found = [];
+    const seen = new Set();
+    for (const lab of scope.querySelectorAll('label, legend, [data-automation-id*="formLabel" i]')) {
+      const text = (lab.textContent || '').trim();
+      if (!text || text.length > 120 || !labelRe.test(text)) continue;
+
+      let el = null;
+      const forId = lab.htmlFor || lab.getAttribute('for');
+      if (forId) {
+        const target = document.getElementById(forId);
+        if (target) {
+          el = target.matches?.(FIELD_INPUT_SEL) ? target : target.querySelector?.(FIELD_INPUT_SEL);
+        }
+      }
+      if (!el) {
+        let sib = lab.nextElementSibling;
+        for (let i = 0; i < 2 && sib && !el; i++) {
+          el = sib.matches?.(FIELD_INPUT_SEL) ? sib : sib.querySelector?.(FIELD_INPUT_SEL);
+          sib = sib.nextElementSibling;
+        }
+      }
+      if (!el) {
+        let node = lab.parentElement;
+        for (let i = 0; i < 4 && node && node !== scope.parentElement && !el; i++) {
+          if (node !== scope) el = node.querySelector(FIELD_INPUT_SEL);
+          node = node.parentElement;
+        }
+      }
+      if (el && !seen.has(el)) {
+        seen.add(el);
+        found.push(el);
+      }
+    }
+    return found;
+  }
+
+  // One panel per anchor element: the anchor's role="group" wrapper when it
+  // holds exactly one anchor, else the largest ancestor containing only it.
+  function panelsFor(scope, anchors) {
+    return anchors.map(a => {
+      const group = a.closest('[role="group"]');
+      if (group && anchors.filter(x => group.contains(x)).length === 1) return group;
+      let panel = a.parentElement;
+      let node = a.parentElement;
       while (node && node !== scope && node !== document.body) {
-        if (node.querySelectorAll(anchorSelector).length > 1) break;
+        if (anchors.filter(x => node.contains(x)).length > 1) break;
         panel = node;
         node = node.parentElement;
       }
@@ -860,15 +921,112 @@
     });
   }
 
+  // Anchor discovery: standard automation-ids first, visible labels second —
+  // some tenants render these panels without any data-automation-id at all.
+  const loggedOnce = new Set();
+  function logOnce(key, ...args) {
+    if (loggedOnce.has(key)) return;
+    loggedOnce.add(key);
+    log(...args);
+  }
+
+  function experienceAnchors(scope) {
+    const byId = Array.from(scope.querySelectorAll('input[data-automation-id="jobTitle"], input[data-automation-id*="jobtitle" i]'));
+    if (byId.length) return byId;
+    const byLabel = inputsByLabelIn(scope, /job\s*title/i);
+    if (byLabel.length) logOnce('exp-label-anchors', 'experience: using label-based anchors — no jobTitle automation-id on this tenant');
+    return byLabel;
+  }
+
+  function educationAnchors(scope) {
+    const byId = Array.from(scope.querySelectorAll('input[data-automation-id="school"], input[data-automation-id="schoolName"], input[data-automation-id*="school" i]'));
+    if (byId.length) return byId;
+    const byLabel = inputsByLabelIn(scope, /school|university/i);
+    if (byLabel.length) logOnce('edu-label-anchors', 'education: using label-based anchors — no school automation-id on this tenant');
+    return byLabel;
+  }
+
   const WD_MONTH = 'input[data-automation-id="dateSectionMonth-input"]';
   const WD_YEAR = 'input[data-automation-id="dateSectionYear-input"]';
 
-  function dateInput(panel, which, sel) {
+  // Date field container: standard formField-startDate/endDate automation-ids,
+  // else the container next to a matching visible label ("From" / "To").
+  function dateContainerIn(panel, which, labelRe) {
     if (!panel) return null;
-    const container = panel.querySelector(`[data-automation-id="formField-${which}Date"]`);
-    if (container) return container.querySelector(sel);
-    const all = panel.querySelectorAll(sel);
-    return (which === 'start' ? all[0] : all[1]) || null;
+    const byId = panel.querySelector(`[data-automation-id="formField-${which}Date"]`);
+    if (byId) return byId;
+    for (const lab of panel.querySelectorAll('label, legend, [data-automation-id*="formLabel" i]')) {
+      const text = (lab.textContent || '').trim();
+      if (!text || text.length > 60 || !labelRe.test(text)) continue;
+      let sib = lab.nextElementSibling;
+      for (let i = 0; i < 2 && sib; i++) {
+        if (sib.matches?.('input')) return sib.parentElement;
+        if (sib.querySelector?.('input')) return sib;
+        sib = sib.nextElementSibling;
+      }
+      let node = lab.parentElement;
+      for (let i = 0; i < 3 && node && node !== panel.parentElement; i++) {
+        if (node !== panel && node.querySelector('input')) return node;
+        node = node.parentElement;
+      }
+    }
+    return null;
+  }
+
+  // Fill a MM/YYYY date into whatever this tenant renders: month+year spinner
+  // ids, two generic inputs (month, year), or a single combined input.
+  async function fillWorkdayDateIn(name, panelFn, which, labelRe, mmYYYY) {
+    if (!mmYYYY) return 0;
+    const [mm, yyyy] = mmYYYY.split('/');
+    let n = 0;
+
+    let container = dateContainerIn(panelFn(), which, labelRe);
+    if (container) {
+      const month = container.querySelector(WD_MONTH);
+      const year = container.querySelector(WD_YEAR);
+      if (month || year) {
+        if (await fillField(`${name}.${which}Month`, month, mm)) n++;
+        container = dateContainerIn(panelFn(), which, labelRe) || container; // blur may re-render
+        if (await fillField(`${name}.${which}Year`, container.querySelector(WD_YEAR) || year, yyyy)) n++;
+        return n;
+      }
+      const inputs = Array.from(container.querySelectorAll('input')).filter(isFillable);
+      if (inputs.length >= 2) {
+        if (await fillField(`${name}.${which}Month`, inputs[0], mm)) n++;
+        container = dateContainerIn(panelFn(), which, labelRe) || container;
+        const fresh = Array.from(container.querySelectorAll('input')).filter(isFillable);
+        if (await fillField(`${name}.${which}Year`, fresh[1] || inputs[1], yyyy)) n++;
+      } else if (inputs.length === 1) {
+        if (await fillField(`${name}.${which}Date`, inputs[0], mmYYYY)) n++;
+      }
+      return n;
+    }
+
+    // Last resort: positional spinners in the panel (start = first pair, end = second)
+    const p = panelFn();
+    if (!p) return 0;
+    const idx = which === 'start' ? 0 : 1;
+    if (await fillField(`${name}.${which}Month`, p.querySelectorAll(WD_MONTH)[idx], mm)) n++;
+    if (await fillField(`${name}.${which}Year`, panelFn()?.querySelectorAll(WD_YEAR)[idx], yyyy)) n++;
+    return n;
+  }
+
+  function findCurrentlyWorkHere(panel) {
+    if (!panel) return null;
+    const byId = panel.querySelector('input[data-automation-id="currentlyWorkHere"]');
+    if (byId) return byId;
+    for (const lab of panel.querySelectorAll('label, legend')) {
+      if (!/currently\s+work/i.test(lab.textContent || '')) continue;
+      const forId = lab.htmlFor || lab.getAttribute('for');
+      const byFor = forId && document.getElementById(forId);
+      if (byFor && byFor.type === 'checkbox') return byFor;
+      const near = lab.querySelector('input[type="checkbox"]') ||
+        (lab.nextElementSibling?.matches?.('input[type="checkbox"]') ? lab.nextElementSibling : null) ||
+        lab.nextElementSibling?.querySelector?.('input[type="checkbox"]') ||
+        lab.parentElement?.querySelector('input[type="checkbox"]');
+      if (near) return near;
+    }
+    return panel.querySelector('input[type="checkbox"]');
   }
 
   // Workday re-renders panels after every blur, so element references captured
@@ -882,49 +1040,48 @@
     }
 
     const getSection = () => findWorkdaySectionEl(['workExperienceSection'], /work\s+experience/i);
-    const anchor = 'input[data-automation-id="jobTitle"], input[data-automation-id*="jobtitle" i]';
+    const getScope = () => getSection() || document;
+    const anchors = () => experienceAnchors(getScope());
 
     const section = getSection();
     log('experience: section =', describe(section),
-      '| job-title inputs =', (section || document).querySelectorAll(anchor).length,
-      '| kit entries =', experience.length);
+      '| job-title anchors =', anchors().length, '| kit entries =', experience.length);
     if (!section) log('experience: automation-ids on page matching /work|experience/:', automationIdsLike(/work|experience/i));
 
-    if (section) await ensureWorkdayEntries(getSection, anchor, experience.length);
+    if (section) await ensureWorkdayEntries(getSection, () => anchors().length, experience.length);
 
-    const panelCount = collectPanels(getSection() || document, anchor).length;
+    const panelCount = panelsFor(getScope(), anchors()).length;
     if (!panelCount) {
-      log('experience: 0 entry panels found — nothing filled');
+      log('experience: 0 entry panels found — nothing filled.');
+      if (section) log('experience: section outerHTML (first 15000 chars):', (section.outerHTML || '').slice(0, 15000));
       return 0;
     }
+
+    // Dump the first panel so the tenant's real field structure is in the console
+    const firstPanel = panelsFor(getScope(), anchors())[0];
+    log('experience: fields in panel[0]:', Array.from(firstPanel.querySelectorAll(FIELD_INPUT_SEL)).map(describeField).join(' '));
+    log('experience: panel[0] outerHTML (first 15000 chars):', (firstPanel.outerHTML || '').slice(0, 15000));
 
     let filled = 0;
     for (let i = 0; i < panelCount && i < experience.length; i++) {
       const exp = experience[i];
-      const panel = () => collectPanels(getSection() || document, anchor)[i] || null;
-      const fieldEl = sel => panel()?.querySelector(sel) || null;
-      log(`experience[${i}]: panel =`, describe(panel()));
+      const panel = () => panelsFor(getScope(), anchors())[i] || null;
+      const fieldEl = (sel, labelRe) => {
+        const p = panel();
+        if (!p) return null;
+        return p.querySelector(sel) || (labelRe ? inputsByLabelIn(p, labelRe)[0] || null : null);
+      };
 
-      if (await fillField(`experience[${i}].title`, fieldEl(anchor), exp.title)) filled++;
-      if (await fillField(`experience[${i}].company`, fieldEl('input[data-automation-id="company"]'), exp.company)) filled++;
-      if (await fillField(`experience[${i}].location`, fieldEl('input[data-automation-id="location"]'), exp.location)) filled++;
+      if (await fillField(`experience[${i}].title`, anchors()[i] || null, exp.title)) filled++;
+      if (await fillField(`experience[${i}].company`, fieldEl('input[data-automation-id="company"]', /^company\b/i), exp.company)) filled++;
+      if (await fillField(`experience[${i}].location`, fieldEl('input[data-automation-id="location"]', /^location\b/i), exp.location)) filled++;
 
       // Dates before the "currently work here" toggle — checking it removes the To field
-      const start = toMonthYear(exp.start_date);
-      if (start) {
-        const [mm, yyyy] = start.split('/');
-        if (await fillField(`experience[${i}].startMonth`, dateInput(panel(), 'start', WD_MONTH), mm)) filled++;
-        if (await fillField(`experience[${i}].startYear`, dateInput(panel(), 'start', WD_YEAR), yyyy)) filled++;
-      }
+      filled += await fillWorkdayDateIn(`experience[${i}]`, panel, 'start', /^from\b/i, toMonthYear(exp.start_date));
       if (exp.current !== true) {
-        const end = toMonthYear(exp.end_date);
-        if (end) {
-          const [mm, yyyy] = end.split('/');
-          if (await fillField(`experience[${i}].endMonth`, dateInput(panel(), 'end', WD_MONTH), mm)) filled++;
-          if (await fillField(`experience[${i}].endYear`, dateInput(panel(), 'end', WD_YEAR), yyyy)) filled++;
-        }
+        filled += await fillWorkdayDateIn(`experience[${i}]`, panel, 'end', /^to\b/i, toMonthYear(exp.end_date));
       } else {
-        const cb = panel()?.querySelector('input[data-automation-id="currentlyWorkHere"], input[type="checkbox"]');
+        const cb = findCurrentlyWorkHere(panel());
         if (clickCheckbox(cb)) {
           log(`experience[${i}].currentlyWorkHere: checked`);
           filled++;
@@ -934,7 +1091,7 @@
 
       const bullets = Array.isArray(exp.bullets) ? exp.bullets.filter(Boolean).join('\n') : '';
       if (bullets) {
-        if (await fillField(`experience[${i}].description`, fieldEl('textarea[data-automation-id="description"], textarea'), bullets)) filled++;
+        if (await fillField(`experience[${i}].description`, fieldEl('textarea[data-automation-id="description"], textarea', /description/i), bullets)) filled++;
       }
     }
     return filled;
@@ -948,36 +1105,47 @@
     }
 
     const getSection = () => findWorkdaySectionEl(['educationSection'], /education/i);
-    const anchor = 'input[data-automation-id="school"], input[data-automation-id="schoolName"], input[data-automation-id*="school" i]';
+    const getScope = () => getSection() || document;
+    const anchors = () => educationAnchors(getScope());
 
     const section = getSection();
     log('education: section =', describe(section),
-      '| school inputs =', (section || document).querySelectorAll(anchor).length,
-      '| kit entries =', education.length);
+      '| school anchors =', anchors().length, '| kit entries =', education.length);
     if (!section) log('education: automation-ids on page matching /edu|school/:', automationIdsLike(/edu|school/i));
 
-    if (section) await ensureWorkdayEntries(getSection, anchor, education.length);
+    if (section) await ensureWorkdayEntries(getSection, () => anchors().length, education.length);
 
-    const panelCount = collectPanels(getSection() || document, anchor).length;
+    const panelCount = panelsFor(getScope(), anchors()).length;
     if (!panelCount) {
-      log('education: 0 entry panels found — nothing filled');
+      log('education: 0 entry panels found — nothing filled.');
+      if (section) log('education: section outerHTML (first 15000 chars):', (section.outerHTML || '').slice(0, 15000));
       return 0;
     }
+
+    const firstPanel = panelsFor(getScope(), anchors())[0];
+    log('education: fields in panel[0]:', Array.from(firstPanel.querySelectorAll(FIELD_INPUT_SEL)).map(describeField).join(' '));
+    log('education: panel[0] outerHTML (first 15000 chars):', (firstPanel.outerHTML || '').slice(0, 15000));
 
     let filled = 0;
     for (let i = 0; i < panelCount && i < education.length; i++) {
       const edu = education[i];
-      const panel = () => collectPanels(getSection() || document, anchor)[i] || null;
-      log(`education[${i}]: panel =`, describe(panel()));
+      const panel = () => panelsFor(getScope(), anchors())[i] || null;
 
-      if (await fillField(`education[${i}].school`, panel()?.querySelector(anchor), edu.school)) filled++;
+      if (await fillField(`education[${i}].school`, anchors()[i] || null, edu.school)) filled++;
 
-      // Graduation year → the last (To / Actual or Expected) year spinner
+      // Graduation year → last year spinner, else the labelled To/graduation field
       if (edu.graduation_year) {
         const years = panel()?.querySelectorAll(WD_YEAR) || [];
-        if (await fillField(`education[${i}].gradYear`, years[years.length - 1], String(edu.graduation_year))) filled++;
+        let target = years[years.length - 1] || null;
+        if (!target) {
+          const container = dateContainerIn(panel(), 'end', /\bto\b|graduat/i);
+          const inputs = container ? Array.from(container.querySelectorAll('input')).filter(isFillable) : [];
+          target = inputs[inputs.length - 1] || null;
+        }
+        if (await fillField(`education[${i}].gradYear`, target, String(edu.graduation_year))) filled++;
       }
-      // Degree / field of study: no kit data — left blank on purpose
+      // Degree / field of study: no kit data — left blank on purpose (the
+      // panel[0] dump above shows their identifiers if support is added later)
     }
     return filled;
   }
@@ -1118,7 +1286,7 @@
       return 0;
     }
 
-    await ensureWorkdayEntries(getSection, anchor, urls.length);
+    await ensureWorkdayEntries(getSection, () => (getSection() || document).querySelectorAll(anchor).length, urls.length);
     log('websites: url slots after auto-add =', (getSection() || document).querySelectorAll(anchor).length);
 
     const slotInputs = () => Array.from((getSection() || document).querySelectorAll(anchor));
