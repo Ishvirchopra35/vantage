@@ -775,15 +775,28 @@
     return null;
   }
 
+  // Workday's React buttons often ignore bare element.click() — they want the
+  // real pointer sequence, and off-screen elements may not respond at all.
+  function simulateClick(el) {
+    try { el.scrollIntoView({ block: 'center' }); } catch (_) { /* jsdom/old browsers */ }
+    const opts = { bubbles: true, cancelable: true, composed: true, view: window };
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+      const Ev = type.startsWith('pointer') && typeof PointerEvent === 'function' ? PointerEvent : MouseEvent;
+      el.dispatchEvent(new Ev(type, opts));
+    }
+  }
+
   function findAddButton(scope) {
     const direct = scope.querySelector('button[data-automation-id="add-button"], button[data-automation-id="Add"]');
     if (direct && !direct.disabled) return direct;
-    return Array.from(scope.querySelectorAll('button')).find(b =>
-      !b.disabled && (
-        /^add(\s+another)?$/i.test((b.textContent || '').trim()) ||
-        /^add\b/i.test(b.getAttribute('aria-label') || '')
-      )
-    ) || null;
+    const isAdd = b => !b.disabled && (
+      /^add(\s+another)?$/i.test((b.textContent || '').trim()) ||
+      /^add\b/i.test(b.getAttribute('aria-label') || '')
+    );
+    const inLight = Array.from(scope.querySelectorAll('button')).find(isAdd);
+    if (inLight) return inLight;
+    // Some tenants render section controls inside shadow roots
+    return queryShadow(scope, 'button').find(isAdd) || null;
   }
 
   // Click Add/Add Another until the section has `needed` entries, waiting for
@@ -804,13 +817,24 @@
         log('ensureEntries: no Add button found in', describe(section));
         break;
       }
-      log(`ensureEntries: clicking Add (have ${current}, need ${needed})`);
-      btn.click();
+      log(`ensureEntries: clicking Add (have ${current}, need ${needed}) — button:`, (btn.outerHTML || '').slice(0, 250));
+      simulateClick(btn);
       const before = current;
-      for (let i = 0; i < 10 && count() <= before; i++) await sleep(300);
+      for (let i = 0; i < 8 && count() <= before; i++) await sleep(500);
       current = count();
+
       if (current <= before) {
-        log('ensureEntries: Add click had no effect — stopping');
+        // Fallback: some builds only respond to the plain click() path
+        log('ensureEntries: pointer-sequence click had no effect — retrying with element.click()');
+        const freshBtn = getSection() ? findAddButton(getSection()) : null;
+        if (freshBtn) {
+          freshBtn.click();
+          for (let i = 0; i < 8 && count() <= before; i++) await sleep(500);
+          current = count();
+        }
+      }
+      if (current <= before) {
+        log('ensureEntries: Add click had no effect — stopping. Button was:', (btn.outerHTML || '').slice(0, 300));
         break;
       }
       await sleep(300);
@@ -977,6 +1001,7 @@
     }
 
     let filled = 0;
+    let consecutiveMisses = 0;
     for (const skill of skills) {
       section = getSection();
       if (!section) break;
@@ -1006,27 +1031,39 @@
       document.execCommand('delete');
       document.execCommand('insertText', false, skill);
 
-      // Wait for the suggestion dropdown, then click the match
+      // Wait for the suggestion dropdown, then click the match. Workday shows a
+      // literal "No Items." row when its taxonomy has no match — treat that as
+      // a definitive miss instead of polling out the full timeout.
       let match = null;
       let lastOptions = [];
-      for (let i = 0; i < 8 && !match; i++) {
+      let noItems = false;
+      for (let i = 0; i < 8 && !match && !noItems; i++) {
         await sleep(400);
         lastOptions = Array.from(document.querySelectorAll(
           '[data-automation-id="promptOption"], [data-automation-id="promptLeafNode"], [role="option"]'
         ));
+        noItems = lastOptions.some(o => /^no\s+items\.?$/i.test(o.textContent.trim()));
+        if (noItems) break;
         match = lastOptions.find(o => o.textContent.trim().toLowerCase() === skill.toLowerCase()) ||
           lastOptions.find(o => o.textContent.trim().toLowerCase().includes(skill.toLowerCase()));
       }
 
       if (!match) {
+        consecutiveMisses++;
         log(`skills: no suggestion for "${skill}" — skipped.`,
-          lastOptions.length
-            ? `Suggestions shown: ${lastOptions.slice(0, 5).map(o => `"${o.textContent.trim()}"`).join(', ')}`
-            : 'No suggestion dropdown appeared.');
+          noItems ? 'Dropdown said "No Items."'
+            : lastOptions.length
+              ? `Suggestions shown: ${lastOptions.slice(0, 5).map(o => `"${o.textContent.trim()}"`).join(', ')}`
+              : 'No suggestion dropdown appeared.');
         document.execCommand('selectAll');
         document.execCommand('delete');
+        if (filled === 0 && consecutiveMisses >= 3) {
+          log('skills: first 3 skills returned no usable suggestions — skills field uses a restricted list, manual entry required. Skipping the rest of the section.');
+          break;
+        }
         continue;
       }
+      consecutiveMisses = 0;
 
       const optionText = match.textContent.trim().toLowerCase();
       log(`skills: clicking suggestion "${match.textContent.trim()}" for "${skill}"`);
@@ -1050,9 +1087,20 @@
   }
 
   // Websites 1..N: one URL per slot, in kit order linkedin → portfolio → github.
+  // LinkedIn is excluded when the page has a dedicated LinkedIn field (e.g.
+  // socialNetworkAccounts--linkedInAccount) — that field already handles it.
   // Inputs are re-queried before every fill — Workday re-renders slots on blur.
   async function fillWorkdayWebsites(kit) {
-    const urls = [kit.linkedin, kit.portfolio, kit.github].filter(Boolean);
+    const urls = [];
+    if (kit.linkedin) {
+      if (document.querySelector('input[data-automation-id*="linkedin" i]')) {
+        log('websites: LinkedIn handled by its dedicated field — not adding it to website slots');
+      } else {
+        urls.push(kit.linkedin);
+      }
+    }
+    if (kit.portfolio) urls.push(kit.portfolio);
+    if (kit.github) urls.push(kit.github);
     if (!urls.length) {
       log('websites: no urls in kit — skipped');
       return 0;
