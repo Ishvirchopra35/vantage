@@ -787,20 +787,32 @@
   }
 
   // Click Add/Add Another until the section has `needed` entries, waiting for
-  // each new panel's fields to render before the next click.
-  async function ensureWorkdayEntries(section, anchorSelector, needed) {
-    const count = () => section.querySelectorAll(anchorSelector).length;
+  // each new panel's fields to render before the next click. Takes a getter,
+  // not the section element: Workday replaces the whole section node when a
+  // panel is added, so a held reference goes stale after the first click and
+  // every later click would hit a detached button.
+  async function ensureWorkdayEntries(getSection, anchorSelector, needed) {
+    const count = () => (getSection() || document).querySelectorAll(anchorSelector).length;
     let current = count();
     let guard = 0;
     while (current < needed && guard < needed + 2) {
       guard++;
+      const section = getSection();
+      if (!section) break;
       const btn = findAddButton(section);
-      if (!btn) break;
+      if (!btn) {
+        log('ensureEntries: no Add button found in', describe(section));
+        break;
+      }
+      log(`ensureEntries: clicking Add (have ${current}, need ${needed})`);
       btn.click();
       const before = current;
       for (let i = 0; i < 10 && count() <= before; i++) await sleep(300);
       current = count();
-      if (current <= before) break; // click had no effect — stop rather than loop
+      if (current <= before) {
+        log('ensureEntries: Add click had no effect — stopping');
+        break;
+      }
       await sleep(300);
     }
     return current;
@@ -854,7 +866,7 @@
       '| kit entries =', experience.length);
     if (!section) log('experience: automation-ids on page matching /work|experience/:', automationIdsLike(/work|experience/i));
 
-    if (section) await ensureWorkdayEntries(section, anchor, experience.length);
+    if (section) await ensureWorkdayEntries(getSection, anchor, experience.length);
 
     const panelCount = collectPanels(getSection() || document, anchor).length;
     if (!panelCount) {
@@ -920,7 +932,7 @@
       '| kit entries =', education.length);
     if (!section) log('education: automation-ids on page matching /edu|school/:', automationIdsLike(/edu|school/i));
 
-    if (section) await ensureWorkdayEntries(section, anchor, education.length);
+    if (section) await ensureWorkdayEntries(getSection, anchor, education.length);
 
     const panelCount = collectPanels(getSection() || document, anchor).length;
     if (!panelCount) {
@@ -1016,14 +1028,17 @@
         continue;
       }
 
+      const optionText = match.textContent.trim().toLowerCase();
       log(`skills: clicking suggestion "${match.textContent.trim()}" for "${skill}"`);
       match.click();
 
-      // Confirm it registered as a tag before typing the next skill
+      // Confirm it registered as a tag before typing the next skill — the tag
+      // may render as the tenant's option text rather than the kit's wording
       let registered = false;
       for (let i = 0; i < 8 && !registered; i++) {
         await sleep(300);
-        registered = hasTag();
+        const sectionText = (getSection()?.textContent || '').toLowerCase();
+        registered = hasTag() || (optionText && sectionText.includes(optionText));
       }
       log(`skills: "${skill}"`, registered ? 'added as tag' : 'suggestion click did NOT register as a tag');
       if (registered) filled++;
@@ -1055,7 +1070,7 @@
       return 0;
     }
 
-    await ensureWorkdayEntries(section, anchor, urls.length);
+    await ensureWorkdayEntries(getSection, anchor, urls.length);
     log('websites: url slots after auto-add =', (getSection() || document).querySelectorAll(anchor).length);
 
     const slotInputs = () => Array.from((getSection() || document).querySelectorAll(anchor));
