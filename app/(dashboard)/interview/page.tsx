@@ -36,6 +36,15 @@ interface InterviewSession {
 type Tab = 'behavioral' | 'technical' | 'role'
 type AnswerMode = 'voice' | 'type'
 
+// A selectable tracker entry. Manual tracker rows have no job_id - those start
+// a session via the title/company payload instead of jobId.
+interface TrackerJob {
+  key: string
+  jobId: string | null
+  title: string
+  company: string
+}
+
 // --- Styles -------------------------------------------------------------------
 
 const inputStyle: React.CSSProperties = {
@@ -83,7 +92,7 @@ export default function InterviewPage() {
   const supabase = useMemo(() => createClient(), [])
 
   const [sessions, setSessions] = useState<InterviewSession[]>([])
-  const [jobsList, setJobsList] = useState<{ id: string; title: string; company: string }[]>([])
+  const [jobsList, setJobsList] = useState<TrackerJob[]>([])
   const [loading, setLoading] = useState(true)
   const [activeSession, setActiveSession] = useState<InterviewSession | null>(null)
   const [creating, setCreating] = useState(false)
@@ -109,32 +118,65 @@ export default function InterviewPage() {
     async function load() {
       setLoading(true)
       interface AppRow {
-        job_id: string
+        id: string
+        job_id: string | null
         role: string
         company: string
-        jobs: { id: string; title: string; company: string } | null
       }
-      const [{ data: sessionsData }, { data: appsData }] = await Promise.all([
+      // No embedded jobs(...) join here: it errors silently when PostgREST
+      // can't resolve the relationship, and it drops manual tracker rows
+      // (job_id is null). Fetch apps, then enrich from jobs separately.
+      const [{ data: sessionsData }, appsRes] = await Promise.all([
         supabase
           .from('interview_sessions')
           .select('id, job_id, questions, practice_answers, feedback, created_at')
           .order('created_at', { ascending: false }),
         supabase
           .from('applications')
-          .select('job_id, role, company, jobs(id, title, company)')
+          .select('id, job_id, role, company')
           .is('deleted_at', null)
           .order('created_at', { ascending: false }),
       ])
       setSessions((sessionsData ?? []) as InterviewSession[])
+
+      if (appsRes.error) {
+        setError(`Failed to load your tracker: ${appsRes.error.message}`)
+        setJobsList([])
+        setLoading(false)
+        return
+      }
+
+      const appRows = (appsRes.data ?? []) as AppRow[]
+
+      // Prefer the parsed job's title/company when a job record exists
+      const jobIds = [...new Set(appRows.map(a => a.job_id).filter(Boolean))] as string[]
+      let jobMap = new Map<string, { title: string; company: string }>()
+      if (jobIds.length > 0) {
+        const { data: jobRows } = await supabase
+          .from('jobs')
+          .select('id, title, company')
+          .in('id', jobIds)
+        jobMap = new Map(
+          ((jobRows ?? []) as { id: string; title: string; company: string }[])
+            .map(j => [j.id, { title: j.title, company: j.company }])
+        )
+      }
+
       const seen = new Set<string>()
-      const uniqueJobs = ((appsData ?? []) as unknown as AppRow[])
-        .filter(a => a.jobs && !seen.has(a.job_id) && !!seen.add(a.job_id))
-        .map(a => ({
-          id: a.job_id,
-          title: a.jobs?.title || a.role,
-          company: a.jobs?.company || a.company,
-        }))
-      setJobsList(uniqueJobs)
+      const options: TrackerJob[] = []
+      for (const a of appRows) {
+        const dedupeKey = a.job_id ?? `${a.company.toLowerCase()}|${a.role.toLowerCase()}`
+        if (seen.has(dedupeKey)) continue
+        seen.add(dedupeKey)
+        const job = a.job_id ? jobMap.get(a.job_id) : undefined
+        options.push({
+          key: a.job_id ?? `app:${a.id}`,
+          jobId: a.job_id,
+          title: job?.title || a.role,
+          company: job?.company || a.company,
+        })
+      }
+      setJobsList(options)
       setLoading(false)
     }
     void load()
@@ -246,9 +288,18 @@ export default function InterviewPage() {
     }
     setError(null)
     setCreating(true)
+    const selectedEntry = jobsList.find(j => j.key === selectedJobId)
+    if (!useManual && !selectedEntry) {
+      setCreating(false)
+      return
+    }
+    // Tracker rows without a linked job record start via title/company,
+    // same as the manual path - the API accepts either shape
     const payload = useManual
       ? { title: manualJob.title.trim(), company: manualJob.company.trim(), description: manualJob.description.trim() || undefined }
-      : { jobId: selectedJobId }
+      : selectedEntry!.jobId
+        ? { jobId: selectedEntry!.jobId }
+        : { title: selectedEntry!.title, company: selectedEntry!.company }
     try {
       const res = await fetch('/api/interview-prep/generate', {
         method: 'POST',
@@ -298,9 +349,11 @@ export default function InterviewPage() {
                 onChange={e => setSelectedJobId(e.target.value)}
                 style={{ ...inputStyle, flex: 1 }}
               >
-                <option value="">Select a job from your tracker…</option>
+                <option value="">
+                  {jobsList.length > 0 ? 'Select a job from your tracker…' : 'No applications in your tracker yet'}
+                </option>
                 {jobsList.map(j => (
-                  <option key={j.id} value={j.id}>{j.title} - {j.company}</option>
+                  <option key={j.key} value={j.key}>{j.title} - {j.company}</option>
                 ))}
               </select>
               <button
@@ -397,7 +450,7 @@ export default function InterviewPage() {
               </thead>
               <tbody>
                 {sessions.map(s => {
-                  const job = jobsList.find(j => j.id === s.job_id)
+                  const job = s.job_id ? jobsList.find(j => j.jobId === s.job_id) : undefined
                   const meta = !s.job_id ? s.questions?._meta : null
                   const displayCompany = job?.company ?? meta?.company ?? '-'
                   const displayTitle = job?.title ?? meta?.title ?? null
