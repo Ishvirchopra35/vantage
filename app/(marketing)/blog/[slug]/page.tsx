@@ -32,11 +32,11 @@ export async function generateMetadata({
   try {
     const { frontmatter } = await getBlogPost(slug)
     return {
-      title: `${frontmatter.title} — Vantage Blog`,
+      title: `${frontmatter.title} - Vantage Blog`,
       description: frontmatter.excerpt,
     }
   } catch {
-    return { title: 'Blog — Vantage' }
+    return { title: 'Blog - Vantage' }
   }
 }
 

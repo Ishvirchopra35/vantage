@@ -1,4 +1,4 @@
-// Update this to match your NEXT_PUBLIC_APP_URL — no trailing slash
+// Update this to match your NEXT_PUBLIC_APP_URL - no trailing slash
 const VANTAGE_URL = 'https://getvantageai.vercel.app';
 
 let currentToken = null;
@@ -187,9 +187,9 @@ async function handleFill() {
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    // 2. Tier 1 — direct fill from kit data, no AI involved
+    // 2. Tier 1 - direct fill from kit data, no AI involved
     const isWorkday = currentTabUrl.includes('myworkdayjobs.com') || currentTabUrl.includes('workday.com');
-    btn.textContent = isWorkday ? 'Filling your details (1–2 min on Workday, keep this open)...' : 'Filling your details...';
+    btn.textContent = isWorkday ? 'Filling your details (1-2 min on Workday, keep this open)...' : 'Filling your details...';
 
     let direct;
     try {
@@ -201,7 +201,7 @@ async function handleFill() {
 
     let totalFilled = direct?.filled ?? 0;
 
-    // 3. Tier 2 — extract only genuinely open-ended questions
+    // 3. Tier 2 - extract only genuinely open-ended questions
     btn.textContent = 'Reading form questions...';
     let questions = [];
     try {
@@ -238,11 +238,11 @@ async function handleFill() {
             const applied = await sendMessage(tab.id, { type: 'FILL_ANSWERS', fields });
             totalFilled += applied?.filled ?? 0;
           } catch {
-            // Direct fills already landed — report what we have
+            // Direct fills already landed - report what we have
           }
         }
       }
-      // If the AI call fails, Tier 1 fills still stand — report those.
+      // If the AI call fails, Tier 1 fills still stand - report those.
     }
 
     if (totalFilled === 0 && direct?.error) {
@@ -250,7 +250,7 @@ async function handleFill() {
     } else if (totalFilled === 0) {
       resultEl.innerHTML = '<div class="result-box result-info mt-8">No fillable fields matched your profile. Fields without data in your profile are left blank on purpose.</div>';
     } else {
-      resultEl.innerHTML = `<div class="result-box result-success mt-8">Filled ${totalFilled} field${totalFilled === 1 ? '' : 's'}. Unknown fields were left blank — review before submitting.</div>`;
+      resultEl.innerHTML = `<div class="result-box result-success mt-8">Filled ${totalFilled} field${totalFilled === 1 ? '' : 's'}. Unknown fields were left blank - review before submitting.</div>`;
     }
   } catch {
     resultEl.innerHTML = '<div class="result-box result-error mt-8">Unexpected error. Try again.</div>';

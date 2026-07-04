@@ -74,12 +74,12 @@ function formatMoney(value: number): string {
 }
 
 function formatPercent(value: number | null): string {
-  if (value === null || Number.isNaN(value)) return '—';
+  if (value === null || Number.isNaN(value)) return '-';
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
 }
 
 function formatPercentPlain(value: number | null): string {
-  if (value === null || Number.isNaN(value)) return '—';
+  if (value === null || Number.isNaN(value)) return '-';
   return `${value.toFixed(1)}%`;
 }
 
@@ -97,7 +97,7 @@ function formatRelativeTime(dateValue: string): string {
 }
 
 function compactJson(properties: Record<string, unknown> | null): string {
-  if (!properties || Object.keys(properties).length === 0) return '—';
+  if (!properties || Object.keys(properties).length === 0) return '-';
   const raw = JSON.stringify(properties);
   return raw.length > 140 ? `${raw.slice(0, 137)}...` : raw;
 }
@@ -425,7 +425,7 @@ export default async function AdminPage() {
             </div>
             <div style={metricStyle}>
               <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text)' }}>
-                {activeProAtMonthStart > 0 ? formatPercentPlain((churnedThisMonth / activeProAtMonthStart) * 100) : '—'}
+                {activeProAtMonthStart > 0 ? formatPercentPlain((churnedThisMonth / activeProAtMonthStart) * 100) : '-'}
               </div>
               <div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>Churn this month</div>
             </div>
@@ -497,11 +497,11 @@ export default async function AdminPage() {
             <div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>Total ATS scores</div>
           </div>
           <div style={metricStyle}>
-            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text)' }}>{avgAtsScore === null ? '—' : avgAtsScore.toFixed(1)}</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text)' }}>{avgAtsScore === null ? '-' : avgAtsScore.toFixed(1)}</div>
             <div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>Average ATS score</div>
           </div>
           <div style={metricStyle}>
-            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text)' }}>{avgImprovement === null ? '—' : avgImprovement.toFixed(1)}</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text)' }}>{avgImprovement === null ? '-' : avgImprovement.toFixed(1)}</div>
             <div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>Average improvement</div>
           </div>
           <div style={metricStyle}>
@@ -596,8 +596,8 @@ export default async function AdminPage() {
               {recentEvents.map((event) => (
                 <tr key={`${event.created_at}-${event.event_name}-${event.user_id}`} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '12px 8px', color: 'var(--text)', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>{formatRelativeTime(event.created_at)}</td>
-                  <td style={{ padding: '12px 8px', color: 'var(--muted)', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>{event.user_id ? event.user_id.slice(0, 8) : '—'}</td>
-                  <td style={{ padding: '12px 8px', color: 'var(--text)', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>{event.event_name ?? '—'}</td>
+                  <td style={{ padding: '12px 8px', color: 'var(--muted)', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>{event.user_id ? event.user_id.slice(0, 8) : '-'}</td>
+                  <td style={{ padding: '12px 8px', color: 'var(--text)', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>{event.event_name ?? '-'}</td>
                   <td style={{ padding: '12px 8px', color: 'var(--muted)', fontSize: '0.9rem', fontFamily: 'monospace', wordBreak: 'break-word' }}>{compactJson(event.properties)}</td>
                 </tr>
               ))}

@@ -192,7 +192,7 @@ export async function getRemainingLimits(userId: string): Promise<Record<string,
   return out;
 }
 
-// ── Sliding-window per-route rate limiter ─────────────────────────────────────
+// -- Sliding-window per-route rate limiter -------------------------------------
 // Uses the rate_limit_logs table. Each row is one API call; we count rows
 // within the rolling window. This is separate from the monthly feature quota.
 
@@ -228,7 +228,7 @@ export async function checkRateLimit({
       .gte('created_at', windowStart.toISOString());
 
     if (countError) {
-      // Fail open — don't block on DB errors
+      // Fail open - don't block on DB errors
       console.error('[checkRateLimit] count error:', countError);
       return { allowed: true, remaining: maxRequests, resetAt };
     }

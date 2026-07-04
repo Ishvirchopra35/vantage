@@ -1,5 +1,5 @@
 -- ============================================================================
--- VANTAGE FULL SCHEMA — Run this in Supabase SQL editor
+-- VANTAGE FULL SCHEMA - Run this in Supabase SQL editor
 -- Creates all tables for profiles, resumes, jobs, documents, ATS, applications,
 -- outreach, interviews, job feed, and strategy feedback
 -- ============================================================================

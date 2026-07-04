@@ -455,7 +455,7 @@ body {
   }
 }
 
-/* Blog prose — override typography plugin defaults with CSS variables */
+/* Blog prose - override typography plugin defaults with CSS variables */
 .blog-prose {
   color: var(--text);
   --tw-prose-body: var(--text);
@@ -484,7 +484,7 @@ body {
   border-radius: 0;
 }
 
-/* Marketing layout — nav + footer utility classes */
+/* Marketing layout - nav + footer utility classes */
 .mkt-nav-center {
   display: flex;
   align-items: center;

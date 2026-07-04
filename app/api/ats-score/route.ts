@@ -148,7 +148,7 @@ Return JSON with:
 - skills_score: integer 0-100 (coverage of required_skills specifically)
 - missing_keywords: string[] max 12 (most impactful keywords from the ATS list NOT found in resume)
 - present_keywords: string[] max 12 (ATS keywords that ARE found in resume)
-- suggestions: string[] max 6 (specific, actionable improvements each under 25 words — not generic advice)`;
+- suggestions: string[] max 6 (specific, actionable improvements each under 25 words - not generic advice)`;
 
   let score: ATSScoreResult;
   try {

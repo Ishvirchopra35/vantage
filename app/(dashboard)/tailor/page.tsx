@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// --- Types -------------------------------------------------------------------
 
 interface Job {
   id: string
@@ -38,7 +38,7 @@ interface Doc {
   pdf_url?: string | null
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// --- Helpers -----------------------------------------------------------------
 
 function scoreColor(n: number): string {
   if (n >= 75) return 'var(--score-green)'
@@ -72,7 +72,7 @@ async function apiFetch<T>(
   }
 }
 
-// ─── Spinner ─────────────────────────────────────────────────────────────────
+// --- Spinner -----------------------------------------------------------------
 
 function Spinner() {
   return (
@@ -92,7 +92,7 @@ function Spinner() {
   )
 }
 
-// ─── Style constants ─────────────────────────────────────────────────────────
+// --- Style constants ---------------------------------------------------------
 
 const card = {
   background: 'var(--card)',
@@ -189,7 +189,7 @@ const smallSecondaryBtn = {
   gap: '8px',
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// --- Page ---------------------------------------------------------------------
 
 export default function TailorPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -224,7 +224,7 @@ export default function TailorPage() {
   const [loading, setLoading] = useState({ parse: false, ats: false, tailor: false, cover: false })
   const [autoLoading, setAutoLoading] = useState(false)
 
-  // ── Auto-fill from query params ──────────────────────────────────────────────
+  // -- Auto-fill from query params ----------------------------------------------
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -240,7 +240,7 @@ export default function TailorPage() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Actions ──────────────────────────────────────────────────────────────────
+  // -- Actions ------------------------------------------------------------------
 
   async function parseJob(overrideUrl?: string) {
     const input = overrideUrl ?? (useTextarea ? jobText.trim() : jobUrl.trim())
@@ -482,7 +482,7 @@ export default function TailorPage() {
     setLogSuccess(true)
   }
 
-  // ── Shared sub-render ─────────────────────────────────────────────────────────
+  // -- Shared sub-render ---------------------------------------------------------
 
   const displayScore = tailoredAtsScore ?? baseAtsScore
 
@@ -499,13 +499,13 @@ export default function TailorPage() {
     )
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────────
+  // -- Render --------------------------------------------------------------------
 
   return (
     <div style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
       <div style={{ maxWidth: '720px', margin: '0 auto', padding: '40px 16px 80px' }}>
 
-        {/* ── Step 1: Parse job ─────────────────────────────────────────────── */}
+        {/* -- Step 1: Parse job ----------------------------------------------- */}
         {step === 1 && (
           <div>
             <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text)', marginBottom: '8px' }}>
@@ -652,7 +652,7 @@ export default function TailorPage() {
           </div>
         )}
 
-        {/* ── Step 2: Actions ───────────────────────────────────────────────── */}
+        {/* -- Step 2: Actions ------------------------------------------------- */}
         {step === 2 && parsedJob && (
           <div>
             {/* Collapsed job header + remaining uses */}
@@ -758,7 +758,7 @@ export default function TailorPage() {
           </div>
         )}
 
-        {/* ── Step 3: Results tabs ──────────────────────────────────────────── */}
+        {/* -- Step 3: Results tabs -------------------------------------------- */}
         {step === 3 && parsedJob && (
           <div>
             <CollapsedJobHeader onBack={() => setStep(2)} />
@@ -788,7 +788,7 @@ export default function TailorPage() {
               ))}
             </div>
 
-            {/* ── ATS Score tab ── */}
+            {/* -- ATS Score tab -- */}
             {activeTab === 'ats' && (
               <div style={card}>
                 {displayScore ? (
@@ -923,7 +923,7 @@ export default function TailorPage() {
               </div>
             )}
 
-            {/* ── Tailored Resume tab ── */}
+            {/* -- Tailored Resume tab -- */}
             {activeTab === 'resume' && (
               <div style={card}>
                 {tailoredDoc ? (
@@ -1012,7 +1012,7 @@ export default function TailorPage() {
               </div>
             )}
 
-            {/* ── Cover Letter tab ── */}
+            {/* -- Cover Letter tab -- */}
             {activeTab === 'cover' && (
               <div style={card}>
                 {coverDoc ? (
@@ -1066,7 +1066,7 @@ export default function TailorPage() {
               </div>
             )}
 
-            {/* ── Log this application ── */}
+            {/* -- Log this application -- */}
             <div style={{ ...card, marginTop: '24px' }}>
               <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '12px' }}>
                 Log this application

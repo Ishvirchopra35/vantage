@@ -47,7 +47,7 @@ export default function ExtensionTokenSection({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError('Could not copy — please copy manually.');
+      setError('Could not copy - please copy manually.');
     }
   }
 

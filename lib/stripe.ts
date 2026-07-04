@@ -1,4 +1,4 @@
-// SERVER-SIDE ONLY — never import this in client components.
+// SERVER-SIDE ONLY - never import this in client components.
 import Stripe from 'stripe'
 
 let _client: Stripe | null = null

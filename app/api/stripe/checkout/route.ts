@@ -11,7 +11,7 @@ export async function POST(request: Request): Promise<Response> {
   const priceId = process.env.STRIPE_PRO_PRICE_ID
   const appUrl = process.env.NEXT_PUBLIC_APP_URL
 
-  console.log('[stripe/checkout] env check — secretKey:', !!secretKey, 'priceId:', priceId, 'appUrl:', appUrl)
+  console.log('[stripe/checkout] env check - secretKey:', !!secretKey, 'priceId:', priceId, 'appUrl:', appUrl)
 
   if (!secretKey || !priceId || !appUrl) {
     console.error('[stripe/checkout] Missing env vars')

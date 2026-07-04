@@ -7,7 +7,7 @@ import Spinner from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
 import { track } from '@/lib/analytics'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types --------------------------------------------------------------------
 
 interface JobFeedItem {
   id: string
@@ -24,7 +24,7 @@ interface JobFeedItem {
   fetched_at: string
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// --- Constants ----------------------------------------------------------------
 
 const EMPLOYMENT_LABEL: Record<string, string> = {
   permanent: 'Full-time',
@@ -33,7 +33,7 @@ const EMPLOYMENT_LABEL: Record<string, string> = {
   temporary: 'Temporary',
 }
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
+// --- Icons --------------------------------------------------------------------
 
 function HeartIcon({ filled }: { filled: boolean }) {
   return (
@@ -52,7 +52,7 @@ function CloseIcon() {
   )
 }
 
-// ─── Job card ─────────────────────────────────────────────────────────────────
+// --- Job card -----------------------------------------------------------------
 
 function JobCard({
   job,
@@ -190,7 +190,7 @@ function JobCard({
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// --- Page ---------------------------------------------------------------------
 
 interface Filters {
   location: string
@@ -222,7 +222,7 @@ export default function JobsPage() {
 
   function clearFilters() { setFilters(EMPTY_FILTERS) }
 
-  // Only called when user clicks "Fetch New Jobs" — never on filter change
+  // Only called when user clicks "Fetch New Jobs" - never on filter change
   async function fetchJobs() {
     setLoading(true)
     setError(null)
@@ -253,7 +253,7 @@ export default function JobsPage() {
     }
   }
 
-  // Load cached jobs from localStorage on mount — no API call
+  // Load cached jobs from localStorage on mount - no API call
   useEffect(() => {
     try {
       const cached = localStorage.getItem('jobFeedCache')
@@ -305,7 +305,7 @@ export default function JobsPage() {
     })
   }
 
-  // Derived — filters allJobs client-side, never triggers an API call
+  // Derived - filters allJobs client-side, never triggers an API call
   const visible = useMemo(() => {
     let list = allJobs.filter(j => !j.is_dismissed)
 
@@ -375,7 +375,7 @@ export default function JobsPage() {
         </div>
       )}
 
-      {/* ── Header ──────────────────────────────────────────────────────── */}
+      {/* -- Header -------------------------------------------------------- */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', gap: '12px', flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>Job Feed</div>
@@ -394,7 +394,7 @@ export default function JobsPage() {
         </button>
       </div>
 
-      {/* ── Filter bar ──────────────────────────────────────────────────── */}
+      {/* -- Filter bar ---------------------------------------------------- */}
       <div style={{
         display: 'flex',
         gap: '10px',
@@ -460,7 +460,7 @@ export default function JobsPage() {
         )}
       </div>
 
-      {/* ── Content ─────────────────────────────────────────────────────── */}
+      {/* -- Content ------------------------------------------------------- */}
       {!initialLoadDone ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '16px' }}>
           <Spinner size="lg" />

@@ -147,7 +147,7 @@ export default function MarketingNav() {
             Vantage
           </Link>
 
-          {/* Center nav — hidden on mobile via CSS class */}
+          {/* Center nav - hidden on mobile via CSS class */}
           <div className="mkt-nav-center" style={{ marginLeft: 32 }}>
             {NAV_LINKS.map(link => (
               <Link
@@ -163,7 +163,7 @@ export default function MarketingNav() {
 
           <div style={{ flex: 1 }} />
 
-          {/* Right side — hidden on mobile */}
+          {/* Right side - hidden on mobile */}
           <div className="mkt-nav-right">
             <Link
               href="/login"
@@ -207,7 +207,7 @@ export default function MarketingNav() {
             </button>
           </div>
 
-          {/* Hamburger — visible on mobile only */}
+          {/* Hamburger - visible on mobile only */}
           <button
             className="mkt-hamburger"
             onClick={() => setDrawerOpen(true)}

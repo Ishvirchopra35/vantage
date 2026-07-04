@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import ScoreBadge from '@/components/ui/ScoreBadge'
 import Spinner from '@/components/ui/Spinner'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types --------------------------------------------------------------------
 
 type AppStatus = 'applied' | 'interviewing' | 'offer' | 'rejected' | 'ghosted'
 
@@ -50,7 +50,7 @@ interface QuestionRow {
   localAnswer: string
 }
 
-// ─── Status maps ─────────────────────────────────────────────────────────────
+// --- Status maps -------------------------------------------------------------
 
 const STATUS_LABEL: Record<AppStatus, string> = {
   applied: 'Applied',
@@ -76,7 +76,7 @@ const STATUS_TEXT: Record<AppStatus, string> = {
   ghosted: '#9ca3af',
 }
 
-// ─── Checklist ────────────────────────────────────────────────────────────────
+// --- Checklist ----------------------------------------------------------------
 
 const CHECKLIST_ITEMS = [
   { key: 'resume' as const, label: 'Resume ready' },
@@ -88,7 +88,7 @@ const CHECKLIST_ITEMS = [
 
 type ChecklistKey = (typeof CHECKLIST_ITEMS)[number]['key']
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// --- Page ---------------------------------------------------------------------
 
 export default function ApplyPrepPage() {
   const params = useParams()
@@ -133,7 +133,7 @@ export default function ApplyPrepPage() {
 
   const allChecked = CHECKLIST_ITEMS.every(({ key }) => checklist[key])
 
-  // ─── Load ──────────────────────────────────────────────────────────────
+  // --- Load --------------------------------------------------------------
 
   useEffect(() => {
     if (!jobId) return
@@ -213,7 +213,7 @@ export default function ApplyPrepPage() {
     void load()
   }, [jobId, supabase, router])
 
-  // ─── Generate answer ───────────────────────────────────────────────────
+  // --- Generate answer ---------------------------------------------------
 
   async function handleGenerateAnswer() {
     if (!questionInput.trim() || !job) return
@@ -241,7 +241,7 @@ export default function ApplyPrepPage() {
     }
   }
 
-  // ─── Auto-save answer edits ────────────────────────────────────────────
+  // --- Auto-save answer edits --------------------------------------------
 
   function handleAnswerChange(id: string, value: string) {
     setQuestions(prev => prev.map(q => q.id === id ? { ...q, localAnswer: value } : q))
@@ -280,7 +280,7 @@ export default function ApplyPrepPage() {
     }
   }
 
-  // ─── Mark as Applied ───────────────────────────────────────────────────
+  // --- Mark as Applied ---------------------------------------------------
 
   async function handleMarkApplied() {
     if (!job) return
@@ -311,7 +311,7 @@ export default function ApplyPrepPage() {
     finally { setMarkingApplied(false) }
   }
 
-  // ─── Shared styles ─────────────────────────────────────────────────────
+  // --- Shared styles -----------------------------------------------------
 
   const card: React.CSSProperties = {
     background: 'var(--card)',
@@ -383,7 +383,7 @@ export default function ApplyPrepPage() {
     gap: '10px',
   }
 
-  // ─── Loading / error states ────────────────────────────────────────────
+  // --- Loading / error states --------------------------------------------
 
   if (pageLoading) {
     return (
@@ -407,7 +407,7 @@ export default function ApplyPrepPage() {
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto' }}>
 
-      {/* ── Header ────────────────────────────────────────────────────────── */}
+      {/* -- Header ---------------------------------------------------------- */}
       <div style={{ marginBottom: '28px' }}>
         <Link href="/tracker" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none', display: 'inline-block', marginBottom: '10px' }}>
           ← Back to tracker
@@ -432,7 +432,7 @@ export default function ApplyPrepPage() {
         </div>
       </div>
 
-      {/* ── Application Kit ───────────────────────────────────────────────── */}
+      {/* -- Application Kit ------------------------------------------------- */}
       <div style={card}>
         <div style={sectionLabel}>Application Kit</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
@@ -522,7 +522,7 @@ export default function ApplyPrepPage() {
         </div>
       </div>
 
-      {/* ── Question Answerer ──────────────────────────────────────────────── */}
+      {/* -- Question Answerer ------------------------------------------------ */}
       <div style={card}>
         <div style={sectionLabel}>Application Questions</div>
 
@@ -584,7 +584,7 @@ export default function ApplyPrepPage() {
         )}
       </div>
 
-      {/* ── Auto-fill ─────────────────────────────────────────────────────────── */}
+      {/* -- Auto-fill ----------------------------------------------------------- */}
       <div style={card}>
         <div style={sectionLabel}>Auto-fill</div>
 
@@ -607,7 +607,7 @@ export default function ApplyPrepPage() {
                 rel="noreferrer"
                 style={primaryBtn}
               >
-                Install extension — 30 seconds
+                Install extension - 30 seconds
               </a>
               <Link href="/profile#extension-token" style={{ ...smallBtn, fontSize: '13px' }}>
                 Already installed? Get your token →
@@ -617,7 +617,7 @@ export default function ApplyPrepPage() {
         )}
       </div>
 
-      {/* ── Submit Checklist ──────────────────────────────────────────────── */}
+      {/* -- Submit Checklist ------------------------------------------------ */}
       <div style={{ ...card, marginBottom: 0 }}>
         <div style={sectionLabel}>Submit Checklist</div>
 

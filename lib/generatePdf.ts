@@ -1,4 +1,4 @@
-// SERVER-SIDE ONLY — never import in client components
+// SERVER-SIDE ONLY - never import in client components
 // CHROMIUM_EXECUTABLE_PATH:
 //   Dev:  local Chrome path (e.g. C:\Program Files\Google\Chrome\Application\chrome.exe)
 //   Prod: CDN tarball URL (e.g. https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar)
@@ -25,7 +25,7 @@ h1 {
   margin: 0 0 2px;
   letter-spacing: 0.3px;
 }
-/* Contact line — <p> directly under h1 */
+/* Contact line - <p> directly under h1 */
 h1 + p {
   font-size: 10px;
   text-align: center;

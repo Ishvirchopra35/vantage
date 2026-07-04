@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Spinner from '@/components/ui/Spinner'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types --------------------------------------------------------------------
 
 type MessageType = 'connection_request' | 'cold_email' | 'follow_up'
 
@@ -39,7 +39,7 @@ interface OutreachMessage {
   created_at: string
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// --- Constants ----------------------------------------------------------------
 
 const MESSAGE_TYPE_LABELS: Record<MessageType, string> = {
   connection_request: 'LinkedIn connection request',
@@ -53,7 +53,7 @@ const TYPE_BADGE_COLORS: Record<MessageType, React.CSSProperties> = {
   follow_up: { background: 'rgba(251,191,36,0.12)', color: '#fbbf24' },
 }
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
+// --- Card ---------------------------------------------------------------------
 
 function ContactCard({ contact, onUse }: { contact: Contact; onUse: (c: Contact) => void }) {
   return (
@@ -116,12 +116,12 @@ function ContactCard({ contact, onUse }: { contact: Contact; onUse: (c: Contact)
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// --- Page ---------------------------------------------------------------------
 
 export default function NetworkingPage() {
   const supabase = createClient()
 
-  // Section 1 — Find contacts
+  // Section 1 - Find contacts
   const [searchCompany, setSearchCompany] = useState('')
   const [searchRole, setSearchRole] = useState('')
   const [searching, setSearching] = useState(false)
@@ -130,7 +130,7 @@ export default function NetworkingPage() {
   const [searchError, setSearchError] = useState<string | null>(null)
   const [searchDone, setSearchDone] = useState(false)
 
-  // Section 2 — Generate message
+  // Section 2 - Generate message
   const [contactName, setContactName] = useState('')
   const [contactTitle, setContactTitle] = useState('')
   const [contactCompany, setContactCompany] = useState('')
@@ -147,7 +147,7 @@ export default function NetworkingPage() {
   const [generateError, setGenerateError] = useState<string | null>(null)
   const generateSectionRef = useRef<HTMLDivElement>(null)
 
-  // Section 3 — Tracker
+  // Section 3 - Tracker
   const [messages, setMessages] = useState<OutreachMessage[]>([])
   const [loadingMessages, setLoadingMessages] = useState(true)
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
@@ -306,7 +306,7 @@ export default function NetworkingPage() {
     setDeletingIds(prev => { const s = new Set(prev); s.delete(id); return s })
   }
 
-  // ── Shared styles ────────────────────────────────────────────────────────────
+  // -- Shared styles ------------------------------------------------------------
 
   const card: React.CSSProperties = {
     background: 'var(--card)',
@@ -382,7 +382,7 @@ export default function NetworkingPage() {
         <div style={{ fontSize: '13px', color: 'var(--muted)' }}>Find contacts and generate personalised outreach messages</div>
       </div>
 
-      {/* ── Section 1: Find contacts ──────────────────────────────────────── */}
+      {/* -- Section 1: Find contacts ---------------------------------------- */}
       <div style={card}>
         <div style={sectionTitle}>1 · Find contacts</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
@@ -439,7 +439,7 @@ export default function NetworkingPage() {
         )}
       </div>
 
-      {/* ── Section 2: Generate message ───────────────────────────────────── */}
+      {/* -- Section 2: Generate message ------------------------------------- */}
       <div style={card} ref={generateSectionRef}>
         <div style={sectionTitle}>2 · Generate message</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
@@ -483,7 +483,7 @@ export default function NetworkingPage() {
             >
               <option value="">No specific job</option>
               {jobs.map(j => (
-                <option key={j.id} value={j.id}>{j.title} — {j.company}</option>
+                <option key={j.id} value={j.id}>{j.title} - {j.company}</option>
               ))}
             </select>
           </div>
@@ -551,7 +551,7 @@ export default function NetworkingPage() {
         )}
       </div>
 
-      {/* ── Section 3: Tracker ────────────────────────────────────────────── */}
+      {/* -- Section 3: Tracker ---------------------------------------------- */}
       <div style={card}>
         <div style={sectionTitle}>3 · Outreach tracker</div>
 

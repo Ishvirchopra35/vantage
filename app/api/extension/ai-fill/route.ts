@@ -19,7 +19,7 @@ interface FieldAnswer {
   answer: string | null
 }
 
-// ── Deterministic guards ───────────────────────────────────────────────────────
+// -- Deterministic guards -------------------------------------------------------
 // The extension shouldn't send these, but the server enforces it anyway:
 // factual profile fields and demographics never go through the AI.
 
@@ -42,7 +42,7 @@ function findOption(options: string[] | undefined, pattern: RegExp): string | nu
 // Resolves a question without AI, or returns undefined if it needs the model.
 function deterministicAnswer(q: Question): string | null | undefined {
   if (HEAR_ABOUT_RE.test(q.label)) {
-    // Rule: always "Job Board" or blank — never an invented referral source
+    // Rule: always "Job Board" or blank - never an invented referral source
     return findOption(q.options, /job\s*board/i) ?? (q.options?.length ? null : 'Job Board')
   }
   if (DEMOGRAPHIC_RE.test(q.label)) {
@@ -50,7 +50,7 @@ function deterministicAnswer(q: Question): string | null | undefined {
     return findOption(q.options, DECLINE_RE)
   }
   if (TIER1_LABEL_RE.test(q.label)) {
-    // Factual profile fields are Tier 1 — the extension fills them directly
+    // Factual profile fields are Tier 1 - the extension fills them directly
     return null
   }
   return undefined
@@ -150,9 +150,9 @@ export async function POST(request: Request): Promise<Response> {
 
     const systemPrompt = `You help a job applicant answer open-ended application questions using ONLY the facts in their profile and resume.
 
-ABSOLUTE RULES — violating any of these makes the output worthless:
+ABSOLUTE RULES - violating any of these makes the output worthless:
 1. NEVER invent facts. No made-up companies, organizations, websites, dates, numbers, referral sources, or personal details. If the profile does not contain the information a question asks for, the answer is null.
-2. For questions with an Options list, the answer must be one option copied VERBATIM, character for character — or null. Never paraphrase an option and never answer with text that is not in the list.
+2. For questions with an Options list, the answer must be one option copied VERBATIM, character for character - or null. Never paraphrase an option and never answer with text that is not in the list.
 3. Questions about work authorization, visa sponsorship, security clearance, criminal history, citizenship, age, or salary expectations: answer null unless the profile explicitly states the fact. Do not assume or guess.
 4. Never answer demographic questions (gender, ethnicity, race, disability, veteran status, sexual orientation, pronouns). Answer null.
 5. For open-ended questions ("Why do you want to work here?", "Tell us about yourself"), write 2-4 genuine first-person sentences grounded ONLY in the real companies, projects, technologies, and accomplishments listed in the profile. If the profile has nothing relevant, answer null rather than writing generic filler.

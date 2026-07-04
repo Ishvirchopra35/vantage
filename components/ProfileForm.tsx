@@ -306,7 +306,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
         Profile
       </h1>
 
-      {/* Welcome banner — only on first visit */}
+      {/* Welcome banner - only on first visit */}
       {isNew && (
         <div
           style={{
@@ -318,12 +318,12 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
           }}
         >
           <p style={{ fontSize: '13px', color: 'var(--text)', margin: 0, lineHeight: 1.5 }}>
-            Welcome to Vantage. Upload your resume to get started — we&apos;ll pre-fill your profile automatically.
+            Welcome to Vantage. Upload your resume to get started - we&apos;ll pre-fill your profile automatically.
           </p>
         </div>
       )}
 
-      {/* Resume — always visible so users can replace it */}
+      {/* Resume - always visible so users can replace it */}
       <div style={{ marginBottom: '24px' }}>
         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
           Resume

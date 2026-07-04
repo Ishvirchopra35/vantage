@@ -1,4 +1,4 @@
-// SERVER CLIENT — use this in server components and API routes
+// SERVER CLIENT - use this in server components and API routes
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from '@/types/supabase';

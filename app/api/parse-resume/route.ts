@@ -46,12 +46,12 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const response = await withTimeout(fetch(fileUrl), 10000, 'file fetch');
     if (!response.ok) {
-      return err('Could not download the uploaded file — please try uploading again', 400);
+      return err('Could not download the uploaded file - please try uploading again', 400);
     }
     contentType = response.headers.get('content-type') ?? '';
     arrayBuffer = await response.arrayBuffer();
   } catch {
-    return err('Could not download the uploaded file — please try uploading again', 400);
+    return err('Could not download the uploaded file - please try uploading again', 400);
   }
 
   const buffer = Buffer.from(arrayBuffer);
@@ -76,7 +76,7 @@ export async function POST(request: Request): Promise<Response> {
     return serverError(e);
   }
 
-  // Generate structured HTML — saved to profiles for surgical tailoring later.
+  // Generate structured HTML - saved to profiles for surgical tailoring later.
   // Non-critical: text extraction already succeeded even if this fails.
   let resumeHtml: string | null = null;
   try {
@@ -93,7 +93,7 @@ export async function POST(request: Request): Promise<Response> {
     const profileGithub = profile?.github_url ?? null;
     const profilePortfolio = profile?.portfolio_url ?? null;
 
-    // Build project links block — only include projects that have a URL
+    // Build project links block - only include projects that have a URL
     const projectsWithUrls = (profile?.projects ?? []).filter(p => p.url);
     const projectLinksBlock = projectsWithUrls.length > 0
       ? `PROJECT LINKS (use these exact URLs, do not guess or hallucinate):\n` +
@@ -111,7 +111,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const rawHtml = await withTimeout(
       generateText(
-        'You are a resume formatter. Convert plain-text resumes to clean, semantic HTML body content. Return ONLY the HTML body content — no <html>, <head>, or <body> tags.',
+        'You are a resume formatter. Convert plain-text resumes to clean, semantic HTML body content. Return ONLY the HTML body content - no <html>, <head>, or <body> tags.',
         `Convert this resume to clean HTML that exactly preserves the layout and formatting.
 
 RULES:
@@ -121,15 +121,15 @@ RULES:
 - Use <ul><li> for bullet points
 - Use <strong> for bold text, <em> for italic
 - Single column layout, no tables, no floats, no CSS classes
-- Do NOT add, remove, or invent any content — preserve 100% of the original text
+- Do NOT add, remove, or invent any content - preserve 100% of the original text
 
-CONTACT LINE LINKS — reconstruct these exact hyperlinks:
+CONTACT LINE LINKS - reconstruct these exact hyperlinks:
 ${contactLinkLines}
 
 ${projectLinksBlock ? `${projectLinksBlock}
 
 PROJECT LINK RULES:
-- For project entries, use ONLY the URLs listed in PROJECT LINKS above — match by project name
+- For project entries, use ONLY the URLs listed in PROJECT LINKS above - match by project name
 - If a project is not listed in PROJECT LINKS, render the project name as plain text with NO link
 - Do not fabricate any URLs under any circumstances` : `Do not fabricate any project URLs. Only link to URLs that appear verbatim in the resume text.`}
 
@@ -154,13 +154,13 @@ ${text}`,
 
       const retryHtml = await withTimeout(
         generateText(
-          'You are a resume formatter. Convert plain-text resumes to clean, semantic HTML body content. Return ONLY the HTML body content — no <html>, <head>, or <body> tags.',
+          'You are a resume formatter. Convert plain-text resumes to clean, semantic HTML body content. Return ONLY the HTML body content - no <html>, <head>, or <body> tags.',
           `Convert this resume to HTML using the same rules as before.
 
-CRITICAL — the contact <p> tag MUST contain these exact links: ${mustHaveLinks}
+CRITICAL - the contact <p> tag MUST contain these exact links: ${mustHaveLinks}
 Do NOT omit them under any circumstances.
 
-${projectLinksBlock ? `${projectLinksBlock}\nDo not fabricate project URLs — only use URLs from PROJECT LINKS above.` : 'Do not fabricate any project URLs.'}
+${projectLinksBlock ? `${projectLinksBlock}\nDo not fabricate project URLs - only use URLs from PROJECT LINKS above.` : 'Do not fabricate any project URLs.'}
 
 Rules:
 - Use <h1> for the candidate's full name

@@ -122,28 +122,28 @@ export async function POST(request: Request): Promise<Response> {
   let rawOutput: string;
   try {
     if (resumeHtml) {
-      // Surgical HTML update — only bullet text changes, everything else is frozen
+      // Surgical HTML update - only bullet text changes, everything else is frozen
       console.log('[tailor-resume] before AI call', { mode: 'html', jobId, userId: user.id });
       const systemPrompt =
         `You are performing a surgical edit on an existing resume's HTML. ` +
         `Your only job is to rewrite bullet point text to better match the target job description.\n\n` +
-        `ABSOLUTE RULES — violating any of these is a failure:\n` +
+        `ABSOLUTE RULES - violating any of these is a failure:\n` +
         `1. Keep every HTML tag, attribute, href, and hyperlink byte-for-byte identical\n` +
         `2. Keep the candidate's name, contact info, email, phone, LinkedIn, and all URLs exactly as-is\n` +
-        `3. Keep every section heading (h1, h2, h3) exactly as-is — do not rename, reorder, or remove any section\n` +
+        `3. Keep every section heading (h1, h2, h3) exactly as-is - do not rename, reorder, or remove any section\n` +
         `4. Keep job titles, company names, dates, and education entries exactly as-is\n` +
-        `5. Only rewrite the text content inside <li> elements — nothing else\n` +
-        `6. Do NOT add new <li> items or remove existing ones — the bullet count per section must stay identical\n` +
+        `5. Only rewrite the text content inside <li> elements - nothing else\n` +
+        `6. Do NOT add new <li> items or remove existing ones - the bullet count per section must stay identical\n` +
         `7. Do NOT reorder sections or move bullets between sections\n` +
         `8. Each rewritten bullet must stay under 20 words\n` +
-        `9. Write in the same direct, first-person-implied tone as the original — never add phrases like "demonstrating my ability to", "showcasing my", "leveraging my expertise in", or similar filler\n` +
+        `9. Write in the same direct, first-person-implied tone as the original - never add phrases like "demonstrating my ability to", "showcasing my", "leveraging my expertise in", or similar filler\n` +
         `10. Weave in relevant ATS keywords naturally only where they fit the bullet's existing context\n` +
-        `11. Preserve ALL specific numbers, percentages, dollar amounts, and metrics verbatim — "45s to 38s", "R² = 0.89", "$45K+", "99%", "~20%" must appear exactly as in the original\n` +
-        `12. A rewritten bullet must contain every quantitative fact from the original bullet — if the original has a metric, the rewrite must include it unchanged\n` +
-        `13. Do NOT force job keywords into every bullet — only weave in a keyword if it fits naturally without changing the meaning. Never append animation-related terms, framework names, or unrelated technology to a bullet about a different topic\n` +
-        `14. Maximum 1–2 keywords per bullet, only where they genuinely fit the existing context\n` +
-        `15. The tech stack line under each project heading (e.g. "Python, OpenCV, Pickle...") must be preserved exactly — do not remove, shorten, or modify it\n` +
-        `16. Return ONLY the modified HTML body content — no <html>, <head>, or <body> tags\n` +
+        `11. Preserve ALL specific numbers, percentages, dollar amounts, and metrics verbatim - "45s to 38s", "R² = 0.89", "$45K+", "99%", "~20%" must appear exactly as in the original\n` +
+        `12. A rewritten bullet must contain every quantitative fact from the original bullet - if the original has a metric, the rewrite must include it unchanged\n` +
+        `13. Do NOT force job keywords into every bullet - only weave in a keyword if it fits naturally without changing the meaning. Never append animation-related terms, framework names, or unrelated technology to a bullet about a different topic\n` +
+        `14. Maximum 1-2 keywords per bullet, only where they genuinely fit the existing context\n` +
+        `15. The tech stack line under each project heading (e.g. "Python, OpenCV, Pickle...") must be preserved exactly - do not remove, shorten, or modify it\n` +
+        `16. Return ONLY the modified HTML body content - no <html>, <head>, or <body> tags\n` +
         `17. On the very last line after the HTML, write: SKILL_GAPS: [comma-separated required_skills absent from the resume]`;
 
       const userPrompt =
@@ -154,7 +154,7 @@ export async function POST(request: Request): Promise<Response> {
         `Nice to have: ${jobNiceToHave}\n` +
         `Key responsibilities: ${jobResponsibilities}\n` +
         `ATS keywords to weave in naturally: ${jobKeywords}\n\n` +
-        `ORIGINAL RESUME HTML — rewrite ONLY <li> text, leave everything else byte-for-byte identical:\n` +
+        `ORIGINAL RESUME HTML - rewrite ONLY <li> text, leave everything else byte-for-byte identical:\n` +
         `${resumeHtml}`;
 
       rawOutput = await withTimeout(generateText(systemPrompt, userPrompt, 4000), 30000, 'tailor-resume');
@@ -171,7 +171,7 @@ export async function POST(request: Request): Promise<Response> {
           `2. Preserve the candidate's authentic voice\n` +
           `3. Reorder bullets, rephrase existing content, and adjust the summary freely\n` +
           `4. Weave in ATS keywords naturally where they genuinely fit\n` +
-          `5. Return ONLY the complete resume text — no commentary\n` +
+          `5. Return ONLY the complete resume text - no commentary\n` +
           `6. End with exactly: SKILL_GAPS: [comma-separated missing required_skills]`;
 
         const userPrompt =
@@ -224,7 +224,7 @@ export async function POST(request: Request): Promise<Response> {
     return serverError(new Error(saveError?.message || 'Failed to save document'));
   }
 
-  // Generate and store PDF — best-effort, only when content is HTML
+  // Generate and store PDF - best-effort, only when content is HTML
   let pdfUrl: string | null = null;
   if (tailoredResumeText.trim().startsWith('<')) {
     try {
@@ -248,7 +248,7 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  // ATS score the tailored document immediately — best-effort, does not fail the request
+  // ATS score the tailored document immediately - best-effort, does not fail the request
   let immediateScore: Record<string, unknown> | null = null;
   try {
     const atsSystemPrompt =
@@ -276,7 +276,7 @@ Return JSON with:
 - skills_score: integer 0-100 (coverage of required_skills specifically)
 - missing_keywords: string[] max 12 (most impactful keywords from the ATS list NOT found in resume)
 - present_keywords: string[] max 12 (ATS keywords that ARE found in resume)
-- suggestions: string[] max 6 (specific, actionable improvements each under 25 words — not generic advice)`;
+- suggestions: string[] max 6 (specific, actionable improvements each under 25 words - not generic advice)`;
 
     const atsResult = await withTimeout(
       generateJSON<ATSScoreResult>(atsSystemPrompt, atsUserPrompt),
@@ -305,7 +305,7 @@ Return JSON with:
 
     immediateScore = atsRow;
   } catch {
-    // Fail silently — ATS score is a bonus, not required for a successful tailoring
+    // Fail silently - ATS score is a bonus, not required for a successful tailoring
   }
 
   void Promise.resolve(

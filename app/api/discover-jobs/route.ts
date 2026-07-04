@@ -10,7 +10,7 @@ export const maxDuration = 60
 
 const ROUTE = '/api/discover-jobs'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types --------------------------------------------------------------------
 
 interface AdzunaJob {
   id: string
@@ -26,7 +26,7 @@ interface AdzunaResponse {
   results?: AdzunaJob[]
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ------------------------------------------------------------------
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -100,7 +100,7 @@ async function fetchAdzunaWithRetry(role: string): Promise<AdzunaJob[]> {
   return []
 }
 
-// ─── Route ────────────────────────────────────────────────────────────────────
+// --- Route --------------------------------------------------------------------
 
 export async function GET(request: Request): Promise<Response> {
   const start = Date.now()
@@ -128,7 +128,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const supabase = await createClient()
 
-  // ── Cache hit — return stored jobs immediately ─────────────────────────────
+  // -- Cache hit - return stored jobs immediately -----------------------------
   if (!refresh) {
     const { data: cached, error: cacheErr } = await supabase
       .from('job_feed_items')
@@ -145,7 +145,7 @@ export async function GET(request: Request): Promise<Response> {
     })
   }
 
-  // ── Refresh — fetch from Adzuna ────────────────────────────────────────────
+  // -- Refresh - fetch from Adzuna --------------------------------------------
   if (!process.env.ADZUNA_APP_ID || !process.env.ADZUNA_API_KEY) {
     return new Response(JSON.stringify({ error: 'Adzuna credentials not configured' }), {
       status: 500, headers: { 'Content-Type': 'application/json' },
@@ -189,7 +189,7 @@ export async function GET(request: Request): Promise<Response> {
     })
   }
 
-  // ── Score all jobs ─────────────────────────────────────────────────────────
+  // -- Score all jobs ---------------------------------------------------------
   const skillsStr = (ctx.skills ?? []).join(', ') || 'Not specified'
   const rolesStr = targetRoles.join(', ')
   const systemPrompt =
@@ -233,7 +233,7 @@ export async function GET(request: Request): Promise<Response> {
     })
   )
 
-  // ── Upsert (preserves is_saved / is_dismissed) ─────────────────────────────
+  // -- Upsert (preserves is_saved / is_dismissed) -----------------------------
   const { error: upsertError } = await supabase
     .from('job_feed_items')
     .upsert(scoredJobs, { onConflict: 'user_id,external_job_id' })
@@ -251,7 +251,7 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
 
-  // ── Return all non-dismissed items ─────────────────────────────────────────
+  // -- Return all non-dismissed items -----------------------------------------
   const { data: results } = await supabase
     .from('job_feed_items')
     .select('id, external_job_id, source, title, company, location, url, employment_type, relevance_score, is_saved, is_dismissed, raw_data, fetched_at')

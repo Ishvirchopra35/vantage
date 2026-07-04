@@ -89,7 +89,7 @@ export async function generateJSON<T = unknown>(
   }
 }
 
-// ── Aliases kept for backward compatibility ───────────────────────────────────
+// -- Aliases kept for backward compatibility -----------------------------------
 // Legacy routes now share the same Gemini-backed helpers.
 
 export const generateTextSecondary = generateText;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types --------------------------------------------------------------------
 
 type AppStatus = 'applied' | 'interviewing' | 'offer' | 'rejected' | 'ghosted'
 
@@ -47,7 +47,7 @@ interface Props {
   onClose: () => void
 }
 
-// ─── Status badge maps (mirrors tracker page) ────────────────────────────────
+// --- Status badge maps (mirrors tracker page) --------------------------------
 
 const STATUS_LABEL: Record<AppStatus, string> = {
   applied: 'Applied',
@@ -73,7 +73,7 @@ const STATUS_TEXT: Record<AppStatus, string> = {
   ghosted: '#9ca3af',
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// --- Helpers -----------------------------------------------------------------
 
 function scoreColor(n: number): string {
   if (n >= 75) return 'var(--score-green)'
@@ -110,7 +110,7 @@ function downloadAsPDF(content: string, filename: string): void {
   }, 200)
 }
 
-// ─── Skeleton ────────────────────────────────────────────────────────────────
+// --- Skeleton ----------------------------------------------------------------
 
 function ModalSkeleton() {
   const shimmer = { animation: 'shimmer 1.4s ease infinite', background: 'var(--border)', borderRadius: '6px' }
@@ -133,7 +133,7 @@ function ModalSkeleton() {
   )
 }
 
-// ─── Modal ────────────────────────────────────────────────────────────────────
+// --- Modal --------------------------------------------------------------------
 
 export default function ApplicationDetailModal({ applicationId, onClose }: Props) {
   const [data, setData] = useState<DetailsData | null>(null)
@@ -238,7 +238,7 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
 
         {!loading && !fetchError && data && (
           <>
-            {/* ── Header ──────────────────────────────────────────────── */}
+            {/* -- Header ------------------------------------------------ */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
               <div>
                 <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
@@ -282,7 +282,7 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
               </button>
             </div>
 
-            {/* ── ATS Score ───────────────────────────────────────────── */}
+            {/* -- ATS Score --------------------------------------------- */}
             {data.atsScore && (
               <div style={{
                 background: 'var(--bg)',
@@ -344,7 +344,7 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
               </div>
             )}
 
-            {/* ── Documents ───────────────────────────────────────────── */}
+            {/* -- Documents --------------------------------------------- */}
             {hasDocTabs ? (
               <div>
                 {/* Tab bar */}

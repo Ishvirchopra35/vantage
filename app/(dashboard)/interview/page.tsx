@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Spinner from '@/components/ui/Spinner'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types --------------------------------------------------------------------
 
 interface InterviewQuestions {
   behavioral_questions: string[]
@@ -36,7 +36,7 @@ interface InterviewSession {
 type Tab = 'behavioral' | 'technical' | 'role'
 type AnswerMode = 'voice' | 'type'
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// --- Styles -------------------------------------------------------------------
 
 const inputStyle: React.CSSProperties = {
   padding: '9px 12px',
@@ -77,7 +77,7 @@ const ghostBtn: React.CSSProperties = {
   whiteSpace: 'nowrap' as const,
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// --- Page ---------------------------------------------------------------------
 
 export default function InterviewPage() {
   const supabase = useMemo(() => createClient(), [])
@@ -93,7 +93,7 @@ export default function InterviewPage() {
   const [tab, setTab] = useState<Tab>('behavioral')
   const [error, setError] = useState<string | null>(null)
 
-  // voice recognition state — SpeechRecognition is not in TS lib, cast via unknown
+  // voice recognition state - SpeechRecognition is not in TS lib, cast via unknown
   const [isRecording, setIsRecording] = useState(false)
   const recognitionRef = useRef<unknown>(null)
   const currentQuestionKeyRef = useRef<string | null>(null)
@@ -277,7 +277,7 @@ export default function InterviewPage() {
     )
   }
 
-  // ── Landing ─────────────────────────────────────────────────────────────────
+  // -- Landing -----------------------------------------------------------------
 
   if (!activeSession) {
     return (
@@ -300,7 +300,7 @@ export default function InterviewPage() {
               >
                 <option value="">Select a job from your tracker…</option>
                 {jobsList.map(j => (
-                  <option key={j.id} value={j.id}>{j.title} — {j.company}</option>
+                  <option key={j.id} value={j.id}>{j.title} - {j.company}</option>
                 ))}
               </select>
               <button
@@ -399,7 +399,7 @@ export default function InterviewPage() {
                 {sessions.map(s => {
                   const job = jobsList.find(j => j.id === s.job_id)
                   const meta = !s.job_id ? s.questions?._meta : null
-                  const displayCompany = job?.company ?? meta?.company ?? '—'
+                  const displayCompany = job?.company ?? meta?.company ?? '-'
                   const displayTitle = job?.title ?? meta?.title ?? null
                   const qs = s.questions
                   const total = (qs?.behavioral_questions?.length ?? 0) +
@@ -438,7 +438,7 @@ export default function InterviewPage() {
     )
   }
 
-  // ── Practice session ─────────────────────────────────────────────────────────
+  // -- Practice session ---------------------------------------------------------
 
   const qs = activeSession.questions ?? {
     behavioral_questions: [],
@@ -674,7 +674,7 @@ export default function InterviewPage() {
                   <div>
                     <div style={{ fontSize: '11px', fontWeight: 600, color: '#4ade80', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Strengths</div>
                     {(assessment.strengths ?? []).length === 0 ? (
-                      <span style={{ fontSize: '13px', color: 'var(--muted)' }}>—</span>
+                      <span style={{ fontSize: '13px', color: 'var(--muted)' }}>-</span>
                     ) : (
                       <ul style={{ margin: 0, paddingLeft: '16px' }}>
                         {assessment.strengths.map((s, i) => (

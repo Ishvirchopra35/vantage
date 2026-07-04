@@ -89,7 +89,7 @@ export async function POST(request: Request): Promise<Response> {
       `Keep their exact voice, sentence structure, and style. ` +
       `Replace {company}, {role}, {hiring_manager}, and any other placeholders with real values. ` +
       `Tailor the body to highlight experience relevant to this specific job. ` +
-      `Return ONLY the completed letter — no commentary, no meta-text.`;
+      `Return ONLY the completed letter - no commentary, no meta-text.`;
 
     userPrompt =
       `Complete this cover letter template for the job below.\n\n` +
@@ -105,7 +105,7 @@ export async function POST(request: Request): Promise<Response> {
       `You are an expert cover letter writer. Write a professional cover letter in proper letter format.\n\n` +
       `Rules:\n` +
       `1. Write in first person, confident and direct tone\n` +
-      `2. BANNED PHRASES — never use: ${BANNED_PHRASES}\n` +
+      `2. BANNED PHRASES - never use: ${BANNED_PHRASES}\n` +
       `3. Sound like a specific real person, not a template\n` +
       `4. Naturally weave in ATS keywords throughout the letter\n` +
       `5. Return the COMPLETE letter including header block, date, salutation, body, and closing\n` +
@@ -122,10 +122,10 @@ export async function POST(request: Request): Promise<Response> {
       `Format the letter EXACTLY like this:\n` +
       `${letterHeader}\n\n` +
       `Dear Hiring Team,\n\n` +
-      `[Paragraph 1 — Why this specific company and role. Reference the company description. No generic excitement language.]\n\n` +
-      `[Paragraph 2 — Most relevant experience or project from their background that directly matches the key responsibilities. Include a specific achievement or scope if one exists in their resume.]\n\n` +
-      `[Paragraph 3 — Skills alignment with the role's requirements. 2-3 sentences.]\n\n` +
-      `[Paragraph 4 (optional) — Brief, confident close with a clear call to action. No 'please consider me'.]\n\n` +
+      `[Paragraph 1 - Why this specific company and role. Reference the company description. No generic excitement language.]\n\n` +
+      `[Paragraph 2 - Most relevant experience or project from their background that directly matches the key responsibilities. Include a specific achievement or scope if one exists in their resume.]\n\n` +
+      `[Paragraph 3 - Skills alignment with the role's requirements. 2-3 sentences.]\n\n` +
+      `[Paragraph 4 (optional) - Brief, confident close with a clear call to action. No 'please consider me'.]\n\n` +
       `Sincerely,\n${senderName}\n\n` +
       `Maximum 350 words total. Do NOT include the bracket instructions in your output.`;
   }

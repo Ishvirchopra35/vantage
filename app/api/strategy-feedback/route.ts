@@ -52,7 +52,7 @@ export async function GET(request: Request): Promise<Response> {
 
   if (total < 15) {
     await logRoute('/api/strategy-feedback', user.id, Date.now() - start, 400)
-    return err('Not enough data — apply to at least 15 jobs first', 400)
+    return err('Not enough data - apply to at least 15 jobs first', 400)
   }
 
   // Return cache if fewer than 5 new applications since last generation
@@ -178,9 +178,9 @@ Most common missing ATS keywords: ${topMissingKeywords.join(', ') || 'none track
 
 Return JSON with exactly these keys:
 {
-  "top_insights": ["3 specific observations grounded in the actual numbers — not generic advice"],
-  "focus_roles": ["roles with highest response rate — name them specifically"],
-  "avoid_roles": ["role name — specific reason this role has poor response rate for this candidate"],
+  "top_insights": ["3 specific observations grounded in the actual numbers - not generic advice"],
+  "focus_roles": ["roles with highest response rate - name them specifically"],
+  "avoid_roles": ["role name - specific reason this role has poor response rate for this candidate"],
   "ats_insight": "1 sentence: does a higher ATS score correlate with getting interviews for this specific user?",
   "top_suggestions": ["actionable step under 25 words", "actionable step", "actionable step", "actionable step"],
   "skill_gaps_to_fix": ["keyword that appears most in missing_keywords and would improve ATS score"]

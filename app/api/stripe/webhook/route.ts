@@ -14,7 +14,7 @@ export async function POST(request: Request): Promise<Response> {
   const secret = process.env.STRIPE_WEBHOOK_SECRET
   const stripeKey = process.env.STRIPE_SECRET_KEY
 
-  console.log('[stripe/webhook] received — sig:', !!sig, 'secret:', !!secret, 'key:', !!stripeKey)
+  console.log('[stripe/webhook] received - sig:', !!sig, 'secret:', !!secret, 'key:', !!stripeKey)
 
   if (!sig || !secret || !stripeKey) {
     console.error('[stripe/webhook] Missing configuration')
@@ -40,7 +40,7 @@ export async function POST(request: Request): Promise<Response> {
       const subscriptionId = session.subscription as string
       const customerId = session.customer as string
 
-      console.log('[stripe/webhook] checkout.session.completed — userId:', userId, 'subId:', subscriptionId)
+      console.log('[stripe/webhook] checkout.session.completed - userId:', userId, 'subId:', subscriptionId)
 
       if (!userId) {
         console.error('[stripe/webhook] No supabase_user_id in session metadata')
@@ -80,7 +80,7 @@ export async function POST(request: Request): Promise<Response> {
       const periodEnd = sub.items.data[0]?.current_period_end
       const plan = sub.status === 'active' ? 'pro' : 'free'
 
-      console.log('[stripe/webhook] subscription.updated — userId:', userId, 'customer:', sub.customer, 'status:', sub.status)
+      console.log('[stripe/webhook] subscription.updated - userId:', userId, 'customer:', sub.customer, 'status:', sub.status)
 
       if (userId) {
         const { error } = await supabaseAdmin.from('subscriptions').upsert(
@@ -116,7 +116,7 @@ export async function POST(request: Request): Promise<Response> {
       const sub = event.data.object as Stripe.Subscription
       const userId = sub.metadata?.supabase_user_id
 
-      console.log('[stripe/webhook] subscription.deleted — userId:', userId, 'customer:', sub.customer)
+      console.log('[stripe/webhook] subscription.deleted - userId:', userId, 'customer:', sub.customer)
 
       if (userId) {
         const { error } = await supabaseAdmin.from('subscriptions').upsert(

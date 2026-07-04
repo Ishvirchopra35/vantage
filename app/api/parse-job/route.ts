@@ -38,12 +38,12 @@ function buildUserPrompt(content: string): string {
 - company: string (company name)
 - location: string (city, state/province, remote, or hybrid)
 - employment_type: string (one of: Full-time, Part-time, Contract, Internship, Co-op)
-- required_skills: string[] (hard skills explicitly listed as required — programming languages, tools, frameworks, max 15 items)
+- required_skills: string[] (hard skills explicitly listed as required - programming languages, tools, frameworks, max 15 items)
 - nice_to_have_skills: string[] (explicitly listed as nice-to-have or preferred, max 10)
 - years_experience_required: number or null (minimum years required, or null if not specified)
 - key_responsibilities: string[] (main job duties, max 8 items, each under 20 words)
 - company_description: string (2-3 sentences about the company from the posting)
-- keywords: string[] (ALL significant words and phrases from the posting that an ATS would scan for — include technical terms, soft skills, methodologies, tools, certifications. This is the most important field. Aim for 20-40 keywords.)
+- keywords: string[] (ALL significant words and phrases from the posting that an ATS would scan for - include technical terms, soft skills, methodologies, tools, certifications. This is the most important field. Aim for 20-40 keywords.)
 
 Job posting content: ${content}`;
 }
@@ -122,10 +122,10 @@ export async function POST(request: Request): Promise<Response> {
         if (!response.ok) {
           console.error(`Jina.ai response status: ${response.status}`);
           if (response.status === 402) {
-            return err('Jina.ai token balance is empty — top up at jina.ai', 400);
+            return err('Jina.ai token balance is empty - top up at jina.ai', 400);
           }
           if (response.status === 429) {
-            return err('Jina.ai rate limit hit — try again in a moment', 429);
+            return err('Jina.ai rate limit hit - try again in a moment', 429);
           }
           return err('Could not fetch that job posting. Try pasting the job description directly.', 400);
         }

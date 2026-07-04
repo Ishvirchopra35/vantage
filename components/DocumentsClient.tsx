@@ -4,7 +4,7 @@ import { useState } from 'react'
 import EmptyState from '@/components/ui/EmptyState'
 import type { DocumentRow } from '@/app/(dashboard)/documents/page'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types --------------------------------------------------------------------
 
 type FilterType = 'all' | 'tailored_resume' | 'cover_letter'
 
@@ -12,7 +12,7 @@ interface Props {
   documents: DocumentRow[]
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// --- Helpers -----------------------------------------------------------------
 
 function firstJob(
   jobs: DocumentRow['jobs']
@@ -63,7 +63,7 @@ function downloadAsPDF(content: string, filename: string): void {
   }, 200)
 }
 
-// ─── Row ─────────────────────────────────────────────────────────────────────
+// --- Row ---------------------------------------------------------------------
 
 function DocumentRow({ doc }: { doc: DocumentRow }) {
   const [expanded, setExpanded] = useState(false)
@@ -172,7 +172,7 @@ function DocumentRow({ doc }: { doc: DocumentRow }) {
   )
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// --- Main ---------------------------------------------------------------------
 
 export default function DocumentsClient({ documents }: Props) {
   const [filter, setFilter] = useState<FilterType>('all')

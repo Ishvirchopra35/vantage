@@ -94,7 +94,7 @@ function resumeTypeLabel(row: AtsScoreRow): string {
 }
 
 function toNumber(value: number | null): string {
-  if (value === null) return '—';
+  if (value === null) return '-';
   return String(value);
 }
 
@@ -666,7 +666,7 @@ export default function AtsPage() {
 
             {insights.avgFormat !== null && insights.avgFormat < 60 && (
               <div style={{ fontSize: '13px', color: 'var(--score-amber)' }}>
-                Your resume may have formatting that ATS systems struggle to parse — avoid tables, columns, or graphics.
+                Your resume may have formatting that ATS systems struggle to parse - avoid tables, columns, or graphics.
               </div>
             )}
           </div>

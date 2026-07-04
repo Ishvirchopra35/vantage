@@ -51,11 +51,11 @@ export async function POST(request: Request): Promise<Response> {
 
 Rules:
 1. Every answer must be grounded in the candidate's actual resume and experience. Never fabricate, invent, or exaggerate anything.
-2. Answers must sound natural and human — not like a template or AI output. Use the candidate's apparent writing voice from their resume.
+2. Answers must sound natural and human - not like a template or AI output. Use the candidate's apparent writing voice from their resume.
 3. Be specific: reference actual project names, technologies, role titles, or achievements from the resume when relevant.
-4. Answer the exact question asked — do not go on tangents.
+4. Answer the exact question asked - do not go on tangents.
 5. Length: answer the question completely but concisely. Under 150 words unless the question explicitly asks for more detail (e.g. 'describe in detail').
-6. Return ONLY the answer text — no preamble, no explanation, no 'Here is your answer:'.`
+6. Return ONLY the answer text - no preamble, no explanation, no 'Here is your answer:'.`
 
   const userPrompt = `Answer this job application question for this candidate.
 

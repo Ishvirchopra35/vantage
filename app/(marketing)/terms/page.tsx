@@ -239,7 +239,7 @@ export default function TermsPage() {
             >
               •
             </span>
-            Misrepresent your qualifications on applications. Vantage never fabricates experience — any misrepresentation is your own addition.
+            Misrepresent your qualifications on applications. Vantage never fabricates experience - any misrepresentation is your own addition.
           </li>
           <li
             style={{

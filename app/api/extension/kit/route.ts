@@ -74,7 +74,7 @@ export async function GET(request: Request): Promise<Response> {
 
   if (profileError || !profile) return unauthorized()
 
-  // The location column is an optional migration — query it separately so a
+  // The location column is an optional migration - query it separately so a
   // missing column degrades to an empty location instead of a failed request.
   let location = ''
   const { data: locationRow, error: locationError } = await supabase
@@ -148,7 +148,7 @@ export async function GET(request: Request): Promise<Response> {
     portfolio: (profile.portfolio_url as string | null) ?? '',
     github: (profile.github_url as string | null) ?? '',
     location,
-    // No pronouns column exists — always null so the extension never guesses
+    // No pronouns column exists - always null so the extension never guesses
     pronouns: null,
     referralSource: 'Job Board',
     skills: (profile.skills as string[] | null) ?? [],

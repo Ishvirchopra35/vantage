@@ -15,7 +15,7 @@ export async function POST(request: Request): Promise<Response> {
     const body = await request.json()
     jobId = body?.jobId
   } catch {
-    // jobId is optional — proceed without it
+    // jobId is optional - proceed without it
   }
 
   try {
@@ -96,7 +96,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const kitJson = JSON.stringify(kit)
 
-    // Self-contained IIFE — uses nativeSetter pattern, never submits
+    // Self-contained IIFE - uses nativeSetter pattern, never submits
     const snippet = `(function(){const kit=${kitJson};const nS=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;const tS=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value')?.set;function fill(el,v){if(!el||!v)return;if(el.tagName==='TEXTAREA'){if(tS)tS.call(el,v);else el.value=v;}else{if(nS)nS.call(el,v);else el.value=v;}el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));}function lbl(el){const id=el.id||'';const forLbl=id?document.querySelector('label[for="'+id+'"]')?.textContent||'':'';return(forLbl+' '+el.getAttribute('aria-label')+''+el.placeholder+' '+el.name+' '+id).toLowerCase();}const map={'first name':kit.firstName,'last name':kit.lastName,'full name':kit.fullName,'email':kit.email,'phone':kit.phone,'linkedin':kit.linkedin,'portfolio':kit.portfolio,'github':kit.github,'cover letter':kit.coverLetter};let n=0;document.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=file]):not([type=checkbox]):not([type=radio]),textarea').forEach(el=>{if(el.disabled||el.readOnly||el.value)return;const l=lbl(el);for(const[k,v]of Object.entries(map)){if(v&&l.includes(k)){fill(el,v);n++;return;}}if(el.type==='email'&&kit.email){fill(el,kit.email);n++;return;}if(el.type==='tel'&&kit.phone){fill(el,kit.phone);n++;return;}for(const[q,a]of Object.entries(kit.answers||{})){const ws=q.toLowerCase().split(/\\s+/).filter(w=>w.length>3);if(ws.length&&ws.filter(w=>l.includes(w)).length/ws.length>=0.4){fill(el,a);n++;return;}}});console.log('[Vantage] Filled '+n+' fields. Review and submit manually.');})();`
 
     await logRoute('generate-fill-snippet', user.id, Date.now() - start, 200)

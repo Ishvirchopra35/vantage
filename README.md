@@ -1,17 +1,17 @@
-# Vantage — Your Unfair Advantage in Job Searching
+# Vantage - Your Unfair Advantage in Job Searching
 
 An AI-powered job application platform that helps you tailor resumes, generate cover letters, track ATS scores, and automate the job search process. Built with Next.js 14, Supabase, and Groq LLM.
 
 ## Features
 
-- **AI Resume Tailoring** — Generate role-specific resumes optimized for ATS using Groq
-- **AI Cover Letter Generation** — Create personalized cover letters in seconds
-- **ATS Score Checking** — Real-time feedback on resume keyword alignment
-- **Application Tracking** — Dashboard to monitor all job applications with status updates
-- **Rate Limiting** — Freemium tier with monthly usage limits (free) or unlimited (pro)
-- **Authentication** — Supabase auth with secure session management
-- **Analytics** — Track user interactions and feature usage
-- **Server-Side Context** — Comprehensive user context builder for intelligent AI prompts
+- **AI Resume Tailoring** - Generate role-specific resumes optimized for ATS using Groq
+- **AI Cover Letter Generation** - Create personalized cover letters in seconds
+- **ATS Score Checking** - Real-time feedback on resume keyword alignment
+- **Application Tracking** - Dashboard to monitor all job applications with status updates
+- **Rate Limiting** - Freemium tier with monthly usage limits (free) or unlimited (pro)
+- **Authentication** - Supabase auth with secure session management
+- **Analytics** - Track user interactions and feature usage
+- **Server-Side Context** - Comprehensive user context builder for intelligent AI prompts
 
 ## Tech Stack
 
@@ -63,11 +63,11 @@ npm install
 ### 4. Create `.env.local`
 
 ```env
-# Supabase (public — safe to expose)
+# Supabase (public - safe to expose)
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
 
-# Supabase (server-only — NEVER expose)
+# Supabase (server-only - NEVER expose)
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
 
 # Groq (server-only)
@@ -90,31 +90,31 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ```
 app/
-├── (auth)/              # Auth route group (login, signup)
-├── (dashboard)/         # Protected dashboard routes
-├── (marketing)/         # Public marketing pages (/, /blog, /changelog)
-├── admin/              # Admin routes (protected)
-├── api/                # API routes
-│   ├── example/        # Example endpoint using all utilities
-│   └── auto-fill/      # AI-powered auto-fill (reserved 1GB/60s)
-├── content/            # Blog & changelog content
-├── layout.tsx          # Root layout with theme setup
-└── globals.css         # Design system & CSS variables
+├-- (auth)/              # Auth route group (login, signup)
+├-- (dashboard)/         # Protected dashboard routes
+├-- (marketing)/         # Public marketing pages (/, /blog, /changelog)
+├-- admin/              # Admin routes (protected)
+├-- api/                # API routes
+│   ├-- example/        # Example endpoint using all utilities
+│   └-- auto-fill/      # AI-powered auto-fill (reserved 1GB/60s)
+├-- content/            # Blog & changelog content
+├-- layout.tsx          # Root layout with theme setup
+└-- globals.css         # Design system & CSS variables
 
 lib/
-├── supabase/
-│   ├── client.ts       # Browser client (use client only)
-│   ├── server.ts       # Server client (SSR/API routes)
-│   └── middleware.ts   # Session refresh for middleware
-├── ai.ts               # LLM calls (Groq/Gemini)
-├── userContext.ts      # Parallel user data fetcher for AI prompts
-├── rateLimit.ts        # Freemium limit checking with atomic increments
-├── analytics.ts        # Event tracking
-├── withTimeout.ts      # Promise timeout wrapper
-├── validateRequest.ts  # Request body validation
-├── apiResponse.ts      # Standardized response helpers
-├── requireAuth.ts      # Auth guard for API routes
-└── logger.ts           # Route performance logging
+├-- supabase/
+│   ├-- client.ts       # Browser client (use client only)
+│   ├-- server.ts       # Server client (SSR/API routes)
+│   └-- middleware.ts   # Session refresh for middleware
+├-- ai.ts               # LLM calls (Groq/Gemini)
+├-- userContext.ts      # Parallel user data fetcher for AI prompts
+├-- rateLimit.ts        # Freemium limit checking with atomic increments
+├-- analytics.ts        # Event tracking
+├-- withTimeout.ts      # Promise timeout wrapper
+├-- validateRequest.ts  # Request body validation
+├-- apiResponse.ts      # Standardized response helpers
+├-- requireAuth.ts      # Auth guard for API routes
+└-- logger.ts           # Route performance logging
 
 middleware.ts          # Session refresh on every request (Supabase auth fix)
 vercel.json           # Vercel function config (auto-fill: 1GB/60s)
@@ -215,7 +215,7 @@ In Vercel **Settings → Environment Variables**, add:
 - `ENABLE_FREEMIUM` (value: `true`)
 
 ### 4. Deploy
-Push to main branch — Vercel automatically deploys within 1-2 minutes.
+Push to main branch - Vercel automatically deploys within 1-2 minutes.
 
 ## Freemium Limits (Free Tier)
 

@@ -1,5 +1,5 @@
 /**
- * Route logging helper — writes to `route_logs` using the service role key.
+ * Route logging helper - writes to `route_logs` using the service role key.
  * This function must never throw; failures are swallowed.
  */
 import { createClient as createServiceClient } from '@supabase/supabase-js';
@@ -33,7 +33,7 @@ export async function logRoute(route: string, userId: string | null, durationMs:
       status_code: statusCode,
     });
   } catch (e) {
-    // Fail silently — logging should not impact the request
+    // Fail silently - logging should not impact the request
     return;
   }
 }

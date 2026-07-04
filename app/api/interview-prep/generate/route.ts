@@ -93,7 +93,7 @@ export async function POST(request: Request): Promise<Response> {
   const systemPrompt =
     `You are an experienced technical and behavioral interviewer. ` +
     `Generate realistic interview questions a hiring manager at this company would actually ask. ` +
-    `Return ONLY valid JSON — no markdown, no backticks, no explanation.`
+    `Return ONLY valid JSON - no markdown, no backticks, no explanation.`
 
   const skills = (jobCtx.required_skills ?? []).slice(0, 8).join(', ')
   const responsibilities = (jobCtx.key_responsibilities ?? []).slice(0, 5).join(', ')
@@ -117,7 +117,7 @@ export async function POST(request: Request): Promise<Response> {
     `Candidate's projects:\n${projSummary || 'See resume above'}\n\n` +
     `Return a JSON object with exactly these keys:\n` +
     `{\n` +
-    `  "behavioral_questions": [5 STAR-format questions framed as "Tell me about a time when..." that reference THIS candidate's actual experience at their specific companies and projects — not generic situations],\n` +
+    `  "behavioral_questions": [5 STAR-format questions framed as "Tell me about a time when..." that reference THIS candidate's actual experience at their specific companies and projects - not generic situations],\n` +
     `  "technical_questions": [5 questions specific to the required skills listed above, referencing the candidate's tech stack where relevant],\n` +
     `  "role_specific_questions": [3 questions about why this company and this team specifically],\n` +
     `  "tips": [3 specific preparation tips for THIS interview that reference the candidate's experience gaps relative to the role, not generic advice]\n` +

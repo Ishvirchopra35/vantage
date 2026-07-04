@@ -10,7 +10,7 @@ interface Props {
   email: string
 }
 
-// ─── Theme Pill ───────────────────────────────────────────────────────────────
+// --- Theme Pill ---------------------------------------------------------------
 
 function ThemePills() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
@@ -67,7 +67,7 @@ function ThemePills() {
   )
 }
 
-// ─── Delete Confirmation Modal ────────────────────────────────────────────────
+// --- Delete Confirmation Modal ------------------------------------------------
 
 function DeleteModal({ onClose, onConfirm, deleting }: {
   onClose: () => void
@@ -187,7 +187,7 @@ function DeleteModal({ onClose, onConfirm, deleting }: {
   )
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// --- Main ---------------------------------------------------------------------
 
 export default function SettingsClient({ email }: Props) {
   const router = useRouter()
@@ -279,7 +279,7 @@ export default function SettingsClient({ email }: Props) {
           </button>
         </div>
 
-        {/* ── Account ───────────────────────────────────────────────── */}
+        {/* -- Account ------------------------------------------------- */}
         <div>
           <div style={sectionTitle}>Account</div>
           <div style={{ marginBottom: '16px' }}>
@@ -293,14 +293,14 @@ export default function SettingsClient({ email }: Props) {
           </div>
         </div>
 
-        {/* ── Appearance ────────────────────────────────────────────── */}
+        {/* -- Appearance ---------------------------------------------- */}
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '24px', marginTop: '24px' }}>
           <div style={sectionTitle}>Appearance</div>
           <label style={{ ...label, marginBottom: '12px' }}>Theme</label>
           <ThemePills />
         </div>
 
-        {/* ── Resume ────────────────────────────────────────────────── */}
+        {/* -- Resume -------------------------------------------------- */}
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '24px', marginTop: '24px' }}>
           <div style={sectionTitle}>Resume</div>
           <div style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '16px' }}>
@@ -364,7 +364,7 @@ export default function SettingsClient({ email }: Props) {
           )}
         </div>
 
-        {/* ── Danger Zone ───────────────────────────────────────────── */}
+        {/* -- Danger Zone --------------------------------------------- */}
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '24px', marginTop: '24px' }}>
           <div style={{ ...sectionTitle, color: '#ef4444' }}>Danger zone</div>
           <div style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '16px' }}>

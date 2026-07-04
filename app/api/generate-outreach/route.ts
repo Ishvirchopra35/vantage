@@ -92,7 +92,7 @@ export async function POST(request: Request): Promise<Response> {
   const messageInstructions: Record<MessageType, string> = {
     connection_request:
       `Write a LinkedIn connection request to ${contactName}. ` +
-      `MAX 280 CHARACTERS — this is a hard limit enforced by LinkedIn. ` +
+      `MAX 280 CHARACTERS - this is a hard limit enforced by LinkedIn. ` +
       `Genuine, specific reason for connecting. Reference their role or company specifically. ` +
       `${candidateHighlight} ${projectHighlight} Weave in one specific detail from the candidate's background if it fits naturally.`,
     cold_email:
@@ -113,7 +113,7 @@ export async function POST(request: Request): Promise<Response> {
     `"I'm passionate about", or any opener cliché. ` +
     `(3) Reference something specific about the contact's role or the company. ` +
     `(4) connection_request: max 280 characters (LinkedIn limit). cold_email: max 150 words. follow_up: max 80 words. ` +
-    `Return ONLY the message text — no subject line label explanation, no preamble, no meta-commentary.`
+    `Return ONLY the message text - no subject line label explanation, no preamble, no meta-commentary.`
 
   const userPrompt =
     `${formatContextForPrompt(ctx)}` +

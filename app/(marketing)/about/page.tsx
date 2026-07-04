@@ -1,7 +1,7 @@
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'About — Vantage',
+  title: 'About - Vantage',
   description: 'About Vantage, built by Ishvir Chopra.',
 };
 

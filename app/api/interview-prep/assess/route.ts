@@ -75,7 +75,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const systemPrompt =
     `You are an expert interview coach assessing a candidate's answer. ` +
-    `Return ONLY valid JSON — no markdown, no backticks, no explanation.`
+    `Return ONLY valid JSON - no markdown, no backticks, no explanation.`
 
   const userPrompt =
     `${contextStr}\n\n` +

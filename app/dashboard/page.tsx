@@ -197,7 +197,7 @@ export default async function DashboardPage() {
     (application) => application.status === 'interviewing' || application.status === 'offer'
   ).length;
   const responseRate =
-    totalApplications > 0 ? `${((responseCount / totalApplications) * 100).toFixed(1)}%` : '—';
+    totalApplications > 0 ? `${((responseCount / totalApplications) * 100).toFixed(1)}%` : '-';
   const tailoringsThisWeek = weeklyTailoringsResult.count ?? 0;
   const avgAtsScoreValues = allAtsScores.map((row) => row.overall_score).filter((score): score is number => score !== null);
   const avgAtsScore =

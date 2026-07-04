@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       'AI'
     );
 
-    // Example of a Supabase operation wrapped with timeout (5000ms) — omitted actual call
+    // Example of a Supabase operation wrapped with timeout (5000ms) - omitted actual call
 
     const duration = Date.now() - start;
     // Log route (fire-and-forget)

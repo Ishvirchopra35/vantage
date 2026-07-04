@@ -1,7 +1,7 @@
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Privacy Policy — Vantage',
+  title: 'Privacy Policy - Vantage',
   description: 'How we collect, use, and protect your data at Vantage.',
 };
 

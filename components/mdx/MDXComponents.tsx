@@ -53,7 +53,7 @@ export const components = {
   ),
   code: ({ children, className, ...props }: ComponentPropsWithoutRef<'code'>) => {
     if (className) {
-      // Inside a pre block — no extra decoration
+      // Inside a pre block - no extra decoration
       return (
         <code style={{ fontFamily: 'monospace', fontSize: 13 }} className={className} {...props}>
           {children}

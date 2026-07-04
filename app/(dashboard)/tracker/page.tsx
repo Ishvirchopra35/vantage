@@ -5,12 +5,12 @@ import { createPortal } from 'react-dom'
 import type { ApplicationRow } from '@/app/api/applications/route'
 import ApplicationDetailModal from '@/components/ApplicationDetailModal'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types --------------------------------------------------------------------
 
 type Status = ApplicationRow['status']
 
-// ─── Status cycle ─────────────────────────────────────────────────────────────
-// Only the specific valid forward transitions — not an all-statuses cycle.
+// --- Status cycle -------------------------------------------------------------
+// Only the specific valid forward transitions - not an all-statuses cycle.
 // Failure paths (applied→ghosted, interviewing→rejected) are set via the
 // status dropdown, not the badge click.
 const STATUS_NEXT: Partial<Record<Status, Status>> = {
@@ -45,10 +45,10 @@ const STATUS_TEXT: Record<Status, string> = {
 // All valid status options for the dropdown, in order
 const ALL_STATUSES: Status[] = ['applied', 'interviewing', 'offer', 'rejected', 'ghosted']
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ------------------------------------------------------------------
 
 function daysSince(dateStr: string | null): string {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   const diffMs = Date.now() - new Date(dateStr).getTime()
   const days = Math.floor(diffMs / 86_400_000)
   if (days < 14) return `${days}d`
@@ -58,7 +58,7 @@ function daysSince(dateStr: string | null): string {
 
 function avgAts(rows: ApplicationRow[]): string {
   const scores = rows.map(r => r.overall_score).filter((s): s is number => s !== null)
-  if (!scores.length) return '—'
+  if (!scores.length) return '-'
   return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length).toString()
 }
 
@@ -81,7 +81,7 @@ async function apiFetch<T>(
   }
 }
 
-// ─── Spinner ──────────────────────────────────────────────────────────────────
+// --- Spinner ------------------------------------------------------------------
 
 function Spinner() {
   return (
@@ -101,7 +101,7 @@ function Spinner() {
   )
 }
 
-// ─── Style constants ──────────────────────────────────────────────────────────
+// --- Style constants ----------------------------------------------------------
 
 const card = {
   background: 'var(--card)',
@@ -155,7 +155,7 @@ const secondaryBtn = {
   minHeight: '44px',
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// --- Page ---------------------------------------------------------------------
 
 export default function TrackerPage() {
   const [applications, setApplications] = useState<ApplicationRow[]>([])
@@ -193,7 +193,7 @@ export default function TrackerPage() {
   const [logSubmitting, setLogSubmitting] = useState(false)
   const [logError, setLogError] = useState<string | null>(null)
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
+  // -- Fetch -----------------------------------------------------------------
 
   useEffect(() => {
     void (async () => {
@@ -211,18 +211,18 @@ export default function TrackerPage() {
     })()
   }, [])
 
-  // ── Stats bar ─────────────────────────────────────────────────────────────
+  // -- Stats bar -------------------------------------------------------------
 
   const total = applications.length
   const responseCount = applications.filter(
     a => a.status === 'interviewing' || a.status === 'offer'
   ).length
   const responseRate =
-    total > 0 ? ((responseCount / total) * 100).toFixed(1) + '%' : '—'
+    total > 0 ? ((responseCount / total) * 100).toFixed(1) + '%' : '-'
   const activeInterviews = applications.filter(a => a.status === 'interviewing').length
   const atsAvg = avgAts(applications)
 
-  // ── Status select — confirmed update, state set on success ───────────────
+  // -- Status select - confirmed update, state set on success ---------------
 
   async function handleStatusSelect(row: ApplicationRow, newStatus: Status) {
     if (newStatus === row.status || updatingId || deletingId) return
@@ -248,7 +248,7 @@ export default function TrackerPage() {
     )
   }
 
-  // ── Delete — remove row only after confirmed 204 ──────────────────────────
+  // -- Delete - remove row only after confirmed 204 --------------------------
 
   async function handleDelete(id: string) {
     if (deletingId || updatingId) return
@@ -265,14 +265,14 @@ export default function TrackerPage() {
     }
   }
 
-  // ── Log application form submit ───────────────────────────────────────────
+  // -- Log application form submit -------------------------------------------
 
   async function handleLogSubmit() {
     if (!logCompany.trim() || !logRole.trim() || logSubmitting) return
     setLogError(null)
     setLogSubmitting(true)
 
-    // Optimistic row — use a temp id until the server responds
+    // Optimistic row - use a temp id until the server responds
     const tempId = `temp-${Date.now()}`
     const optimisticRow: ApplicationRow = {
       id: tempId,
@@ -317,7 +317,7 @@ export default function TrackerPage() {
     setLogSubmitting(false)
 
     if (postError || !data?.application) {
-      // Revert — remove the temp row
+      // Revert - remove the temp row
       setApplications(prev => prev.filter(a => a.id !== tempId))
       setShowLogForm(true)
       setLogCompany(optimisticRow.company)
@@ -332,13 +332,13 @@ export default function TrackerPage() {
     )
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // --- Render ---------------------------------------------------------------
 
   return (
     <div style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '40px 16px 80px' }}>
 
-        {/* ── Header ─────────────────────────────────────────────────────── */}
+        {/* -- Header ------------------------------------------------------- */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
           <div>
             <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
@@ -356,7 +356,7 @@ export default function TrackerPage() {
           </button>
         </div>
 
-        {/* ── At-limit banner ────────────────────────────────────────────── */}
+        {/* -- At-limit banner ---------------------------------------------- */}
         {atLimit && (
           <div style={{
             padding: '12px 16px',
@@ -372,7 +372,7 @@ export default function TrackerPage() {
           </div>
         )}
 
-        {/* ── Log form ───────────────────────────────────────────────────── */}
+        {/* -- Log form ----------------------------------------------------- */}
         {showLogForm && (
           <div style={{ ...card, marginBottom: '20px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '14px' }}>
@@ -446,7 +446,7 @@ export default function TrackerPage() {
           </div>
         )}
 
-        {/* ── Stats bar ──────────────────────────────────────────────────── */}
+        {/* -- Stats bar ---------------------------------------------------- */}
         {!loading && applications.length > 0 && (
           <div className="tracker-stats-grid">
             {[
@@ -463,7 +463,7 @@ export default function TrackerPage() {
           </div>
         )}
 
-        {/* ── Loading ────────────────────────────────────────────────────── */}
+        {/* -- Loading ------------------------------------------------------ */}
         {loading && (
           <div style={{ ...card }}>
             {[1, 2, 3].map(i => (
@@ -481,7 +481,7 @@ export default function TrackerPage() {
           </div>
         )}
 
-        {/* ── Error ──────────────────────────────────────────────────────── */}
+        {/* -- Error -------------------------------------------------------- */}
         {error && (
           <div style={{
             padding: '16px',
@@ -495,7 +495,7 @@ export default function TrackerPage() {
           </div>
         )}
 
-        {/* ── Empty state ────────────────────────────────────────────────── */}
+        {/* -- Empty state -------------------------------------------------- */}
         {!loading && !error && applications.length === 0 && (
           <div style={{
             ...card,
@@ -514,7 +514,7 @@ export default function TrackerPage() {
           </div>
         )}
 
-        {/* ── Row-level error ────────────────────────────────────────────── */}
+        {/* -- Row-level error ---------------------------------------------- */}
         {rowError && (
           <div style={{
             padding: '10px 14px',
@@ -529,7 +529,7 @@ export default function TrackerPage() {
           </div>
         )}
 
-        {/* ── Table ──────────────────────────────────────────────────────── */}
+        {/* -- Table -------------------------------------------------------- */}
         {!loading && applications.length > 0 && (
           <div className="tracker-table-wrapper" style={{ ...card, padding: 0 }}>
             {/* columns: company(flex) | role(flex) | status(100px) | since(52px) | ats(52px) | delete(32px) */}
@@ -589,7 +589,7 @@ export default function TrackerPage() {
                     {row.role}
                   </div>
 
-                  {/* Status badge — click opens portal dropdown */}
+                  {/* Status badge - click opens portal dropdown */}
                   <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                     <button
                       onClick={(e) => {
@@ -628,7 +628,7 @@ export default function TrackerPage() {
                     </button>
                   </div>
 
-                  {/* Portal dropdown — renders outside the table DOM to avoid overflow clipping */}
+                  {/* Portal dropdown - renders outside the table DOM to avoid overflow clipping */}
                   {dropdownPos && openStatusId === row.id && createPortal(
                     <div
                       ref={dropdownPortalRef}
@@ -670,12 +670,12 @@ export default function TrackerPage() {
                     document.body
                   )}
 
-                  {/* Days since — centered */}
+                  {/* Days since - centered */}
                   <div className="tracker-table-col-since" style={{ fontSize: '13px', color: 'var(--muted)', fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}>
                     {daysSince(row.applied_date)}
                   </div>
 
-                  {/* ATS score — centered */}
+                  {/* ATS score - centered */}
                   <div style={{
                     fontSize: '13px',
                     fontWeight: 600,
@@ -687,10 +687,10 @@ export default function TrackerPage() {
                       : '#ef4444'
                       : 'var(--muted)',
                   }}>
-                    {row.overall_score !== null ? row.overall_score : '—'}
+                    {row.overall_score !== null ? row.overall_score : '-'}
                   </div>
 
-                  {/* Delete — right-aligned */}
+                  {/* Delete - right-aligned */}
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(row.id) }}

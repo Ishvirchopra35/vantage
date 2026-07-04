@@ -77,13 +77,13 @@ export async function POST(request: Request): Promise<Response> {
   - end_date (string, "YYYY-MM" format, or null if current)
   - current (boolean)
   - location (string)
-  - bullets (array of strings — the bullet points / responsibilities)
+  - bullets (array of strings - the bullet points / responsibilities)
 - projects: array of projects, each with:
   - name (string)
   - description (string, one sentence)
   - url (string or null)
   - tech_stack (array of strings)
-  - bullets (array of strings — key accomplishments)
+  - bullets (array of strings - key accomplishments)
 
 Return the full profile as one JSON object including all of these fields.
 
@@ -102,7 +102,7 @@ ${rawText}`
     return serverError(e)
   }
 
-  // Build upsert payload — only include non-null/non-empty parsed fields
+  // Build upsert payload - only include non-null/non-empty parsed fields
   // so we never overwrite existing profile data with nulls
   const upsertPayload: Record<string, unknown> = { id: user.id }
   if (parsed.full_name) upsertPayload.full_name = parsed.full_name

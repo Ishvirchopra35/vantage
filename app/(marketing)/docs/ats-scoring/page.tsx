@@ -45,8 +45,8 @@ export default function AtsScoringPage() {
         <section style={section}>
           <h2 style={h2}>How to interpret your score</h2>
           <ul style={ul}>
-            <li style={li}><strong style={strong}>0 – 49: Needs work.</strong> Significant gaps in keyword coverage or formatting. Tailoring will produce a large improvement.</li>
-            <li style={li}><strong style={strong}>50 – 74: Competitive.</strong> Reasonable match with room for optimization.</li>
+            <li style={li}><strong style={strong}>0 - 49: Needs work.</strong> Significant gaps in keyword coverage or formatting. Tailoring will produce a large improvement.</li>
+            <li style={li}><strong style={strong}>50 - 74: Competitive.</strong> Reasonable match with room for optimization.</li>
             <li style={li}><strong style={strong}>75+: Strong.</strong> Your resume is a strong ATS match. Focus on the application itself.</li>
           </ul>
         </section>
