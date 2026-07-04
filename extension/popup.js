@@ -245,12 +245,18 @@ async function handleFill() {
       // If the AI call fails, Tier 1 fills still stand - report those.
     }
 
+    // Known Workday limitation: the Websites "Add Another" button ignores
+    // programmatic clicks, so missing URL slots need a manual click + re-run
+    const websiteNote = direct?.websitesNeedManualAdd
+      ? ' Note: manually click "Add Another" in the Websites section and re-run to fill your portfolio and GitHub URLs.'
+      : '';
+
     if (totalFilled === 0 && direct?.error) {
       resultEl.innerHTML = '<div class="result-box result-error mt-8">Filling failed on this page: ' + escapeHtml(direct.error) + '</div>';
     } else if (totalFilled === 0) {
-      resultEl.innerHTML = '<div class="result-box result-info mt-8">No fillable fields matched your profile. Fields without data in your profile are left blank on purpose.</div>';
+      resultEl.innerHTML = `<div class="result-box result-info mt-8">No fillable fields matched your profile. Fields without data in your profile are left blank on purpose.${websiteNote}</div>`;
     } else {
-      resultEl.innerHTML = `<div class="result-box result-success mt-8">Filled ${totalFilled} field${totalFilled === 1 ? '' : 's'}. Unknown fields were left blank - review before submitting.</div>`;
+      resultEl.innerHTML = `<div class="result-box result-success mt-8">Fill complete: ${totalFilled} field${totalFilled === 1 ? '' : 's'}. Unknown fields were left blank - review before submitting.${websiteNote}</div>`;
     }
   } catch {
     resultEl.innerHTML = '<div class="result-box result-error mt-8">Unexpected error. Try again.</div>';

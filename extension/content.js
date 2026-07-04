@@ -141,14 +141,19 @@
       log('spinnerType: could not focus', describe(el));
       return false;
     }
+    // Select any existing content (including corrupt values from earlier
+    // attempts) so the typed digits replace it
+    el.select?.();
+    try { el.setSelectionRange?.(0, (el.value || '').length); } catch (_) { /* number-ish inputs */ }
     const digits = String(value).replace(/\D/g, '');
     for (const ch of digits) {
       const opts = { key: ch, code: `Digit${ch}`, keyCode: 48 + Number(ch), which: 48 + Number(ch), bubbles: true, cancelable: true };
       el.dispatchEvent(new KeyboardEvent('keydown', opts));
       el.dispatchEvent(new KeyboardEvent('keypress', opts));
       el.dispatchEvent(new KeyboardEvent('keyup', opts));
-      await sleep(rand(40, 80));
+      await sleep(50);
     }
+    el.dispatchEvent(new Event('change', { bubbles: true }));
     await sleep(150);
     const got = (el.value || '').replace(/\D/g, '');
     const landed = got === digits || got.endsWith(digits);
@@ -161,7 +166,9 @@
   // Returns true only if the value was actually set (rule 15: count real fills).
   async function setTextValue(el, value, platform) {
     if (!value || !isFillable(el) || filledEls.has(el)) return false;
-    if (hasExistingValue(el)) return false;
+    // Spinners are exempt from the keep-existing-value rule: a previous fill
+    // attempt can leave corrupt values ("0", "2000") that must be overwritten
+    if (hasExistingValue(el) && !(platform === 'workday' && isWorkdaySpinner(el))) return false;
     if (platform === 'workday') {
       const landed = isWorkdaySpinner(el)
         ? await workdaySpinnerType(el, value)
@@ -444,8 +451,9 @@
     let filled = 0;
 
     if (platform === 'workday') {
+      websitesNeedManualAdd = false;
       filled += await workdayDirectFill(kit, values);
-      return { filled, platform };
+      return { filled, platform, websitesNeedManualAdd };
     }
 
     // Text inputs
@@ -786,7 +794,10 @@
     if (!value) { log(name, ': no kit value - left blank'); return false; }
     if (filledEls.has(el)) { log(name, ': already filled this run'); return false; }
     if (!isFillable(el)) { log(name, ': not fillable (hidden/disabled)', describe(el)); return false; }
-    if (hasExistingValue(el)) { log(name, `: keeping existing value "${el.value}"`); return false; }
+    if (hasExistingValue(el)) {
+      if (!isWorkdaySpinner(el)) { log(name, `: keeping existing value "${el.value}"`); return false; }
+      log(name, `: overwriting spinner value "${el.value}"`);
+    }
     const okFill = await setTextValue(el, value, platform);
     log(name, okFill
       ? `: filled "${value}" → ${describe(el)}`
@@ -1145,34 +1156,50 @@
       el.getAttribute?.('role') === 'combobox';
   }
 
+  const WD_OPTION_SEL = '[data-automation-id="promptOption"], [data-automation-id="promptLeafNode"], [data-automation-id="multiSelectOption"], [role="option"]';
+
+  // Activate a multiselect widget: Workday only opens the suggestion dropdown
+  // if the multiSelectContainer itself is clicked before the input is focused.
+  async function activatePromptInput(input) {
+    const container = input.closest('[data-automation-id*="multiselect" i], [data-automation-id="multiSelectContainer"]');
+    if (container) {
+      simulateClick(container);
+      await sleep(200);
+    } else {
+      input.click();
+    }
+    input.focus();
+    await sleep(200);
+    if (document.activeElement !== input) {
+      input.focus();
+      await sleep(150);
+    }
+    return document.activeElement === input;
+  }
+
   // Type into a prompt input, wait for suggestions, click the match.
   // getInput is a getter - the input may be re-rendered while we work.
   async function fillWorkdayPrompt(name, getInput, text) {
     const input = getInput();
     if (!input || !text || filledEls.has(input)) return false;
-    input.click();
-    input.focus();
-    await sleep(250);
-    if (document.activeElement !== input) {
-      input.focus();
-      await sleep(150);
-    }
-    if (document.activeElement !== input) {
+    if (!(await activatePromptInput(input))) {
       log(name, ': could not focus prompt input', describe(input));
       return false;
     }
     document.execCommand('selectAll');
     document.execCommand('delete');
-    document.execCommand('insertText', false, text);
+    // Character-by-character so Workday's search fires per keystroke
+    for (const ch of String(text)) {
+      document.execCommand('insertText', false, ch);
+      await sleep(50);
+    }
 
     let match = null;
     let noItems = false;
     let lastOptions = [];
     for (let i = 0; i < 8 && !match && !noItems; i++) {
-      await sleep(i === 0 ? 1000 : 400);
-      lastOptions = Array.from(document.querySelectorAll(
-        '[data-automation-id="promptOption"], [data-automation-id="promptLeafNode"], [role="option"]'
-      ));
+      await sleep(i === 0 ? 800 : 400);
+      lastOptions = Array.from(document.querySelectorAll(WD_OPTION_SEL));
       noItems = lastOptions.some(o => /^no\s+items\.?$/i.test(o.textContent.trim()));
       if (noItems) break;
       const t = text.toLowerCase();
@@ -1298,10 +1325,9 @@
         break;
       }
 
-      input.click();
-      input.focus();
-      await sleep(250);
-      if (document.activeElement !== input) {
+      // Activate the multiselect (container click first), then type - Workday
+      // never opens the dropdown for an input that wasn't activated
+      if (!(await activatePromptInput(input))) {
         log(`skills: could not focus search input for "${skill}" - skipped`);
         continue;
       }
@@ -1309,7 +1335,11 @@
       document.execCommand('delete');
       // Partial query: some tenant taxonomies only match on prefixes - type the
       // first 3 characters and match the full skill against the suggestions
-      document.execCommand('insertText', false, skill.length > 3 ? skill.slice(0, 3) : skill);
+      const query = skill.length > 3 ? skill.slice(0, 3) : skill;
+      for (const ch of query) {
+        document.execCommand('insertText', false, ch);
+        await sleep(50);
+      }
 
       // Wait for the suggestion dropdown, then click the match. Workday shows a
       // literal "No Items." row when its taxonomy has no match - treat that as
@@ -1318,10 +1348,8 @@
       let lastOptions = [];
       let noItems = false;
       for (let i = 0; i < 8 && !match && !noItems; i++) {
-        await sleep(i === 0 ? 1000 : 400);
-        lastOptions = Array.from(document.querySelectorAll(
-          '[data-automation-id="promptOption"], [data-automation-id="promptLeafNode"], [role="option"]'
-        ));
+        await sleep(i === 0 ? 800 : 400);
+        lastOptions = Array.from(document.querySelectorAll(WD_OPTION_SEL));
         noItems = lastOptions.some(o => /^no\s+items\.?$/i.test(o.textContent.trim()));
         if (noItems) break;
         match = lastOptions.find(o => o.textContent.trim().toLowerCase() === skill.toLowerCase()) ||
@@ -1370,6 +1398,9 @@
   // LinkedIn is excluded when the page has a dedicated LinkedIn field (e.g.
   // socialNetworkAccounts--linkedInAccount) - that field already handles it.
   // Inputs are re-queried before every fill - Workday re-renders slots on blur.
+  // Set when slots are missing so the popup can tell the user to click Add.
+  let websitesNeedManualAdd = false;
+
   async function fillWorkdayWebsites(kit) {
     const urls = [];
     if (kit.linkedin) {
@@ -1404,6 +1435,7 @@
     const slotCount = section.querySelectorAll(anchor).length;
     if (!slotCount) {
       log('websites: no URL slots found - click Add on the Websites section manually, then re-run the fill');
+      websitesNeedManualAdd = true;
       return 0;
     }
     log(`websites: ${slotCount} existing slot(s) for ${urls.length} url(s) - filling without auto-add`);
@@ -1431,6 +1463,7 @@
         }
       }
       if (!target) {
+        websitesNeedManualAdd = true;
         log(`websites: no empty slot left for "${url}" (${inputs.length} slots total) - click Add manually and re-run for the rest`);
         break;
       }

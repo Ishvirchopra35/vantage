@@ -485,3 +485,18 @@ date: 2026-07-04
 type: Update
 title: Codebase-wide - replaced em/en/long dashes with regular hyphens
 - 57 files: replaced every em dash, en dash, figure dash, horizontal bar, minus sign (U+2212), and box-drawing dash (U+2500) with a regular "-" across all source, content, and config files (431 occurrences). Comments, log strings, UI copy, MDX content, and SQL affected; no functional changes. Extension harness re-verified: standard 20/20, custom tenant 14/14, restricted skills 3/3
+
+---
+date: 2026-07-04
+type: Fix
+title: Interview prep - tracker job dropdown was always empty
+- app/(dashboard)/interview/page.tsx: the dropdown was built from an embedded applications->jobs join whose error was silently ignored, and it filtered out every application without a joined job record - which excludes all manually-added tracker entries (job_id is null for those). Now loads applications without the embed (matching the /api/applications pattern), enriches titles/companies from the jobs table in a second query, includes manual tracker entries (they start sessions via the title/company payload the generate API already accepts), dedupes by job_id or company+role, surfaces the load error in the UI instead of swallowing it, and shows "No applications in your tracker yet" when the tracker is genuinely empty. Past-session rows no longer mis-match sessions with null job_id
+
+---
+date: 2026-07-04
+type: Fix
+title: Chrome extension - Workday spinner overwrite, multiselect activation, websites manual-add notice
+- extension/content.js: date spinbuttons are now exempt from the keep-existing-value rule - a previous fill attempt can leave corrupt values ("0", "2000") that were being skipped with "keeping existing value"; workdaySpinnerType now selects all existing content first, types each digit as keydown/keypress/keyup with a fixed 50ms gap, and fires a change event after the digits (logs "overwriting spinner value" when replacing)
+- extension/content.js: new activatePromptInput - Workday multiselects only open their suggestion dropdown after the multiSelectContainer itself is clicked, so both fillWorkdayPrompt (education school / field of study pattern) and the skills loop now click the container (pointer sequence), wait 200ms, focus the inner input, wait 200ms, type the query character by character with 50ms delays, then wait 800ms for server-side suggestions; option matching now also accepts data-automation-id="multiSelectOption" via a shared WD_OPTION_SEL selector
+- extension/content.js + extension/popup.js: websites - directFill now returns websitesNeedManualAdd (set when the section has no URL slots or URLs outnumber slots, since this tenant's Add button ignores programmatic clicks); the popup success message reads "Fill complete: N fields..." and appends "Note: manually click \"Add Another\" in the Websites section and re-run to fill your portfolio and GitHub URLs." only when the flag is set
+- harness (scratchpad): multiselects now require a container click (not an input click) before rendering suggestions - reproducing the "No Items." failure for the old interaction; custom scenario pre-corrupts panel 0's date spinners with 0/2000 and asserts they are overwritten to 01/2025, and has a single website slot asserting the manual-add flag; standard asserts the flag stays false when slots suffice. Standard 21/21, custom tenant 17/17, restricted skills 3/3
