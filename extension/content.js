@@ -129,7 +129,17 @@
       /dateSection(Month|Year)/i.test(el.getAttribute?.('data-automation-id') || '');
   }
 
+  // Three strategies, each verified via aria-valuenow/value before moving on:
+  //   A. native value set + input event (works when the widget reads e.target.value)
+  //   B. ArrowUp/ArrowDown stepping - the ARIA spinbutton pattern guarantees
+  //      arrow handling ("use right and left arrows..." per Workday's own help
+  //      text), and aria-valuenow gives exact feedback after every press
+  //   C. digit keydowns (some builds accept typed digits)
   async function workdaySpinnerType(el, value) {
+    const digits = String(value).replace(/\D/g, '');
+    const target = parseInt(digits, 10);
+    if (!digits || !Number.isFinite(target)) return false;
+
     el.click();
     el.focus();
     await sleep(150);
@@ -141,25 +151,70 @@
       log('spinnerType: could not focus', describe(el));
       return false;
     }
-    // Select any existing content (including corrupt values from earlier
-    // attempts) so the typed digits replace it
-    el.select?.();
-    try { el.setSelectionRange?.(0, (el.value || '').length); } catch (_) { /* number-ish inputs */ }
-    const digits = String(value).replace(/\D/g, '');
-    for (const ch of digits) {
-      const opts = { key: ch, code: `Digit${ch}`, keyCode: 48 + Number(ch), which: 48 + Number(ch), bubbles: true, cancelable: true };
-      el.dispatchEvent(new KeyboardEvent('keydown', opts));
-      el.dispatchEvent(new KeyboardEvent('keypress', opts));
-      el.dispatchEvent(new KeyboardEvent('keyup', opts));
-      await sleep(50);
-    }
-    el.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const readNum = () => {
+      const aria = el.getAttribute('aria-valuenow');
+      if (aria !== null && aria !== '' && Number.isFinite(Number(aria))) return Number(aria);
+      const v = parseInt((el.value || '').replace(/\D/g, ''), 10);
+      return Number.isFinite(v) ? v : NaN;
+    };
+    const matches = () => readNum() === target;
+    let strategy = '';
+
+    // A: single-shot native value set
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (setter) setter.call(el, digits); else el.value = digits;
+    el.dispatchEvent(new InputEvent('beforeinput', { data: digits, inputType: 'insertText', bubbles: true, cancelable: true }));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
     await sleep(150);
-    const got = (el.value || '').replace(/\D/g, '');
-    const landed = got === digits || got.endsWith(digits);
+    if (matches()) strategy = 'native-set';
+
+    // B: arrow stepping against aria-valuenow
+    if (!strategy) {
+      const press = async key => {
+        const kc = key === 'ArrowUp' ? 38 : 40;
+        const opts = { key, code: key, keyCode: kc, which: kc, bubbles: true, cancelable: true };
+        el.dispatchEvent(new KeyboardEvent('keydown', opts));
+        el.dispatchEvent(new KeyboardEvent('keyup', opts));
+        await sleep(40);
+      };
+      let current = readNum();
+      if (!Number.isFinite(current)) {
+        await press('ArrowUp'); // empty spinner: first press seeds the widget's start value
+        current = readNum();
+      }
+      if (Number.isFinite(current) && current !== target && Math.abs(target - current) <= 60) {
+        let guard = 0;
+        while (current !== target && guard++ < 80) {
+          const before = current;
+          await press(current < target ? 'ArrowUp' : 'ArrowDown');
+          current = readNum();
+          if (!Number.isFinite(current) || current === before) break; // arrows have no effect
+        }
+      }
+      if (matches()) strategy = 'arrow-stepping';
+    }
+
+    // C: typed digits
+    if (!strategy) {
+      for (const ch of digits) {
+        const opts = { key: ch, code: `Digit${ch}`, keyCode: 48 + Number(ch), which: 48 + Number(ch), bubbles: true, cancelable: true };
+        el.dispatchEvent(new KeyboardEvent('keydown', opts));
+        el.dispatchEvent(new KeyboardEvent('keypress', opts));
+        el.dispatchEvent(new KeyboardEvent('keyup', opts));
+        await sleep(50);
+      }
+      await sleep(100);
+      if (matches()) strategy = 'digit-keys';
+    }
+
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    const landed = matches();
     el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
     await sleep(150);
-    if (!landed) log('spinnerType: expected digits', digits, 'but field shows', JSON.stringify(el.value), describe(el));
+    log('spinnerType:', landed
+      ? `set ${digits} via ${strategy}`
+      : `FAILED - wanted ${digits}, field shows "${el.value}" (aria-valuenow=${el.getAttribute('aria-valuenow')})`, describe(el));
     return landed;
   }
 
@@ -981,7 +1036,7 @@
   }
 
   function experienceAnchors(scope) {
-    const byId = Array.from(scope.querySelectorAll('input[data-automation-id="jobTitle"], input[data-automation-id*="jobtitle" i]'));
+    const byId = Array.from(scope.querySelectorAll('input[data-automation-id="jobTitle"], input[data-automation-id*="jobtitle" i], input[name="jobTitle"], input[id$="--jobTitle" i]'));
     if (byId.length) return byId;
     const byLabel = inputsByLabelIn(scope, /job\s*title/i);
     if (byLabel.length) logOnce('exp-label-anchors', 'experience: using label-based anchors - no jobTitle automation-id on this tenant');
@@ -989,7 +1044,7 @@
   }
 
   function educationAnchors(scope) {
-    const byId = Array.from(scope.querySelectorAll('input[data-automation-id="school"], input[data-automation-id="schoolName"], input[data-automation-id*="school" i]'));
+    const byId = Array.from(scope.querySelectorAll('input[data-automation-id="school"], input[data-automation-id="schoolName"], input[data-automation-id*="school" i], input[id$="--school" i]'));
     if (byId.length) return byId;
     const byLabel = inputsByLabelIn(scope, /school|university/i);
     if (byLabel.length) logOnce('edu-label-anchors', 'education: using label-based anchors - no school automation-id on this tenant');
@@ -1123,8 +1178,8 @@
       };
 
       if (await fillField(`experience[${i}].title`, anchors()[i] || null, exp.title)) filled++;
-      if (await fillField(`experience[${i}].company`, fieldEl('input[data-automation-id="company"]', /^company\b/i), exp.company)) filled++;
-      if (await fillField(`experience[${i}].location`, fieldEl('input[data-automation-id="location"]', /^location\b/i), exp.location)) filled++;
+      if (await fillField(`experience[${i}].company`, fieldEl('input[data-automation-id="company"], input[name="companyName"], input[name="company"]', /^company\b/i), exp.company)) filled++;
+      if (await fillField(`experience[${i}].location`, fieldEl('input[data-automation-id="location"], input[name="location"]', /^location\b/i), exp.location)) filled++;
 
       // Dates before the "currently work here" toggle - checking it removes the To field
       filled += await fillWorkdayDateIn(`experience[${i}]`, panel, 'start', /^from\b/i, toMonthYear(exp.start_date));
@@ -1158,6 +1213,14 @@
 
   const WD_OPTION_SEL = '[data-automation-id="promptOption"], [data-automation-id="promptLeafNode"], [data-automation-id="multiSelectOption"], [role="option"]';
 
+  // Workday's selectinput widgets only run the backend search when the typed
+  // query is committed with Enter - without it every query shows "No Items."
+  function pressEnter(el) {
+    const opts = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
+    el.dispatchEvent(new KeyboardEvent('keydown', opts));
+    el.dispatchEvent(new KeyboardEvent('keyup', opts));
+  }
+
   // Activate a multiselect widget: Workday only opens the suggestion dropdown
   // if the multiSelectContainer itself is clicked before the input is focused.
   async function activatePromptInput(input) {
@@ -1188,11 +1251,11 @@
     }
     document.execCommand('selectAll');
     document.execCommand('delete');
-    // Character-by-character so Workday's search fires per keystroke
     for (const ch of String(text)) {
       document.execCommand('insertText', false, ch);
       await sleep(50);
     }
+    pressEnter(input); // commit the query - this is what triggers the search
 
     let match = null;
     let noItems = false;
@@ -1340,6 +1403,7 @@
         document.execCommand('insertText', false, ch);
         await sleep(50);
       }
+      pressEnter(input); // commit the query - this is what triggers the search
 
       // Wait for the suggestion dropdown, then click the match. Workday shows a
       // literal "No Items." row when its taxonomy has no match - treat that as
