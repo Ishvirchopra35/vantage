@@ -36,14 +36,14 @@ type: Feature
 title: AI-powered form fill via Cerebras
 - app/api/extension/ai-fill/route.ts created: POST endpoint with token auth; accepts extracted form questions, builds user context via buildUserContext, calls generateJSONCerebras to generate field answers, returns { fields: [{ label, answer }] }
 - extension/content.js: added getLabel() for human-readable label extraction, fill() helper, extractFormQuestions() to scrape all form fields, fillWithAIAnswers() to match AI answers back to DOM elements (native inputs + custom comboboxes); updated message listener for EXTRACT_QUESTIONS and FILL_ANSWERS
-- extension/popup.js: rearchitected handleFill to use four-step flow — token validation, EXTRACT_QUESTIONS, POST ai-fill, FILL_ANSWERS; replaced sendFill with generic sendMessage helper
+- extension/popup.js: rearchitected handleFill to use four-step flow - token validation, EXTRACT_QUESTIONS, POST ai-fill, FILL_ANSWERS; replaced sendFill with generic sendMessage helper
 
 ---
 date: 2026-05-18
 type: Update
 title: .docx resume upload support + graduation year range fix
 - components/ResumeUpload.tsx: accept .pdf/.docx/.doc; validate by extension and MIME type; set correct content-type on Supabase storage upload; pass fileName to parse-resume; updated button label and error message
-- app/api/parse-resume/route.ts: branches on file extension / Content-Type header — uses mammoth for DOCX/DOC, pdf-parse for PDF; removed pageCount from response (not used downstream)
+- app/api/parse-resume/route.ts: branches on file extension / Content-Type header - uses mammoth for DOCX/DOC, pdf-parse for PDF; removed pageCount from response (not used downstream)
 - components/ProfileForm.tsx: graduation year range now 1970 to currentYear+7, generated dynamically, shown in descending order; default and sync logic updated from hardcoded 2026 to currentYear
 - new package: mammoth
 
@@ -185,7 +185,7 @@ summary: Personalized job feed powered by Adzuna API with AI relevance scoring a
 ---
 date: 2026-05-17
 type: Feature
-title: Strategy report — data-driven job search insights
+title: Strategy report - data-driven job search insights
 - app/api/strategy-feedback/route.ts created: GET endpoint with auth, rate limit (2/month), 15-app minimum gate, 5-app cache invalidation threshold, analytics from applications + ats_scores tables (response rate by role, ATS correlation by outcome, top 5 missing keywords), Groq AI generation, upsert to strategy_feedback table on user_id conflict
 - app/(dashboard)/strategy/page.tsx created: server component with locked state (progress bar, 15-app target) for insufficient data, unlocked state renders StrategyReport client component
 - app/(dashboard)/strategy/StrategyReport.tsx created: client component, fetches GET /api/strategy-feedback on mount, renders key insights cards, focus/avoid role badges, ATS correlation callout, numbered next steps, skill gap amber badges with Add to profile link, last-updated footer with Refresh button (?force=true)
@@ -204,7 +204,7 @@ title: Job feed "Tailor resume" pre-fill + secondary Groq key for job scoring
 ---
 date: 2026-05-17
 type: Feature
-title: Stripe billing — checkout, webhook, customer portal, and billing page
+title: Stripe billing - checkout, webhook, customer portal, and billing page
 - lib/stripe.ts created: singleton getStripe() helper, SERVER-SIDE ONLY
 - app/api/stripe/checkout/route.ts created: POST, requireAuth, creates Stripe Checkout Session (mode=subscription, success/cancel URLs, subscription_data.metadata.supabase_user_id)
 - app/api/stripe/webhook/route.ts created: POST, no auth (Stripe calls it), verifies signature via constructEvent, handles customer.subscription.created/updated (upsert plan=pro) and customer.subscription.deleted (plan=free, status=cancelled), returns 200 immediately
@@ -218,34 +218,34 @@ title: Stripe billing — checkout, webhook, customer portal, and billing page
 ---
 date: 2026-05-17
 type: Feature
-title: Networking — contact discovery, outreach message generation, and tracker
+title: Networking - contact discovery, outreach message generation, and tracker
 - app/api/find-contacts/route.ts created: POST { company, role?, jobId? }, requireAuth, checkLimit('networking'), 5/day hard cap via route_logs; scrapes LinkedIn via Jina.ai with authwall detection, falls back to Google site:linkedin.com/in search; generateJSON extracts up to 8 contacts; optional job-relevance scoring if jobId provided
 - app/api/generate-outreach/route.ts created: POST { contactName, contactTitle, contactCompany, messageType, contactLinkedinUrl?, jobId? }, requireAuth, checkLimit('networking'), buildUserContext + optional job context, generates connection_request (max 280 chars), cold_email (max 150 words), or follow_up (max 80 words) via Groq; saves to outreach_messages; tracks event
-- app/(dashboard)/networking/page.tsx created: 3-section client page — (1) Find Contacts: company+role search populates contact cards with pre-fill buttons; (2) Generate Message: contact fields + message type + optional job selector, editable textarea with char counter for connection_request, Copy and Save buttons; (3) Outreach Tracker: table of saved messages with sent toggle, Follow-up action (pre-fills section 2 as follow_up type), and Delete
+- app/(dashboard)/networking/page.tsx created: 3-section client page - (1) Find Contacts: company+role search populates contact cards with pre-fill buttons; (2) Generate Message: contact fields + message type + optional job selector, editable textarea with char counter for connection_request, Copy and Save buttons; (3) Outreach Tracker: table of saved messages with sent toggle, Follow-up action (pre-fills section 2 as follow_up type), and Delete
 - components/Sidebar.tsx updated: Networking added to NAV_ITEMS between Strategy and Profile
 
 ---
 date: 2026-05-17
 type: Fix
-title: Networking contact search — URL encoding, logging, and AI fallback
-- app/api/find-contacts/route.ts: encodeURIComponent the full target URL before appending to r.jina.ai/ so LinkedIn query strings are routed correctly; added console.error logging of Jina response length and first 500 chars for debugging; added CAPTCHA detection to isUsableMarkdown; AI fallback now fires when contacts array is empty (not just when markdown is empty) — generates 3 realistic AI-suggested contacts with ai_generated:true; job-relevance scoring skipped for ai_generated source
+title: Networking contact search - URL encoding, logging, and AI fallback
+- app/api/find-contacts/route.ts: encodeURIComponent the full target URL before appending to r.jina.ai/ so LinkedIn query strings are routed correctly; added console.error logging of Jina response length and first 500 chars for debugging; added CAPTCHA detection to isUsableMarkdown; AI fallback now fires when contacts array is empty (not just when markdown is empty) - generates 3 realistic AI-suggested contacts with ai_generated:true; job-relevance scoring skipped for ai_generated source
 - app/(dashboard)/networking/page.tsx: Contact interface gains ai_generated field; contactSource state tracks the search source from the API; ContactCard shows "AI suggested · verify manually" amber badge when ai_generated is true; amber disclaimer banner shown above contact cards when source is ai_generated
 
 ---
 date: 2026-05-17
 type: Feature
 title: Cerebras AI for interview prep + full UI restyle
-- lib/ai.ts: added generateTextCerebras and generateJSONCerebras using Cerebras OpenAI-compatible API (https://api.cerebras.ai/v1, model gpt-oss-120b) — separate rate limit from Groq
+- lib/ai.ts: added generateTextCerebras and generateJSONCerebras using Cerebras OpenAI-compatible API (https://api.cerebras.ai/v1, model gpt-oss-120b) - separate rate limit from Groq
 - app/api/interview-prep/generate/route.ts: switched from generateJSON (Groq) to generateJSONCerebras; removed forceSecondary logic; fixed JSON prompt format to use explicit object template; typed result as InterviewQuestions instead of any
 - app/api/interview-prep/assess/route.ts: switched to generateJSONCerebras; fixed JSON prompt format; typed assessment as Assessment interface instead of any; simplified feedback keying (uses question text directly, consistent with client); removed qHash
-- app/(dashboard)/interview/page.tsx: full restyle — landing page with Start session card and past sessions table (Company/Date/Progress columns); practice session with pill category tabs, redesigned question cards (question left, buttons right), Voice/Type toggle pills, "I don't know" link, typed textarea, assessment grid with Strengths/Improve columns and filler word badges
+- app/(dashboard)/interview/page.tsx: full restyle - landing page with Start session card and past sessions table (Company/Date/Progress columns); practice session with pill category tabs, redesigned question cards (question left, buttons right), Voice/Type toggle pills, "I don't know" link, typed textarea, assessment grid with Strengths/Improve columns and filler word badges
 - .env.local: added CEREBRAS_API_KEY placeholder
 - new env var required: CEREBRAS_API_KEY
 ---
 date: 2026-05-17
 type: Feature
 title: Chrome Extension for job application auto-fill
-- extension/manifest.json: Manifest V3 extension — activeTab, storage, host_permissions for all URLs
+- extension/manifest.json: Manifest V3 extension - activeTab, storage, host_permissions for all URLs
 - extension/popup.html + popup.js: 280px popup with connect/main views; token saved to chrome.storage.local; fetches kit from /api/extension/kit; sends VANTAGE_FILL message to content script; shows filled count
 - extension/content.js: fillForm() with nativeSetter pattern (React/Vue/Angular compatible); queryShadow() for Workday Shadow DOM; dispatches input/change/blur events; matches first name, last name, full name, email, phone, LinkedIn, cover letter, and application questions; never auto-submits
 - extension/background.js: minimal service worker
@@ -261,7 +261,7 @@ title: Chrome Extension for job application auto-fill
 ---
 date: 2026-05-17
 type: Update
-title: Extension — custom div-based dropdown handler for Greenhouse and Lever
+title: Extension - custom div-based dropdown handler for Greenhouse and Lever
 - extension/content.js: added async fillCustomDropdowns(kit) that finds role="combobox"/role="listbox"/class*="select__control" and similar triggers; clicks to open, waits 300ms, finds role="option" elements, clicks the matching option; handles work authorization, sponsorship, non-compete, compensation, referral source, and location questions
 - extension/content.js: fillForm() converted to async, calls await fillCustomDropdowns(kit) after the Greenhouse second pass, returns { filled } object instead of a bare number
 - extension/content.js: chrome.runtime.onMessage listener updated to return true and resolve with fillForm().then(sendResponse) so the async response is delivered correctly
@@ -269,25 +269,25 @@ title: Extension — custom div-based dropdown handler for Greenhouse and Lever
 ---
 date: 2026-05-17
 type: Fix
-title: Extension — fix dropdown bleeding and Lever location select
+title: Extension - fix dropdown bleeding and Lever location select
 - extension/content.js fillCustomDropdowns: skips triggers inside phone fields (country-code pickers) via container querySelector for tel/phone inputs
 - extension/content.js fillCustomDropdowns: dispatches Escape + 150ms pause before each trigger click to close any previously open panel
 - extension/content.js fillCustomDropdowns: wait increased from 300ms to 500ms after opening a trigger before searching for options
 - extension/content.js fillCustomDropdowns: option search scoped to the open panel (select__menu/dropdown-menu/listbox/SelectMenu) instead of document.body, preventing 244 country options from bleeding across all dropdowns
 - extension/content.js fillCustomDropdowns: after clicking a matching option, waits 400ms then dispatches Escape to cleanly close the panel
-- extension/content.js fillCustomDropdowns: Lever native-select second pass added at end of function — queries all document selects, matches label containing "location"/"where", fills via value + change event
+- extension/content.js fillCustomDropdowns: Lever native-select second pass added at end of function - queries all document selects, matches label containing "location"/"where", fills via value + change event
 
 ---
 date: 2026-05-18
 type: Fix
-title: Extension — phone dropdown filter, proximity panel detection, and open-ended question fill
-- extension/content.js fillCustomDropdowns: phone/country skip now checks trigger className and aria-label for "phone"/"country"/"flag" in addition to container tel input — catches dropdowns where the phone field is not a sibling
-- extension/content.js fillCustomDropdowns: adds options.length > 50 guard after panel opens — dispatches Escape and skips when the open panel is a country/state list
-- extension/content.js fillCustomDropdowns: open panel detection replaced with proximity-based search — finds allPanels, picks the one whose top is within 200px of the trigger's bottom, falls back to last panel; prevents a distant open panel from being used for the wrong trigger
-- extension/content.js textarea loop: open-ended question fill added — if no cover letter key matches, checks label for "excites you", "career goals", "why do you want", "why are you interested", "tell us about yourself", "what would you contribute", "long-term", "passion", "motivated" and fills from kit.applicationQuestions.excited or .goals
+title: Extension - phone dropdown filter, proximity panel detection, and open-ended question fill
+- extension/content.js fillCustomDropdowns: phone/country skip now checks trigger className and aria-label for "phone"/"country"/"flag" in addition to container tel input - catches dropdowns where the phone field is not a sibling
+- extension/content.js fillCustomDropdowns: adds options.length > 50 guard after panel opens - dispatches Escape and skips when the open panel is a country/state list
+- extension/content.js fillCustomDropdowns: open panel detection replaced with proximity-based search - finds allPanels, picks the one whose top is within 200px of the trigger's bottom, falls back to last panel; prevents a distant open panel from being used for the wrong trigger
+- extension/content.js textarea loop: open-ended question fill added - if no cover letter key matches, checks label for "excites you", "career goals", "why do you want", "why are you interested", "tell us about yourself", "what would you contribute", "long-term", "passion", "motivated" and fills from kit.applicationQuestions.excited or .goals
 - app/api/extension/kit/route.ts: Kit interface gains applicationQuestions field
 - app/api/extension/kit/route.ts: job query updated to select title, company, key_responsibilities, company_description
-- app/api/extension/kit/route.ts: after fetching cover letter and saved questions, generates applicationQuestions via generateJSON with 15s timeout — excited, goals, why_company, contribution — non-critical, fails silently
+- app/api/extension/kit/route.ts: after fetching cover letter and saved questions, generates applicationQuestions via generateJSON with 15s timeout - excited, goals, why_company, contribution - non-critical, fails silently
 
 ---
 date: 2026-05-22
@@ -298,7 +298,7 @@ title: parse-profile extracts work experience and projects from resume
 ---
 date: 2026-05-22
 type: Feature
-title: Experience section on profile page — editable cards with inline save
+title: Experience section on profile page - editable cards with inline save
 - components/ProfileForm.tsx: WorkExperience interface exported; experience state initialized from profile; Experience section added below Target Roles with per-entry dark cards (title, company, start/end date, current-role checkbox, location, bullet list with add/remove); experience included in handleSubmit and handleUploadComplete sync
 - app/(dashboard)/actions.ts: Profile interface gains experience field; updateProfile upsert includes experience
 - app/(dashboard)/profile/page.tsx: select query includes experience column
@@ -306,7 +306,7 @@ title: Experience section on profile page — editable cards with inline save
 ---
 date: 2026-05-22
 type: Feature
-title: Projects section on profile page — editable cards with tag-based tech stack
+title: Projects section on profile page - editable cards with tag-based tech stack
 - components/ProfileForm.tsx: Project interface exported; projects state + per-card projectTechInputs state; Projects section added below Experience with per-entry dark cards (name, URL, description, tech stack tag input matching skills UX, bullet list with add/remove, × delete); projects included in handleSubmit and handleUploadComplete sync
 - app/(dashboard)/actions.ts: Profile interface gains projects field; updateProfile upsert includes projects
 - app/(dashboard)/profile/page.tsx: select query includes projects column
@@ -325,7 +325,7 @@ title: Experience and projects injected into all AI prompts
 ---
 date: 2026-05-22
 type: Fix
-title: PDF generation — no browser headers, HTML-preserved formatting, 1-page layout
+title: PDF generation - no browser headers, HTML-preserved formatting, 1-page layout
 - app/api/parse-resume/route.ts: after text extraction, calls Groq to convert resume to structured HTML (h1 name, h2 sections, ul/li bullets, a href links, strong/em); extractBodyContent() strips any accidental html/head/body wrappers; HTML saved to profiles.resume_html; response includes resumeHtml field
 - app/api/tailor-resume/route.ts: parallel fetch adds profiles.resume_html; when HTML is available, uses surgical HTML update prompt (only modifies li text and summary, preserves all tags/hrefs/structure, SKILL_GAPS appended after HTML); falls back to text generation when HTML is absent
 - app/(dashboard)/tailor/page.tsx: downloadAsPDF injects @page { margin: 0 } + body { margin: 0.5in 0.6in } to suppress browser print headers; renders HTML content directly when body is HTML, wraps plain text in pre; isHtmlContent() and stripHtml() helpers added; copyToClipboard strips HTML tags for plain-text paste; resume preview uses dangerouslySetInnerHTML for HTML content, pre for text
@@ -334,9 +334,9 @@ title: PDF generation — no browser headers, HTML-preserved formatting, 1-page 
 ---
 date: 2026-05-22
 type: Feature
-title: Cover letter — proper letter format + personal template support
-- app/api/generate-cover-letter/route.ts: parallel fetch adds profiles (full_name, phone, email, linkedin_url, portfolio_url, cover_letter_template); builds letterHeader from profile contact info + today's date; two prompt paths — if cover_letter_template exists, adapts template keeping user's voice; else generates full letter with header/date/Dear/3-4 paragraphs/Sincerely block; key_responsibilities added to job select; output token limit raised to 1500
-- components/ProfileForm.tsx: cover_letter_template added to Profile interface, state, useEffect sync, handleSubmit payload; Cover Letter Template section added before Save button — labeled textarea with placeholder hints, {company}/{role}/{hiring_manager} placeholder guide in helper text, Clear template button
+title: Cover letter - proper letter format + personal template support
+- app/api/generate-cover-letter/route.ts: parallel fetch adds profiles (full_name, phone, email, linkedin_url, portfolio_url, cover_letter_template); builds letterHeader from profile contact info + today's date; two prompt paths - if cover_letter_template exists, adapts template keeping user's voice; else generates full letter with header/date/Dear/3-4 paragraphs/Sincerely block; key_responsibilities added to job select; output token limit raised to 1500
+- components/ProfileForm.tsx: cover_letter_template added to Profile interface, state, useEffect sync, handleSubmit payload; Cover Letter Template section added before Save button - labeled textarea with placeholder hints, {company}/{role}/{hiring_manager} placeholder guide in helper text, Clear template button
 - app/(dashboard)/actions.ts: Profile interface and upsert include cover_letter_template
 - app/(dashboard)/profile/page.tsx: select query includes cover_letter_template
 - new DB column required: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS cover_letter_template text;
@@ -344,7 +344,7 @@ title: Cover letter — proper letter format + personal template support
 ---
 date: 2026-05-22
 type: Feature
-title: Puppeteer PDF generation — pixel-perfect server-side resume PDF via Chromium
+title: Puppeteer PDF generation - pixel-perfect server-side resume PDF via Chromium
 - lib/generatePdf.ts created: generateResumeBuffer(htmlBody) uses @sparticuz/chromium-min + puppeteer-core to render HTML to a Letter-format PDF; CHROMIUM_EXECUTABLE_PATH env var selects local Chrome path (dev) or CDN tarball URL (prod); RESUME_CSS template uses Times New Roman 10.5pt, h1/h2/h3 hierarchy, ul/li with correct indentation, real a href links; returns null gracefully when env var is unset
 - app/api/tailor-resume/route.ts: export const maxDuration = 120; after saving document, calls generateResumeBuffer when content is HTML; uploads PDF buffer to Supabase Storage bucket pdfs at tailored-resumes/{userId}/{docId}.pdf; stores public URL in documents.pdf_url via update; returns pdfUrl in response
 - app/api/parse-resume/route.ts: for non-DOCX uploads, stores fileUrl in profiles.resume_pdf_path alongside resume_html update
@@ -357,23 +357,23 @@ title: Puppeteer PDF generation — pixel-perfect server-side resume PDF via Chr
 date: 2026-05-22
 type: Fix
 title: Surgical tailor prompt + professional PDF CSS template
-- app/api/tailor-resume/route.ts: HTML path system prompt rewritten with 12 explicit absolute rules — only li text may change; section headings, name, contact info, job titles, company names, dates, href attributes all frozen; bullet count per section locked; 20-word bullet cap; filler phrases (demonstrating my ability to, showcasing my, leveraging my) banned; direct tone preserved
-- lib/generatePdf.ts: RESUME_CSS replaced — @page margin 0.55in 0.65in; body Arial/Helvetica 10.5px; h1/h2 Georgia serif (18px centered bold name, 11px uppercase section headings with 1px solid border); h1+p contact line 10px centered; ul padding-left 12px; li 10.5px line-height 1.4 margin 2px; a links black underline
+- app/api/tailor-resume/route.ts: HTML path system prompt rewritten with 12 explicit absolute rules - only li text may change; section headings, name, contact info, job titles, company names, dates, href attributes all frozen; bullet count per section locked; 20-word bullet cap; filler phrases (demonstrating my ability to, showcasing my, leveraging my) banned; direct tone preserved
+- lib/generatePdf.ts: RESUME_CSS replaced - @page margin 0.55in 0.65in; body Arial/Helvetica 10.5px; h1/h2 Georgia serif (18px centered bold name, 11px uppercase section headings with 1px solid border); h1+p contact line 10px centered; ul padding-left 12px; li 10.5px line-height 1.4 margin 2px; a links black underline
 
 ---
 date: 2026-05-22
 type: Fix
 title: Tailor metrics preservation + PDF bullet rendering + hyperlink retry
-- app/api/tailor-resume/route.ts: two new absolute rules added to HTML path prompt — rule 11 preserves all specific numbers, percentages, dollar amounts, and metrics verbatim; rule 12 requires every rewritten bullet to retain every quantitative fact from the original
-- lib/generatePdf.ts: CSS updated — list-style-type: disc on ul and li so bullets render as disc not plain text; ul margin: 0 padding-left: 18px; li margin: 2px 0 line-height: 1.4; p margin: 2px 0 font-size: 10.5px; h1 font-size 18px→16px; h2 margin tightened to 8px 0 3px; body line-height 1.4→1.3
+- app/api/tailor-resume/route.ts: two new absolute rules added to HTML path prompt - rule 11 preserves all specific numbers, percentages, dollar amounts, and metrics verbatim; rule 12 requires every rewritten bullet to retain every quantitative fact from the original
+- lib/generatePdf.ts: CSS updated - list-style-type: disc on ul and li so bullets render as disc not plain text; ul margin: 0 padding-left: 18px; li margin: 2px 0 line-height: 1.4; p margin: 2px 0 font-size: 10.5px; h1 font-size 18px→16px; h2 margin tightened to 8px 0 3px; body line-height 1.4→1.3
 - app/api/parse-resume/route.ts: after extractBodyContent, counts <a tags in output; if zero links found and profile has linkedin_url or github_url, reruns AI with an explicit prompt that hard-codes the exact href values in the contact line instruction; logs retry link count
 
 ---
 date: 2026-05-22
 type: Fix
 title: PDF spacing, bullet disc, metrics preservation, keyword stuffing, project link injection
-- lib/generatePdf.ts: h1 15px margin 0 0 2px; h2 10.5px bold uppercase border-bottom margin 6px 0 2px; p margin 1px 0; ul margin 0 padding-left 16px; li list-style-type disc margin 1px 0 line-height 1.35; body line-height 1.3 — all tightened to fit one page
-- app/api/tailor-resume/route.ts: rule 11 preserves all metrics verbatim including ~20% and R² notation; rule 12 requires every quantitative fact to survive the rewrite; rule 13 bans forcing keywords into unrelated bullets; rule 14 caps keywords at 1–2 per bullet
+- lib/generatePdf.ts: h1 15px margin 0 0 2px; h2 10.5px bold uppercase border-bottom margin 6px 0 2px; p margin 1px 0; ul margin 0 padding-left 16px; li list-style-type disc margin 1px 0 line-height 1.35; body line-height 1.3 - all tightened to fit one page
+- app/api/tailor-resume/route.ts: rule 11 preserves all metrics verbatim including ~20% and R² notation; rule 12 requires every quantitative fact to survive the rewrite; rule 13 bans forcing keywords into unrelated bullets; rule 14 caps keywords at 1-2 per bullet
 - app/api/parse-resume/route.ts: ProfileLinks gains projects field; profiles select includes projects; builds projectLinksBlock from projects where url is non-null; prompt injects PROJECT LINKS section with exact URLs; two new rules instruct AI to match project links by name and never fabricate URLs; retry path also injects project links block
 
 ---
@@ -381,30 +381,30 @@ date: 2026-05-25
 type: Fix
 title: PDF printBackground, spacing, and tailor tech stack preservation
 - lib/generatePdf.ts: printBackground changed false→true; -webkit-print-color-adjust and print-color-adjust: exact added to body; h2 margin tightened to 5px 0 2px; p margin changed to 0 0 2px; letter-spacing on h2 changed to 0.05em
-- app/api/tailor-resume/route.ts: rule 15 added — tech stack line under project headings must be preserved exactly, not removed or shortened
+- app/api/tailor-resume/route.ts: rule 15 added - tech stack line under project headings must be preserved exactly, not removed or shortened
 
 ---
 date: 2026-05-25
 type: Update
-title: Profile form — generic placeholders and month picker date inputs
+title: Profile form - generic placeholders and month picker date inputs
 - components/ProfileForm.tsx: skills placeholder changed to "e.g. Project Management, Data Analysis, Public Speaking"; target roles placeholder changed to "e.g. Marketing Manager, Financial Analyst, Product Designer"; experience job title placeholder changed from "Software Engineer" to "Account Manager"
 - components/ProfileForm.tsx: experience start_date and end_date inputs changed from type="text" to type="month"; styled with background #1a1a1a, border 1px solid #2a2a2a, color #f2f2f2, borderRadius 6px, padding 8px 12px, colorScheme dark; end_date remains disabled and cleared when Current role is checked
 
 ---
 date: 2026-05-25
 type: Fix
-title: Networking — inline delete confirmation, remove AI-generated contact fallback
+title: Networking - inline delete confirmation, remove AI-generated contact fallback
 - app/api/find-contacts/route.ts: removed generateFallbackContacts AI fallback entirely; removed ai_generated field from Contact interface; search now cascades LinkedIn via Jina → Google via Jina only; AI extraction prompt explicitly forbids fabricating contacts; returns empty array when no real contacts found
 - app/(dashboard)/networking/page.tsx: removed ai_generated field from Contact interface; removed AI-suggested amber banner; removed AI badge from ContactCard; replaced window.confirm delete dialog with inline "Delete? Yes / Cancel" confirmation using confirmingDeleteId state
 
 ---
 date: 2026-05-25
 type: Update
-title: Networking — Apollo People Search replaces Jina/AI contact scraping
+title: Networking - Apollo People Search replaces Jina/AI contact scraping
 - app/api/find-contacts/route.ts: replaced Jina + AI extraction pipeline with a direct POST to Apollo api/v1/mixed_people/api_search; sends person_titles array (recruiter, talent acquisition, technical recruiter, hiring manager, engineering manager, hr manager, + optional role param) and q_organization_name; maps response to { id, name (first_name + last_name_obfuscated), title, company, linkedin (search URL), hasEmail, source: 'apollo' }; returns { contacts, total, message }; removed Jina fetch, generateJSON, buildUserContext, and all scraping logic
-- app/(dashboard)/networking/page.tsx: Contact interface updated to Apollo shape (id, linkedin, hasEmail, source); ContactCard updated — "Search on LinkedIn ↗" link always shown (search URL), "Has email on file" greyed badge with tooltip shown when hasEmail is true; prefillFromContact uses contact.linkedin instead of contact.linkedin_url
+- app/(dashboard)/networking/page.tsx: Contact interface updated to Apollo shape (id, linkedin, hasEmail, source); ContactCard updated - "Search on LinkedIn ↗" link always shown (search URL), "Has email on file" greyed badge with tooltip shown when hasEmail is true; prefillFromContact uses contact.linkedin instead of contact.linkedin_url
 - .env.local: APOLLO_API_KEY= placeholder added (fill in master key from app.apollo.io/settings/integrations/api)
-- new env var required: APOLLO_API_KEY (master key — the people search endpoint requires it)
+- new env var required: APOLLO_API_KEY (master key - the people search endpoint requires it)
 
 ---
 date: 2026-06-09
@@ -415,9 +415,9 @@ title: Cerebras model updated to gpt-oss-120b
 ---
 date: 2026-07-01
 type: Update
-title: Chrome extension auto-fill overhauled — two-tier fill, zero hallucination policy
+title: Chrome extension auto-fill overhauled - two-tier fill, zero hallucination policy
 - extension/content.js: complete rewrite. Platform detection (Workday / Greenhouse / Lever / generic); Tier 1 direct fill maps name, email, phone, LinkedIn, GitHub, portfolio, location, current company/title straight from the kit with priority-ordered field matching (name/id/automation-id → label → placeholder → aria-label); fields with no kit data are left blank, never guessed. Workday fills via execCommand character typing with 20-50ms delays and blur per field; Greenhouse uses nativeSetter + React Select menus with __remixContext option extraction and demographic dropdowns defaulted to "I don't wish to answer"; Lever fills name/org/urls[LinkedIn|GitHub|Portfolio], country select by name, label-click checkboxes, and only decline options in the #countrySurvey demographic pass. Removed hardcoded per-job Greenhouse question IDs, removed Lever survey fabricated defaults (age 21-29, Bachelor), removed pronoun "Use name only" default (pronouns now only fill if kit.pronouns is set). "How did you hear about us" always resolves to "Job Board" or stays blank. Consent checkboxes checked; demographic checkboxes never touched. Fill count reports only fields actually changed.
-- extension/popup.js: orchestrates the two-tier flow — DIRECT_FILL first (no AI), then EXTRACT_QUESTIONS (open-ended only), then /api/extension/ai-fill, then FILL_ANSWERS; total = sum of real fills; AI failure no longer discards Tier 1 fills; removed console logging
+- extension/popup.js: orchestrates the two-tier flow - DIRECT_FILL first (no AI), then EXTRACT_QUESTIONS (open-ended only), then /api/extension/ai-fill, then FILL_ANSWERS; total = sum of real fills; AI failure no longer discards Tier 1 fills; removed console logging
 - app/api/extension/ai-fill/route.ts: deterministic server guards resolve "how did you hear" (Job Board or null), demographics (decline option or null), and any Tier 1-shaped label (null) before the AI is called; rewritten system prompt forbids inventing companies/organizations/websites/referral sources and requires null for anything not in the profile; post-AI validation snaps dropdown answers to verbatim option text or drops them, and re-nulls demographic/Tier 1 answers; deterministic answers still returned if the AI call fails
 - app/api/extension/kit/route.ts: kit now includes skills[], education[] (derived from university + graduation_year), location (from optional profiles.location column, gracefully empty if the migration has not run), and pronouns: null; referralSource changed from "LinkedIn" to "Job Board"; removed the speculative Gemini call that generated generic application answers on every kit fetch; removed console.error debug logging
 - optional DB column: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS location text;
@@ -425,47 +425,63 @@ title: Chrome extension auto-fill overhauled — two-tier fill, zero hallucinati
 ---
 date: 2026-07-02
 type: Fix
-title: Chrome extension — kit unwrap bug caused 0-field fills (Workday and all platforms)
-- extension/popup.js: fixed the root cause of "No fillable fields matched your profile" — /api/extension/kit returns { kit } at the top level (ok() does not wrap responses in data), but the popup read kitData.data.kit, so the content script always received an empty kit and every Tier 1 value was blank; now reads kitData.kit with a data.kit fallback. Added an explicit error message when the profile kit is genuinely empty, and surfaced content-script fill errors instead of reporting them as "no fields matched"
-- extension/content.js: findWorkdayInputByLabel fixed — Workday labels carry data-automation-id="formLabel" so closest('[data-automation-id]') matched the label itself (which never contains the input); now resolves the label's for="" association first, then walks up to the formField container. fillWorkdayDropdown now polls up to 3s for async search results instead of a fixed 600ms wait, matches promptLeafNode options, and properly closes the popup on failure (Escape keydown+keyup + outside click) instead of leaving the "How did you hear about us" dropdown hanging open
+title: Chrome extension - kit unwrap bug caused 0-field fills (Workday and all platforms)
+- extension/popup.js: fixed the root cause of "No fillable fields matched your profile" - /api/extension/kit returns { kit } at the top level (ok() does not wrap responses in data), but the popup read kitData.data.kit, so the content script always received an empty kit and every Tier 1 value was blank; now reads kitData.kit with a data.kit fallback. Added an explicit error message when the profile kit is genuinely empty, and surfaced content-script fill errors instead of reporting them as "no fields matched"
+- extension/content.js: findWorkdayInputByLabel fixed - Workday labels carry data-automation-id="formLabel" so closest('[data-automation-id]') matched the label itself (which never contains the input); now resolves the label's for="" association first, then walks up to the formField container. fillWorkdayDropdown now polls up to 3s for async search results instead of a fixed 600ms wait, matches promptLeafNode options, and properly closes the popup on failure (Escape keydown+keyup + outside click) instead of leaving the "How did you hear about us" dropdown hanging open
 
 ---
 date: 2026-07-02
 type: Feature
-title: Chrome extension — Workday repeatable sections: Work Experience, Education, Skills, Websites with auto-expand
-- extension/content.js: workdayDirectFill previously only handled the six WORKDAY_FIELD_MAP fields plus the "how did you hear" dropdown — the My Experience page sections had no fill code at all, which is why expanded Work Experience/Education/Skills panels were ignored and only the dedicated LinkedIn field got a URL. Added: findWorkdaySectionEl (data-automation-id section lookup with heading-text fallback), findAddButton + ensureWorkdayEntries (clicks Add/Add Another until entry count matches kit data, polling up to 3s per click for the new panel to render), collectPanels (per-entry panel scoping so field i pairs with kit entry i). fillWorkdayExperience fills jobTitle/company/location/start–end month-year spinners/description (bullets joined) per panel, fills dates before toggling currentlyWorkHere since checking it removes the To field, caps at 5 entries. fillWorkdayEducation fills school + graduation year into the last year spinner, caps at 3; degree/field-of-study left blank (no kit data). fillWorkdaySkills types each kit skill into the multiselect prompt and clicks only real option matches, caps at 15, skips already-selected pills. fillWorkdayWebsites fills Websites 1..N inputs in order with portfolio/github (plus linkedin only when no dedicated LinkedIn field exists), deduping against URLs already on the page, auto-adding panels as needed. workdayTypeValue now inserts values over 60 chars in a single execCommand call so role descriptions don't take minutes
-- extension/popup.js: Workday fill progress label updated to reflect the longer 1–2 minute fill and warns to keep the popup open
+title: Chrome extension - Workday repeatable sections: Work Experience, Education, Skills, Websites with auto-expand
+- extension/content.js: workdayDirectFill previously only handled the six WORKDAY_FIELD_MAP fields plus the "how did you hear" dropdown - the My Experience page sections had no fill code at all, which is why expanded Work Experience/Education/Skills panels were ignored and only the dedicated LinkedIn field got a URL. Added: findWorkdaySectionEl (data-automation-id section lookup with heading-text fallback), findAddButton + ensureWorkdayEntries (clicks Add/Add Another until entry count matches kit data, polling up to 3s per click for the new panel to render), collectPanels (per-entry panel scoping so field i pairs with kit entry i). fillWorkdayExperience fills jobTitle/company/location/start-end month-year spinners/description (bullets joined) per panel, fills dates before toggling currentlyWorkHere since checking it removes the To field, caps at 5 entries. fillWorkdayEducation fills school + graduation year into the last year spinner, caps at 3; degree/field-of-study left blank (no kit data). fillWorkdaySkills types each kit skill into the multiselect prompt and clicks only real option matches, caps at 15, skips already-selected pills. fillWorkdayWebsites fills Websites 1..N inputs in order with portfolio/github (plus linkedin only when no dedicated LinkedIn field exists), deduping against URLs already on the page, auto-adding panels as needed. workdayTypeValue now inserts values over 60 chars in a single execCommand call so role descriptions don't take minutes
+- extension/popup.js: Workday fill progress label updated to reflect the longer 1-2 minute fill and warns to keep the popup open
 
 ---
 date: 2026-07-02
 type: Fix
-title: Chrome extension — Workday stale-element fills, skills tag selection, website slot mapping, full fill diagnostics
-- extension/content.js: root cause of sections not filling while simple fields worked — the WORKDAY_FIELD_MAP loop re-queries each element right before filling, but the section fillers captured panel/input references up front; Workday re-renders React subtrees on every blur (which our typing dispatches), detaching those references so focus() no-ops and execCommand typed into nothing while still being counted as filled. All section fillers (experience, education, skills, websites) now re-query the section, panel, and field fresh at each individual fill. workdayTypeValue now verifies the element is attached and actually holds focus before typing, and verifies the value stuck afterward — setTextValue no longer counts or marks fields whose value did not land
-- extension/content.js: skills rewritten as a strict tag loop — type one skill → poll up to 3.2s for the suggestion dropdown → click the matching suggestion → poll up to 2.4s until it registers as a tag → next skill; the search input is re-queried per skill (it detaches after each tag is added); skills with no suggestion are cleared and skipped
+title: Chrome extension - Workday stale-element fills, skills tag selection, website slot mapping, full fill diagnostics
+- extension/content.js: root cause of sections not filling while simple fields worked - the WORKDAY_FIELD_MAP loop re-queries each element right before filling, but the section fillers captured panel/input references up front; Workday re-renders React subtrees on every blur (which our typing dispatches), detaching those references so focus() no-ops and execCommand typed into nothing while still being counted as filled. All section fillers (experience, education, skills, websites) now re-query the section, panel, and field fresh at each individual fill. workdayTypeValue now verifies the element is attached and actually holds focus before typing, and verifies the value stuck afterward - setTextValue no longer counts or marks fields whose value did not land
+- extension/content.js: skills rewritten as a strict tag loop - type one skill → poll up to 3.2s for the suggestion dropdown → click the matching suggestion → poll up to 2.4s until it registers as a tag → next skill; the search input is re-queried per skill (it detaches after each tag is added); skills with no suggestion are cleared and skipped
 - extension/content.js: websites section fills one URL per slot in fixed order linkedin → portfolio → github, re-querying slot inputs before each fill, deduping against URLs already on the page, and auto-adding slots via Add Another when fewer slots than URLs
-- extension/content.js: DEBUG flag enabled with full fill diagnostics — logs kit fields with data, each section element found (or the page's actual data-automation-id values matching the section when lookup misses), panel count vs kit entries, and per field: the exact element targeted, the value tried, and whether it stuck or why it was skipped (not found / no kit value / hidden / existing value / focus stolen / value did not stick); collectPanels now prefers Workday's role="group" entry wrappers
+- extension/content.js: DEBUG flag enabled with full fill diagnostics - logs kit fields with data, each section element found (or the page's actual data-automation-id values matching the section when lookup misses), panel count vs kit entries, and per field: the exact element targeted, the value tried, and whether it stuck or why it was skipped (not found / no kit value / hidden / existing value / focus stolen / value did not stick); collectPanels now prefers Workday's role="group" entry wrappers
 
 ---
 date: 2026-07-04
 type: Fix
-title: Chrome extension — Workday multi-entry auto-add fixed; fill logic now verified by a DOM harness
-- extension/content.js: ensureWorkdayEntries held the section element across Add clicks — Workday replaces the whole section node when a panel is added, so the entry count was polled on the detached old subtree and every Add click after the first hit a detached button (its event never reaches the live DOM). It now takes a section getter and re-resolves the section and Add button fresh on every iteration, with per-click logging. This was the remaining cause of experience/websites sections getting at most one auto-added entry
+title: Chrome extension - Workday multi-entry auto-add fixed; fill logic now verified by a DOM harness
+- extension/content.js: ensureWorkdayEntries held the section element across Add clicks - Workday replaces the whole section node when a panel is added, so the entry count was polled on the detached old subtree and every Add click after the first hit a detached button (its event never reaches the live DOM). It now takes a section getter and re-resolves the section and Add button fresh on every iteration, with per-click logging. This was the remaining cause of experience/websites sections getting at most one auto-added entry
 - extension/content.js: skills tag verification now also accepts the clicked suggestion's text, not just the kit wording (tenants render "React" for a kit skill "React.js"), preventing false "did not register" reports
-- verification: built a jsdom harness (scratchpad, not committed) that loads the real content.js into a replica Workday My Experience page with hostile behaviors — blur re-renders replace field nodes, Add replaces the section node, skills only register via suggestion click and replace their search input, unknown skills get no suggestions, currently-work-here removes the end-date field. 19/19 assertions pass: 23 fields filled across experience (2 panels, one auto-added), education (auto-added), skills (2 tags, bogus skill skipped), websites (slots 1–3 = linkedin/portfolio/github), and a second run is a verified no-op (no duplicate panels, pills, or overwrites)
+- verification: built a jsdom harness (scratchpad, not committed) that loads the real content.js into a replica Workday My Experience page with hostile behaviors - blur re-renders replace field nodes, Add replaces the section node, skills only register via suggestion click and replace their search input, unknown skills get no suggestions, currently-work-here removes the end-date field. 19/19 assertions pass: 23 fields filled across experience (2 panels, one auto-added), education (auto-added), skills (2 tags, bogus skill skipped), websites (slots 1-3 = linkedin/portfolio/github), and a second run is a verified no-op (no duplicate panels, pills, or overwrites)
 
 ---
 date: 2026-07-04
 type: Fix
-title: Chrome extension — Workday Add-button pointer clicks, restricted skills early abort, LinkedIn/Websites dedupe
-- extension/content.js: new simulateClick helper — scrolls the element into view then dispatches the full pointerdown/mousedown/pointerup/mouseup/click sequence (Workday's React Add buttons ignore bare element.click()); ensureWorkdayEntries uses it, logs the Add button's outerHTML before clicking, waits up to 4s per click (500ms polls), and falls back to plain element.click() before giving up; findAddButton also scans shadow roots for Add buttons
-- extension/content.js: skills — Workday's literal "No Items." suggestion row is now detected as a definitive miss (stops polling immediately instead of waiting out the 3.2s timeout), and after 3 consecutive misses with zero successes the section aborts with "skills field uses a restricted list, manual entry required" instead of attempting all 15 kit skills against a taxonomy that rejects everything
-- extension/content.js: websites — LinkedIn is excluded from website slots whenever a dedicated LinkedIn field (e.g. socialNetworkAccounts--linkedInAccount) exists on the page, since that field is filled separately; slot order is portfolio → github in that case
+title: Chrome extension - Workday Add-button pointer clicks, restricted skills early abort, LinkedIn/Websites dedupe
+- extension/content.js: new simulateClick helper - scrolls the element into view then dispatches the full pointerdown/mousedown/pointerup/mouseup/click sequence (Workday's React Add buttons ignore bare element.click()); ensureWorkdayEntries uses it, logs the Add button's outerHTML before clicking, waits up to 4s per click (500ms polls), and falls back to plain element.click() before giving up; findAddButton also scans shadow roots for Add buttons
+- extension/content.js: skills - Workday's literal "No Items." suggestion row is now detected as a definitive miss (stops polling immediately instead of waiting out the 3.2s timeout), and after 3 consecutive misses with zero successes the section aborts with "skills field uses a restricted list, manual entry required" instead of attempting all 15 kit skills against a taxonomy that rejects everything
+- extension/content.js: websites - LinkedIn is excluded from website slots whenever a dedicated LinkedIn field (e.g. socialNetworkAccounts--linkedInAccount) exists on the page, since that field is filled separately; slot order is portfolio → github in that case
 - harness (scratchpad): Add buttons now ignore bare .click() and require the pointer sequence (reproduces the "Add click had no effect" log before the fix); unknown skills render a real "No Items." row; dedicated LinkedIn field uses the real automation-id; added a RESTRICTED_SKILLS scenario asserting zero tags, the abort message, and exactly 3 attempts for 6 kit skills. Main scenario 20/20, restricted scenario 3/3
 
 ---
 date: 2026-07-04
 type: Fix
-title: Chrome extension — Workday label-based field discovery for tenants without automation-ids, section DOM dumps
-- extension/content.js: root cause of "job-title inputs = 0 / school inputs = 0" with a section found — two failure modes fixed. (1) The heading-fallback section lookup returned the first ancestor containing an Add button, which is often the header ROW holding the button but none of the panels; it now walks up to 5 levels preferring the smallest ancestor that actually contains form fields (stopping at main/[role=main]), returning the Add-button container only for truly empty sections, where counts self-heal after the first add re-resolves. (2) Tenants that render experience/education panels with no data-automation-id at all are now handled by label-based discovery: inputsByLabelIn resolves fields from visible labels (for="" association → label's sibling container → bounded ancestor walk); anchors fall back to /job title/ and /school|university/ labels, per-field lookups fall back to /company/, /location/, /description/ labels, currentlyWorkHere falls back to the "currently work here" label, and dates fall back to the labelled From/To containers — filling month+year spinner pairs, two generic inputs, or a single combined MM/YYYY input, whichever the tenant renders. panelsFor groups anchors into role="group" wrappers or minimal unique ancestors; ensureWorkdayEntries now takes a count function
-- extension/content.js: diagnostics — each section now logs a field inventory (tag + automation-id/id/name/type/placeholder/aria-label for every input) and the first panel's outerHTML (15k cap); when 0 panels are found despite a section, the whole section's outerHTML is dumped so the tenant's real structure is readable straight from the console
-- harness (scratchpad): new CUSTOM_TENANT=1 scenario — experience/education with zero automation-ids, label-wired fields, Add button inside the header row, experience pre-expanded with 2 panels, education empty; 14/14 assertions pass (label fills, dates, checkbox, auto-add via header Add, grad year in "To (Actual or Expected)", degree untouched). Standard scenario 20/20, restricted skills 3/3
+title: Chrome extension - Workday label-based field discovery for tenants without automation-ids, section DOM dumps
+- extension/content.js: root cause of "job-title inputs = 0 / school inputs = 0" with a section found - two failure modes fixed. (1) The heading-fallback section lookup returned the first ancestor containing an Add button, which is often the header ROW holding the button but none of the panels; it now walks up to 5 levels preferring the smallest ancestor that actually contains form fields (stopping at main/[role=main]), returning the Add-button container only for truly empty sections, where counts self-heal after the first add re-resolves. (2) Tenants that render experience/education panels with no data-automation-id at all are now handled by label-based discovery: inputsByLabelIn resolves fields from visible labels (for="" association → label's sibling container → bounded ancestor walk); anchors fall back to /job title/ and /school|university/ labels, per-field lookups fall back to /company/, /location/, /description/ labels, currentlyWorkHere falls back to the "currently work here" label, and dates fall back to the labelled From/To containers - filling month+year spinner pairs, two generic inputs, or a single combined MM/YYYY input, whichever the tenant renders. panelsFor groups anchors into role="group" wrappers or minimal unique ancestors; ensureWorkdayEntries now takes a count function
+- extension/content.js: diagnostics - each section now logs a field inventory (tag + automation-id/id/name/type/placeholder/aria-label for every input) and the first panel's outerHTML (15k cap); when 0 panels are found despite a section, the whole section's outerHTML is dumped so the tenant's real structure is readable straight from the console
+- harness (scratchpad): new CUSTOM_TENANT=1 scenario - experience/education with zero automation-ids, label-wired fields, Add button inside the header row, experience pre-expanded with 2 panels, education empty; 14/14 assertions pass (label fills, dates, checkbox, auto-add via header Add, grad year in "To (Actual or Expected)", degree untouched). Standard scenario 20/20, restricted skills 3/3
+
+---
+date: 2026-07-04
+type: Fix
+title: Chrome extension - Workday spinner dates via keydown, multiselect school prompts, partial skill queries, websites fill-only
+- extension/content.js: date spinbuttons (role="spinbutton" / dateSectionMonth|Year automation-ids) build their value from keydown events - text insertion corrupted "2024" into "0004"; new workdaySpinnerType dispatches keydown/keypress/keyup per digit with human-like delays, verifies the digits landed, and setTextValue routes spinner elements to it automatically (all date fills across experience/education inherit the fix)
+- extension/content.js: education school on multiselect tenants (multiSelectContainer search input, placeholder="Search") is now filled as a prompt - new fillWorkdayPrompt types the school name, waits up to ~4s for suggestions, clicks the exact/contains match, and treats the "No Items." row as a definitive miss; isWorkdayPrompt routes between plain-input and prompt filling; education panels iterate in reverse and fill graduation year before school, since selecting a school consumes its search input and would shift anchor indices. Degree (button-listbox) and field of study stay blank - the kit has no degree/field-of-study data
+- extension/content.js: skills - types only the first 3 characters as the query (some tenant taxonomies need partial matches) with a 1000ms first wait, still matching suggestions against the full skill name; restricted-list abort message updated
+- extension/content.js: websites - no programmatic Add (this tenant's Websites Add button ignores synthetic clicks); fills however many slots the user pre-added, logs "no URL slots found - click Add manually, then re-run" when there are none, and "click Add manually and re-run for the rest" when URLs outnumber slots; LinkedIn still excluded when its dedicated field exists
+- harness (scratchpad): spinbutton mocks corrupt execCommand insertion into the reported "0004" and only build values from keydown digits (date assertions now prove the keydown path); custom-tenant education uses a multiselect school prompt with suggestion popup + pill replacement and a Select One degree button; websites pre-expanded with 2 slots and asserted no auto-add. Standard 20/20, custom tenant 14/14, restricted skills 3/3
+
+---
+date: 2026-07-04
+type: Update
+title: Codebase-wide - replaced em/en/long dashes with regular hyphens
+- 57 files: replaced every em dash, en dash, figure dash, horizontal bar, minus sign (U+2212), and box-drawing dash (U+2500) with a regular "-" across all source, content, and config files (431 occurrences). Comments, log strings, UI copy, MDX content, and SQL affected; no functional changes. Extension harness re-verified: standard 20/20, custom tenant 14/14, restricted skills 3/3

@@ -12,17 +12,17 @@
   if (window.__vantageFillLoaded) return;
   window.__vantageFillLoaded = true;
 
-  const DEBUG = true; // section-fill diagnostics — set false for release
+  const DEBUG = true; // section-fill diagnostics - set false for release
   function log(...args) {
     if (DEBUG) console.log('[Vantage]', ...args);
   }
 
-  // ── Utilities ────────────────────────────────────────────────────────────────
+  // -- Utilities ----------------------------------------------------------------
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const rand = (min, max) => min + Math.random() * (max - min);
 
-  // Elements we already filled this session — never double-fill or double-count.
+  // Elements we already filled this session - never double-fill or double-count.
   const filledEls = new WeakSet();
 
   function queryShadow(root, selector) {
@@ -49,7 +49,7 @@
     return !!(el.value && el.value !== el.placeholder);
   }
 
-  // ── Platform detection ───────────────────────────────────────────────────────
+  // -- Platform detection -------------------------------------------------------
 
   function detectPlatform() {
     const host = window.location.hostname;
@@ -60,7 +60,7 @@
     return 'generic';
   }
 
-  // ── Value setters ────────────────────────────────────────────────────────────
+  // -- Value setters ------------------------------------------------------------
 
   // nativeSetter pattern: direct .value= is silently ignored by React's fiber
   // reconciler, so we go through the prototype setter then dispatch events.
@@ -76,7 +76,7 @@
     el.dispatchEvent(new Event('blur', { bubbles: true }));
   }
 
-  // Workday detects and breaks on synthetic events — type character by
+  // Workday detects and breaks on synthetic events - type character by
   // character via execCommand with human-like delays instead.
   // Returns true only if the value verifiably landed in the element.
   async function workdayTypeValue(el, value) {
@@ -84,10 +84,10 @@
     el.focus();
     await sleep(300);
 
-    // Workday re-renders on interaction — a detached or unfocused element means
+    // Workday re-renders on interaction - a detached or unfocused element means
     // execCommand would type into the void (or the previously focused field)
     if (!el.isConnected) {
-      log('typeValue: element detached before typing —', describe(el));
+      log('typeValue: element detached before typing -', describe(el));
       return false;
     }
     if (document.activeElement !== el) {
@@ -95,7 +95,7 @@
       await sleep(150);
     }
     if (document.activeElement !== el) {
-      log('typeValue: could not focus', describe(el), '— active element is', describe(document.activeElement));
+      log('typeValue: could not focus', describe(el), '- active element is', describe(document.activeElement));
       return false;
     }
 
@@ -105,7 +105,7 @@
     await sleep(100);
     const text = String(value);
     if (text.length > 60) {
-      // Long text (e.g. role descriptions): one insert — still a real input event,
+      // Long text (e.g. role descriptions): one insert - still a real input event,
       // and char-by-char typing would take minutes
       document.execCommand('insertText', false, text);
     } else {
@@ -121,12 +121,51 @@
     return landed;
   }
 
+  // Workday date spinners (role="spinbutton") build their value from keydown
+  // events - text insertion corrupts them ("2024" becomes "0004"). Type each
+  // digit as a real key event instead.
+  function isWorkdaySpinner(el) {
+    return el.getAttribute?.('role') === 'spinbutton' ||
+      /dateSection(Month|Year)/i.test(el.getAttribute?.('data-automation-id') || '');
+  }
+
+  async function workdaySpinnerType(el, value) {
+    el.click();
+    el.focus();
+    await sleep(150);
+    if (document.activeElement !== el) {
+      el.focus();
+      await sleep(150);
+    }
+    if (document.activeElement !== el) {
+      log('spinnerType: could not focus', describe(el));
+      return false;
+    }
+    const digits = String(value).replace(/\D/g, '');
+    for (const ch of digits) {
+      const opts = { key: ch, code: `Digit${ch}`, keyCode: 48 + Number(ch), which: 48 + Number(ch), bubbles: true, cancelable: true };
+      el.dispatchEvent(new KeyboardEvent('keydown', opts));
+      el.dispatchEvent(new KeyboardEvent('keypress', opts));
+      el.dispatchEvent(new KeyboardEvent('keyup', opts));
+      await sleep(rand(40, 80));
+    }
+    await sleep(150);
+    const got = (el.value || '').replace(/\D/g, '');
+    const landed = got === digits || got.endsWith(digits);
+    el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+    await sleep(150);
+    if (!landed) log('spinnerType: expected digits', digits, 'but field shows', JSON.stringify(el.value), describe(el));
+    return landed;
+  }
+
   // Returns true only if the value was actually set (rule 15: count real fills).
   async function setTextValue(el, value, platform) {
     if (!value || !isFillable(el) || filledEls.has(el)) return false;
     if (hasExistingValue(el)) return false;
     if (platform === 'workday') {
-      const landed = await workdayTypeValue(el, value);
+      const landed = isWorkdaySpinner(el)
+        ? await workdaySpinnerType(el, value)
+        : await workdayTypeValue(el, value);
       await sleep(500); // Workday needs breathing room between fields
       if (!landed) return false; // don't count or mark fields that stayed empty
     } else {
@@ -160,7 +199,7 @@
 
   function clickCheckbox(cb) {
     if (!cb || cb.checked || cb.disabled || filledEls.has(cb)) return false;
-    // Click the wrapping label when present — Lever (and others) toggle via
+    // Click the wrapping label when present - Lever (and others) toggle via
     // CSS pseudo-elements on the label, not the input.
     const label = cb.closest('label');
     (label || cb).click();
@@ -211,9 +250,9 @@
     return true;
   }
 
-  // ── Label resolution ─────────────────────────────────────────────────────────
+  // -- Label resolution ---------------------------------------------------------
 
-  // Human-readable label (original case) — used for AI question extraction.
+  // Human-readable label (original case) - used for AI question extraction.
   function getReadableLabel(el) {
     if (el.id) {
       const labelEl = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
@@ -286,7 +325,7 @@
     return sources.map(s => s.toLowerCase().replace(/\s+/g, ' ').trim()).filter(Boolean);
   }
 
-  // ── Tier 1 field matching ────────────────────────────────────────────────────
+  // -- Tier 1 field matching ----------------------------------------------------
 
   // Order matters: more specific keys first so "first name" never hits fullName,
   // and "linkedin profile url" never hits portfolio's "website" pattern.
@@ -351,7 +390,7 @@
     };
   }
 
-  // ── Deterministic label classification ──────────────────────────────────────
+  // -- Deterministic label classification --------------------------------------
 
   const DEMOGRAPHIC_RE = /gender|ethnic|race\b|hispanic|latino|veteran|disab|sexual[\s_-]?orientation|transgender|pronoun|lgbtq|demographic/i;
   const HEAR_ABOUT_RE = /how[\s_-]?did[\s_-]?you[\s_-]?hear|how[\s_-]?did[\s_-]?you[\s_-]?(find|learn)[\s_-]?(out[\s_-]?)?about|hear[\s_-]?about[\s_-]?(us|this)|referral[\s_-]?source|\bsource\b.*\bapplication\b/i;
@@ -376,7 +415,7 @@
     return label.includes('?') || label.trim().split(/\s+/).length >= 5;
   }
 
-  // ── Date helpers (rule 13: MM/YYYY) ─────────────────────────────────────────
+  // -- Date helpers (rule 13: MM/YYYY) -----------------------------------------
 
   const MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
 
@@ -397,7 +436,7 @@
     return '';
   }
 
-  // ── Tier 1: direct fill ──────────────────────────────────────────────────────
+  // -- Tier 1: direct fill ------------------------------------------------------
 
   async function directFill(kit) {
     const platform = detectPlatform();
@@ -421,11 +460,11 @@
       if (await setTextValue(el, values[key], platform)) filled++;
     }
 
-    // Cover letter and saved (user-approved) answers into textareas — this is
+    // Cover letter and saved (user-approved) answers into textareas - this is
     // real user data from the kit, not AI generation.
     filled += fillSavedContent(kit);
 
-    // "How did you hear about us" — deterministic, never AI (rule 3)
+    // "How did you hear about us" - deterministic, never AI (rule 3)
     filled += fillHearAboutUs();
 
     // Consent checkboxes + "how did you hear" checkboxes
@@ -582,7 +621,7 @@
       }
     }
 
-    // "I currently work here" — only when the kit says so
+    // "I currently work here" - only when the kit says so
     if (exp0.current === true) {
       for (const cb of queryShadow(document, 'input[type="checkbox"]')) {
         if (cb.checked || cb.disabled) continue;
@@ -598,7 +637,7 @@
     return filled;
   }
 
-  // ── Workday direct fill ──────────────────────────────────────────────────────
+  // -- Workday direct fill ------------------------------------------------------
 
   const WORKDAY_FIELD_MAP = [
     { key: 'firstName', selectors: ['[data-automation-id="legalNameSection_firstName"]', '[data-automation-id="firstName"]'], labels: ['first name', 'given name'] },
@@ -618,7 +657,7 @@
       const text = label.textContent?.toLowerCase() || '';
       if (!text.includes(target) || text.length > 200) continue;
 
-      // Prefer the explicit for="" association — Workday labels are siblings
+      // Prefer the explicit for="" association - Workday labels are siblings
       // of their inputs, never ancestors, so closest()/descendant lookups miss.
       const forId = label.htmlFor || label.getAttribute('for');
       if (forId) {
@@ -655,7 +694,7 @@
     await sleep(500);
     document.execCommand('insertText', false, optionText.substring(0, 3));
 
-    // Options load from a search request — poll instead of a fixed wait
+    // Options load from a search request - poll instead of a fixed wait
     let match = null;
     for (let attempt = 0; attempt < 6 && !match; attempt++) {
       await sleep(500);
@@ -680,13 +719,13 @@
   async function workdayDirectFill(kit, values) {
     let filled = 0;
 
-    log('workday fill start — kit fields with data:',
+    log('workday fill start - kit fields with data:',
       Object.entries(values).filter(([, v]) => v).map(([k]) => k).join(', '));
 
     for (const { key, selectors, labels } of WORKDAY_FIELD_MAP) {
       const value = values[key];
       if (!value) {
-        log(`map.${key}: no kit value — skipped`);
+        log(`map.${key}: no kit value - skipped`);
         continue;
       }
 
@@ -721,7 +760,7 @@
     return filled;
   }
 
-  // ── Workday repeatable sections (My Experience page) ─────────────────────────
+  // -- Workday repeatable sections (My Experience page) -------------------------
 
   function describe(el) {
     if (!el) return '(null)';
@@ -729,7 +768,7 @@
     return `<${(el.tagName || '?').toLowerCase()}${aid ? ` data-automation-id="${aid}"` : ''}${el.id ? ` id="${el.id}"` : ''}>`;
   }
 
-  // What automation-ids ARE on the page — logged when a section lookup misses,
+  // What automation-ids ARE on the page - logged when a section lookup misses,
   // so the console shows what this tenant actually calls things.
   function automationIdsLike(re) {
     const ids = new Set();
@@ -744,7 +783,7 @@
   // and why it was skipped or whether the value stuck.
   async function fillField(name, el, value, platform = 'workday') {
     if (!el) { log(name, ': element not found'); return false; }
-    if (!value) { log(name, ': no kit value — left blank'); return false; }
+    if (!value) { log(name, ': no kit value - left blank'); return false; }
     if (filledEls.has(el)) { log(name, ': already filled this run'); return false; }
     if (!isFillable(el)) { log(name, ': not fillable (hidden/disabled)', describe(el)); return false; }
     if (hasExistingValue(el)) { log(name, `: keeping existing value "${el.value}"`); return false; }
@@ -762,7 +801,7 @@
     }
     // Fallback: locate the section heading, then the smallest ancestor that
     // actually contains form fields. Stopping at the first ancestor with an Add
-    // button returned the header ROW — which holds the button but none of the
+    // button returned the header ROW - which holds the button but none of the
     // panels, making every field count inside it read 0.
     for (const h of document.querySelectorAll('h1, h2, h3, h4, [role="heading"]')) {
       const text = (h.textContent || '').trim();
@@ -777,14 +816,14 @@
         if (!withAddButton && findAddButton(node)) withAddButton = node;
         node = node.parentElement;
       }
-      // Section with no entries yet has no fields — return the Add-button
+      // Section with no entries yet has no fields - return the Add-button
       // container so auto-add still works (counts re-resolve after each add)
       if (withAddButton) return withAddButton;
     }
     return null;
   }
 
-  // Workday's React buttons often ignore bare element.click() — they want the
+  // Workday's React buttons often ignore bare element.click() - they want the
   // real pointer sequence, and off-screen elements may not respond at all.
   function simulateClick(el) {
     try { el.scrollIntoView({ block: 'center' }); } catch (_) { /* jsdom/old browsers */ }
@@ -826,7 +865,7 @@
         log('ensureEntries: no Add button found in', describe(section));
         break;
       }
-      log(`ensureEntries: clicking Add (have ${current}, need ${needed}) — button:`, (btn.outerHTML || '').slice(0, 250));
+      log(`ensureEntries: clicking Add (have ${current}, need ${needed}) - button:`, (btn.outerHTML || '').slice(0, 250));
       simulateClick(btn);
       const before = current;
       for (let i = 0; i < 8 && count() <= before; i++) await sleep(500);
@@ -834,7 +873,7 @@
 
       if (current <= before) {
         // Fallback: some builds only respond to the plain click() path
-        log('ensureEntries: pointer-sequence click had no effect — retrying with element.click()');
+        log('ensureEntries: pointer-sequence click had no effect - retrying with element.click()');
         const freshBtn = getSection() ? findAddButton(getSection()) : null;
         if (freshBtn) {
           freshBtn.click();
@@ -843,7 +882,7 @@
         }
       }
       if (current <= before) {
-        log('ensureEntries: Add click had no effect — stopping. Button was:', (btn.outerHTML || '').slice(0, 300));
+        log('ensureEntries: Add click had no effect - stopping. Button was:', (btn.outerHTML || '').slice(0, 300));
         break;
       }
       await sleep(300);
@@ -864,7 +903,7 @@
     return `<${bits.join(' ')}>`;
   }
 
-  // Resolve inputs by their visible labels — for tenants whose panels carry no
+  // Resolve inputs by their visible labels - for tenants whose panels carry no
   // standard data-automation-id values. for="" association first, then the
   // label's sibling field container, then a bounded ancestor walk.
   function inputsByLabelIn(scope, labelRe) {
@@ -921,7 +960,7 @@
     });
   }
 
-  // Anchor discovery: standard automation-ids first, visible labels second —
+  // Anchor discovery: standard automation-ids first, visible labels second -
   // some tenants render these panels without any data-automation-id at all.
   const loggedOnce = new Set();
   function logOnce(key, ...args) {
@@ -934,7 +973,7 @@
     const byId = Array.from(scope.querySelectorAll('input[data-automation-id="jobTitle"], input[data-automation-id*="jobtitle" i]'));
     if (byId.length) return byId;
     const byLabel = inputsByLabelIn(scope, /job\s*title/i);
-    if (byLabel.length) logOnce('exp-label-anchors', 'experience: using label-based anchors — no jobTitle automation-id on this tenant');
+    if (byLabel.length) logOnce('exp-label-anchors', 'experience: using label-based anchors - no jobTitle automation-id on this tenant');
     return byLabel;
   }
 
@@ -942,7 +981,7 @@
     const byId = Array.from(scope.querySelectorAll('input[data-automation-id="school"], input[data-automation-id="schoolName"], input[data-automation-id*="school" i]'));
     if (byId.length) return byId;
     const byLabel = inputsByLabelIn(scope, /school|university/i);
-    if (byLabel.length) logOnce('edu-label-anchors', 'education: using label-based anchors — no school automation-id on this tenant');
+    if (byLabel.length) logOnce('edu-label-anchors', 'education: using label-based anchors - no school automation-id on this tenant');
     return byLabel;
   }
 
@@ -1030,12 +1069,12 @@
   }
 
   // Workday re-renders panels after every blur, so element references captured
-  // before a fill go stale — focus() on a detached node no-ops and typing lands
+  // before a fill go stale - focus() on a detached node no-ops and typing lands
   // nowhere. Every field lookup below is therefore done fresh, at fill time.
   async function fillWorkdayExperience(kit) {
     const experience = (Array.isArray(kit.experience) ? kit.experience : []).slice(0, 5);
     if (!experience.length) {
-      log('experience: no kit data — skipped');
+      log('experience: no kit data - skipped');
       return 0;
     }
 
@@ -1052,7 +1091,7 @@
 
     const panelCount = panelsFor(getScope(), anchors()).length;
     if (!panelCount) {
-      log('experience: 0 entry panels found — nothing filled.');
+      log('experience: 0 entry panels found - nothing filled.');
       if (section) log('experience: section outerHTML (first 15000 chars):', (section.outerHTML || '').slice(0, 15000));
       return 0;
     }
@@ -1076,7 +1115,7 @@
       if (await fillField(`experience[${i}].company`, fieldEl('input[data-automation-id="company"]', /^company\b/i), exp.company)) filled++;
       if (await fillField(`experience[${i}].location`, fieldEl('input[data-automation-id="location"]', /^location\b/i), exp.location)) filled++;
 
-      // Dates before the "currently work here" toggle — checking it removes the To field
+      // Dates before the "currently work here" toggle - checking it removes the To field
       filled += await fillWorkdayDateIn(`experience[${i}]`, panel, 'start', /^from\b/i, toMonthYear(exp.start_date));
       if (exp.current !== true) {
         filled += await fillWorkdayDateIn(`experience[${i}]`, panel, 'end', /^to\b/i, toMonthYear(exp.end_date));
@@ -1097,10 +1136,72 @@
     return filled;
   }
 
+  // Prompt-style field (multiSelectContainer search input): the typed text
+  // means nothing until a suggestion is clicked.
+  function isWorkdayPrompt(el) {
+    if (!el) return false;
+    return !!el.closest('[data-automation-id*="multiselect" i], [data-automation-id="multiSelectContainer"]') ||
+      (el.getAttribute?.('placeholder') || '').toLowerCase() === 'search' ||
+      el.getAttribute?.('role') === 'combobox';
+  }
+
+  // Type into a prompt input, wait for suggestions, click the match.
+  // getInput is a getter - the input may be re-rendered while we work.
+  async function fillWorkdayPrompt(name, getInput, text) {
+    const input = getInput();
+    if (!input || !text || filledEls.has(input)) return false;
+    input.click();
+    input.focus();
+    await sleep(250);
+    if (document.activeElement !== input) {
+      input.focus();
+      await sleep(150);
+    }
+    if (document.activeElement !== input) {
+      log(name, ': could not focus prompt input', describe(input));
+      return false;
+    }
+    document.execCommand('selectAll');
+    document.execCommand('delete');
+    document.execCommand('insertText', false, text);
+
+    let match = null;
+    let noItems = false;
+    let lastOptions = [];
+    for (let i = 0; i < 8 && !match && !noItems; i++) {
+      await sleep(i === 0 ? 1000 : 400);
+      lastOptions = Array.from(document.querySelectorAll(
+        '[data-automation-id="promptOption"], [data-automation-id="promptLeafNode"], [role="option"]'
+      ));
+      noItems = lastOptions.some(o => /^no\s+items\.?$/i.test(o.textContent.trim()));
+      if (noItems) break;
+      const t = text.toLowerCase();
+      match = lastOptions.find(o => o.textContent.trim().toLowerCase() === t) ||
+        lastOptions.find(o => o.textContent.trim().toLowerCase().includes(t)) ||
+        lastOptions.find(o => t.includes(o.textContent.trim().toLowerCase()) && o.textContent.trim().length > 3);
+    }
+
+    if (!match) {
+      log(name, `: no suggestion matched "${text}" -`,
+        noItems ? 'dropdown said "No Items."' : `${lastOptions.length} options shown`);
+      document.execCommand('selectAll');
+      document.execCommand('delete');
+      closeWorkdayPopup(getInput() || input);
+      return false;
+    }
+    log(name, `: selecting "${match.textContent.trim()}" for "${text}"`);
+    match.click();
+    await sleep(400);
+    filledEls.add(input);
+    const fresh = getInput();
+    if (fresh) filledEls.add(fresh);
+    return true;
+  }
+
   async function fillWorkdayEducation(kit) {
     const education = (Array.isArray(kit.education) ? kit.education : []).slice(0, 3);
     if (!education.length) {
-      log('education: no kit data — skipped');
+      log('education: no kit data - skipped');
       return 0;
     }
 
@@ -1117,7 +1218,7 @@
 
     const panelCount = panelsFor(getScope(), anchors()).length;
     if (!panelCount) {
-      log('education: 0 entry panels found — nothing filled.');
+      log('education: 0 entry panels found - nothing filled.');
       if (section) log('education: section outerHTML (first 15000 chars):', (section.outerHTML || '').slice(0, 15000));
       return 0;
     }
@@ -1127,13 +1228,13 @@
     log('education: panel[0] outerHTML (first 15000 chars):', (firstPanel.outerHTML || '').slice(0, 15000));
 
     let filled = 0;
-    for (let i = 0; i < panelCount && i < education.length; i++) {
+    // Reverse order: selecting a prompt-style school consumes its search input,
+    // which would shift anchor indices for the panels after it.
+    for (let i = Math.min(panelCount, education.length) - 1; i >= 0; i--) {
       const edu = education[i];
       const panel = () => panelsFor(getScope(), anchors())[i] || null;
 
-      if (await fillField(`education[${i}].school`, anchors()[i] || null, edu.school)) filled++;
-
-      // Graduation year → last year spinner, else the labelled To/graduation field
+      // Graduation year first - panel resolution needs the school anchor alive
       if (edu.graduation_year) {
         const years = panel()?.querySelectorAll(WD_YEAR) || [];
         let target = years[years.length - 1] || null;
@@ -1144,19 +1245,28 @@
         }
         if (await fillField(`education[${i}].gradYear`, target, String(edu.graduation_year))) filled++;
       }
-      // Degree / field of study: no kit data — left blank on purpose (the
-      // panel[0] dump above shows their identifiers if support is added later)
+
+      // School: plain text input on some tenants, a multiselect search prompt
+      // (type → suggestions → click) on others
+      const schoolEl = anchors()[i] || null;
+      if (isWorkdayPrompt(schoolEl)) {
+        if (await fillWorkdayPrompt(`education[${i}].school`, () => educationAnchors(getScope())[i] || null, edu.school)) filled++;
+      } else {
+        if (await fillField(`education[${i}].school`, schoolEl, edu.school)) filled++;
+      }
+      // Degree (button-listbox) / field of study (prompt): no kit data - left
+      // blank on purpose; the panel[0] dump shows their identifiers
     }
     return filled;
   }
 
-  // Skills is a tag/autocomplete input: typing alone registers nothing — the
+  // Skills is a tag/autocomplete input: typing alone registers nothing - the
   // suggestion must be clicked, and the tag must appear before moving on.
   // Skills the tenant's list doesn't offer are skipped, never invented.
   async function fillWorkdaySkills(kit) {
     const skills = (Array.isArray(kit.skills) ? kit.skills : []).filter(Boolean).slice(0, 15);
     if (!skills.length) {
-      log('skills: no kit data — skipped');
+      log('skills: no kit data - skipped');
       return 0;
     }
 
@@ -1176,15 +1286,15 @@
       const hasTag = () => (getSection()?.textContent || '').toLowerCase().includes(skill.toLowerCase());
 
       if (hasTag()) {
-        log(`skills: "${skill}" already added — skipped`);
+        log(`skills: "${skill}" already added - skipped`);
         continue;
       }
 
-      // Re-query the search input every time — Workday re-renders the
+      // Re-query the search input every time - Workday re-renders the
       // multiselect after each tag is added, detaching the old input
       const input = section.querySelector('input[type="text"], input:not([type])');
       if (!input || !isFillable(input)) {
-        log('skills: search input not found or not fillable —', describe(input));
+        log('skills: search input not found or not fillable -', describe(input));
         break;
       }
 
@@ -1192,21 +1302,23 @@
       input.focus();
       await sleep(250);
       if (document.activeElement !== input) {
-        log(`skills: could not focus search input for "${skill}" — skipped`);
+        log(`skills: could not focus search input for "${skill}" - skipped`);
         continue;
       }
       document.execCommand('selectAll');
       document.execCommand('delete');
-      document.execCommand('insertText', false, skill);
+      // Partial query: some tenant taxonomies only match on prefixes - type the
+      // first 3 characters and match the full skill against the suggestions
+      document.execCommand('insertText', false, skill.length > 3 ? skill.slice(0, 3) : skill);
 
       // Wait for the suggestion dropdown, then click the match. Workday shows a
-      // literal "No Items." row when its taxonomy has no match — treat that as
+      // literal "No Items." row when its taxonomy has no match - treat that as
       // a definitive miss instead of polling out the full timeout.
       let match = null;
       let lastOptions = [];
       let noItems = false;
       for (let i = 0; i < 8 && !match && !noItems; i++) {
-        await sleep(400);
+        await sleep(i === 0 ? 1000 : 400);
         lastOptions = Array.from(document.querySelectorAll(
           '[data-automation-id="promptOption"], [data-automation-id="promptLeafNode"], [role="option"]'
         ));
@@ -1218,7 +1330,7 @@
 
       if (!match) {
         consecutiveMisses++;
-        log(`skills: no suggestion for "${skill}" — skipped.`,
+        log(`skills: no suggestion for "${skill}" - skipped.`,
           noItems ? 'Dropdown said "No Items."'
             : lastOptions.length
               ? `Suggestions shown: ${lastOptions.slice(0, 5).map(o => `"${o.textContent.trim()}"`).join(', ')}`
@@ -1226,7 +1338,7 @@
         document.execCommand('selectAll');
         document.execCommand('delete');
         if (filled === 0 && consecutiveMisses >= 3) {
-          log('skills: first 3 skills returned no usable suggestions — skills field uses a restricted list, manual entry required. Skipping the rest of the section.');
+          log('skills: field restricted - first 3 skills got no usable suggestions even with partial queries. The tenant uses a restricted list; manual entry required. Skipping remaining skills.');
           break;
         }
         continue;
@@ -1237,7 +1349,7 @@
       log(`skills: clicking suggestion "${match.textContent.trim()}" for "${skill}"`);
       match.click();
 
-      // Confirm it registered as a tag before typing the next skill — the tag
+      // Confirm it registered as a tag before typing the next skill - the tag
       // may render as the tenant's option text rather than the kit's wording
       let registered = false;
       for (let i = 0; i < 8 && !registered; i++) {
@@ -1256,13 +1368,13 @@
 
   // Websites 1..N: one URL per slot, in kit order linkedin → portfolio → github.
   // LinkedIn is excluded when the page has a dedicated LinkedIn field (e.g.
-  // socialNetworkAccounts--linkedInAccount) — that field already handles it.
-  // Inputs are re-queried before every fill — Workday re-renders slots on blur.
+  // socialNetworkAccounts--linkedInAccount) - that field already handles it.
+  // Inputs are re-queried before every fill - Workday re-renders slots on blur.
   async function fillWorkdayWebsites(kit) {
     const urls = [];
     if (kit.linkedin) {
       if (document.querySelector('input[data-automation-id*="linkedin" i]')) {
-        log('websites: LinkedIn handled by its dedicated field — not adding it to website slots');
+        log('websites: LinkedIn handled by its dedicated field - not adding it to website slots');
       } else {
         urls.push(kit.linkedin);
       }
@@ -1270,7 +1382,7 @@
     if (kit.portfolio) urls.push(kit.portfolio);
     if (kit.github) urls.push(kit.github);
     if (!urls.length) {
-      log('websites: no urls in kit — skipped');
+      log('websites: no urls in kit - skipped');
       return 0;
     }
 
@@ -1286,8 +1398,15 @@
       return 0;
     }
 
-    await ensureWorkdayEntries(getSection, () => (getSection() || document).querySelectorAll(anchor).length, urls.length);
-    log('websites: url slots after auto-add =', (getSection() || document).querySelectorAll(anchor).length);
+    // No programmatic Add here - this tenant's Websites Add button ignores
+    // synthetic clicks. Fill the slots the user pre-added, like the other
+    // pre-expanded sections.
+    const slotCount = section.querySelectorAll(anchor).length;
+    if (!slotCount) {
+      log('websites: no URL slots found - click Add on the Websites section manually, then re-run the fill');
+      return 0;
+    }
+    log(`websites: ${slotCount} existing slot(s) for ${urls.length} url(s) - filling without auto-add`);
 
     const slotInputs = () => Array.from((getSection() || document).querySelectorAll(anchor));
 
@@ -1297,7 +1416,7 @@
       // Skip URLs already present in any slot (e.g. from a previous run)
       const existing = slotInputs().map(el => (el.value || '').trim().toLowerCase()).filter(Boolean);
       if (existing.some(v => v.includes(url.toLowerCase()) || url.toLowerCase().includes(v))) {
-        log(`websites: "${url}" already present on the page — skipped`);
+        log(`websites: "${url}" already present on the page - skipped`);
         continue;
       }
 
@@ -1312,7 +1431,7 @@
         }
       }
       if (!target) {
-        log(`websites: no empty slot left for "${url}" (${inputs.length} slots total)`);
+        log(`websites: no empty slot left for "${url}" (${inputs.length} slots total) - click Add manually and re-run for the rest`);
         break;
       }
       if (await fillField(`websites[slot ${slot + 1}]`, target, url)) filled++;
@@ -1321,7 +1440,7 @@
     return filled;
   }
 
-  // ── Lever direct fill ────────────────────────────────────────────────────────
+  // -- Lever direct fill --------------------------------------------------------
 
   async function leverDirectFill(kit, values) {
     let filled = 0;
@@ -1340,13 +1459,13 @@
       if (el && await setTextValue(el, value, 'lever')) filled++;
     }
 
-    // Country select uses ISO codes as values — match by country name text
+    // Country select uses ISO codes as values - match by country name text
     const locationSelect = document.querySelector('select.candidate-location, select[data-qa="candidate-location-select"]');
     if (locationSelect && values.location) {
       if (fillNativeSelect(locationSelect, countryOf(values.location) || values.location)) filled++;
     }
 
-    // Pronouns: only if explicitly set in the kit (rule 7 — never default)
+    // Pronouns: only if explicitly set in the kit (rule 7 - never default)
     if (kit.pronouns) {
       const pronounCb = document.querySelector(`input[name="pronouns"][value="${CSS.escape(kit.pronouns)}"]`);
       if (pronounCb && clickCheckbox(pronounCb)) filled++;
@@ -1356,7 +1475,7 @@
   }
 
   // Lever demographic survey (#countrySurvey) appears after location fills.
-  // Rule 8: demographics stay blank — we only pick explicit decline options.
+  // Rule 8: demographics stay blank - we only pick explicit decline options.
   async function fillLeverSurveyIfVisible() {
     await sleep(800);
     const survey = document.getElementById('countrySurvey');
@@ -1385,12 +1504,12 @@
     return filled;
   }
 
-  // ── Greenhouse direct fill ───────────────────────────────────────────────────
+  // -- Greenhouse direct fill ---------------------------------------------------
 
   async function greenhouseDirectFill(kit, values) {
     let filled = 0;
 
-    // Location autocomplete — seeded with the user's real city, first result
+    // Location autocomplete - seeded with the user's real city, first result
     const locationInput = document.getElementById('candidate-location');
     if (locationInput && values.city && !filledEls.has(locationInput)) {
       if (await fillCombobox(locationInput, values.city, { waitMs: 1200, firstOption: true })) filled++;
@@ -1414,7 +1533,7 @@
     return filled;
   }
 
-  // Greenhouse embeds question options in window.__remixContext — extract them
+  // Greenhouse embeds question options in window.__remixContext - extract them
   // so the AI picks from exact option text instead of free-styling.
   function getGreenhouseQuestionOptions() {
     try {
@@ -1448,7 +1567,7 @@
     }
   }
 
-  // ── Tier 2: question extraction (AI-worthy fields only) ─────────────────────
+  // -- Tier 2: question extraction (AI-worthy fields only) ---------------------
 
   function extractQuestions() {
     const platform = detectPlatform();
@@ -1527,7 +1646,7 @@
     return questions;
   }
 
-  // ── Applying AI answers ──────────────────────────────────────────────────────
+  // -- Applying AI answers ------------------------------------------------------
 
   function labelsMatch(a, b) {
     const clean = s => String(s).toLowerCase().replace(/[*✱]/g, '').replace(/\s+/g, ' ').trim();
@@ -1571,7 +1690,7 @@
       }
       if (applied) continue;
 
-      // Native selects — answer must resolve to a real option
+      // Native selects - answer must resolve to a real option
       for (const el of queryShadow(document, 'select')) {
         if (!isFillable(el) || filledEls.has(el)) continue;
         if (!labelsMatch(getReadableLabel(el), targetLabel)) continue;
@@ -1583,7 +1702,7 @@
       }
       if (applied) continue;
 
-      // React Select comboboxes — exact option match only for AI answers
+      // React Select comboboxes - exact option match only for AI answers
       for (const input of document.querySelectorAll('input[role="combobox"]')) {
         if (!isFillable(input) || filledEls.has(input)) continue;
         if (/phone|country/i.test(getReadableLabel(input))) continue;
@@ -1593,13 +1712,13 @@
       }
     }
 
-    // Lever demographic survey appears after location fill — decline-only pass
+    // Lever demographic survey appears after location fill - decline-only pass
     if (platform === 'lever') filled += await fillLeverSurveyIfVisible();
 
     return { filled };
   }
 
-  // ── Message listener ─────────────────────────────────────────────────────────
+  // -- Message listener ---------------------------------------------------------
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'DIRECT_FILL') {
