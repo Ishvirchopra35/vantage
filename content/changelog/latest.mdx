@@ -517,3 +517,12 @@ type: Update
 title: Chrome extension - version marker for stale-build detection
 - extension/manifest.json: version bumped 1.0.0 -> 1.1.0
 - extension/content.js: the "workday fill start" log now includes the extension version (via chrome.runtime.getManifest()), so a stale build that was not reloaded at chrome://extensions is immediately visible in the console. The Enter-commit fix for multiselect search (school, field of study, skills) was already shipped in the previous release; the type -> Enter -> wait -> click sequence is verified by the harness (standard 21/21, custom 17/17, restricted 3/3)
+
+---
+date: 2026-07-06
+type: Fix
+title: Chrome extension - prompt option clicks now register, closest-match selection, websites slot discovery
+- extension/content.js: suggestion clicks were dispatched as bare element.click(), which Workday's prompt options ignore (same as the Add buttons) - new selectPromptOption clicks with the full pointer sequence, retrying on the option's deepest descendant and any inner checkbox, verifying registration between attempts (school/field-of-study: multiselect container gains the option text or a selectedItem; skills: the tag appears in the section), logging the exact element clicked (outerHTML, 300 chars), and skipping the click entirely when the value is already selected (prevents re-run duplicates)
+- extension/content.js: new bestOptionMatch replaces first-includes-wins matching in both fillWorkdayPrompt and skills - tiers: exact, exact after stripping a parenthetical qualifier ("Java (Programming Language)" for "Java"), shortest option starting with the term at a word boundary, shortest word-boundary contains, then option-contained-in-term ("MongoDB" for "MongoDB Atlas"); "Python" no longer picks "Python IDLE", "React" no longer picks "React VR"
+- extension/content.js: websites slot discovery broadened - inputs are found via automation-id, name="url", id ending in "--url", id containing "website", or the visible "URL"/"Website" label (this tenant renders slots with no automation-ids at all); when 0 slots are found the section's field inventory and outerHTML (8k) are dumped so the real markup is visible
+- harness (scratchpad): prompt options now ignore bare .click() (mousedown-armed, like the real tenant); skills taxonomy includes decoys (Python IDLE, Java Servlets, React VR) with assertions that closest matches are picked and decoys rejected; website slots render as label + name="url" with no automation-ids. Standard 22/22, custom tenant 17/17, restricted skills 3/3

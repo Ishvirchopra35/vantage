@@ -1225,6 +1225,70 @@
     el.dispatchEvent(new KeyboardEvent('keyup', opts));
   }
 
+  // Pick the closest option, not the first partial hit: "Java" must not pick
+  // "Java Servlets" over "Java (Programming Language)", and "MongoDB Atlas"
+  // should fall back to "MongoDB" when no fuller option exists.
+  function bestOptionMatch(options, text) {
+    const norm = s => String(s).toLowerCase().replace(/\s+/g, ' ').trim();
+    const stripParen = s => s.replace(/\s*\(.*?\)\s*$/, '').trim();
+    const t = norm(text);
+    if (!t) return null;
+    const cands = options
+      .map(o => ({ o, txt: norm(o.textContent) }))
+      .filter(c => c.txt && !/^no\s+items\.?$/.test(c.txt));
+
+    // 1. exact
+    let hit = cands.find(c => c.txt === t);
+    if (hit) return hit.o;
+    // 2. exact once the parenthetical qualifier is stripped
+    hit = cands.find(c => stripParen(c.txt) === t);
+    if (hit) return hit.o;
+    // 3. shortest option starting with the term at a word boundary
+    const starts = cands.filter(c => c.txt.startsWith(t + ' ')).sort((a, b) => a.txt.length - b.txt.length);
+    if (starts.length) return starts[0].o;
+    // 4. shortest option containing the term at word boundaries
+    const boundary = new RegExp(`(^|[^a-z0-9])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z0-9]|$)`);
+    const contains = cands.filter(c => boundary.test(c.txt)).sort((a, b) => a.txt.length - b.txt.length);
+    if (contains.length) return contains[0].o;
+    // 5. option text contained in the term (option "MongoDB" for "MongoDB Atlas")
+    const rev = cands.filter(c => c.txt.length > 3 && t.includes(c.txt)).sort((a, b) => b.txt.length - a.txt.length);
+    if (rev.length) return rev[0].o;
+    return null;
+  }
+
+  function deepestChild(el) {
+    let node = el;
+    while (node.firstElementChild) node = node.firstElementChild;
+    return node;
+  }
+
+  // Click a prompt option so Workday actually registers the selection: full
+  // pointer sequence on the option, then its deepest descendant, then any
+  // inner checkbox - verifying registration between attempts. Logs the exact
+  // element clicked so a wrong target is visible in the console.
+  async function selectPromptOption(name, option, isRegistered) {
+    if (isRegistered()) {
+      log(name, ': already selected - no click needed');
+      return true;
+    }
+    const targets = [option];
+    const deep = deepestChild(option);
+    if (deep !== option) targets.push(deep);
+    const cb = option.querySelector('input[type="checkbox"]');
+    if (cb) targets.push(cb);
+
+    for (const target of targets) {
+      if (!target.isConnected) continue;
+      log(name, ': clicking option element:', (target.outerHTML || '').slice(0, 300));
+      simulateClick(target);
+      for (let i = 0; i < 6; i++) {
+        await sleep(300);
+        if (isRegistered()) return true;
+      }
+    }
+    return false;
+  }
+
   // Activate a multiselect widget: Workday only opens the suggestion dropdown
   // if the multiSelectContainer itself is clicked before the input is focused.
   async function activatePromptInput(input) {
@@ -1269,10 +1333,7 @@
       lastOptions = Array.from(document.querySelectorAll(WD_OPTION_SEL));
       noItems = lastOptions.some(o => /^no\s+items\.?$/i.test(o.textContent.trim()));
       if (noItems) break;
-      const t = text.toLowerCase();
-      match = lastOptions.find(o => o.textContent.trim().toLowerCase() === t) ||
-        lastOptions.find(o => o.textContent.trim().toLowerCase().includes(t)) ||
-        lastOptions.find(o => t.includes(o.textContent.trim().toLowerCase()) && o.textContent.trim().length > 3);
+      match = bestOptionMatch(lastOptions, text);
     }
 
     if (!match) {
@@ -1283,9 +1344,21 @@
       closeWorkdayPopup(getInput() || input);
       return false;
     }
+
+    const containerEl = input.closest('[data-automation-id*="multiselect" i], [data-automation-id="multiSelectContainer"]');
+    const optNorm = match.textContent.trim().toLowerCase();
     log(name, `: selecting "${match.textContent.trim()}" for "${text}"`);
-    match.click();
-    await sleep(400);
+    const registered = await selectPromptOption(name, match, () => {
+      if (!containerEl) return !match.isConnected; // popup closed = selection landed
+      if (!containerEl.isConnected) return true; // container re-rendered wholesale after selection
+      const txt = (containerEl.textContent || '').toLowerCase();
+      return txt.includes(optNorm) || !!containerEl.querySelector('[data-automation-id="selectedItem"]');
+    });
+    if (!registered) {
+      log(name, ': option click did NOT register in the multiselect');
+      closeWorkdayPopup(getInput() || input);
+      return false;
+    }
     filledEls.add(input);
     const fresh = getInput();
     if (fresh) filledEls.add(fresh);
@@ -1420,8 +1493,7 @@
         lastOptions = Array.from(document.querySelectorAll(WD_OPTION_SEL));
         noItems = lastOptions.some(o => /^no\s+items\.?$/i.test(o.textContent.trim()));
         if (noItems) break;
-        match = lastOptions.find(o => o.textContent.trim().toLowerCase() === skill.toLowerCase()) ||
-          lastOptions.find(o => o.textContent.trim().toLowerCase().includes(skill.toLowerCase()));
+        match = bestOptionMatch(lastOptions, skill);
       }
 
       if (!match) {
@@ -1442,17 +1514,13 @@
       consecutiveMisses = 0;
 
       const optionText = match.textContent.trim().toLowerCase();
-      log(`skills: clicking suggestion "${match.textContent.trim()}" for "${skill}"`);
-      match.click();
-
-      // Confirm it registered as a tag before typing the next skill - the tag
-      // may render as the tenant's option text rather than the kit's wording
-      let registered = false;
-      for (let i = 0; i < 8 && !registered; i++) {
-        await sleep(300);
+      log(`skills: selecting "${match.textContent.trim()}" for "${skill}"`);
+      // Registration = the tag appears in the section, matched by either the
+      // kit's wording or the tenant's option text
+      const registered = await selectPromptOption('skills', match, () => {
         const sectionText = (getSection()?.textContent || '').toLowerCase();
-        registered = hasTag() || (optionText && sectionText.includes(optionText));
-      }
+        return hasTag() || (optionText && sectionText.includes(optionText));
+      });
       log(`skills: "${skill}"`, registered ? 'added as tag' : 'suggestion click did NOT register as a tag');
       if (registered) filled++;
     }
@@ -1486,11 +1554,20 @@
     }
 
     const getSection = () => findWorkdaySectionEl(['websiteSection'], /^websites?\b/i);
-    const anchor = 'input[data-automation-id="website"], input[data-automation-id*="website" i]';
+
+    // URL slot inputs vary by tenant: automation-id, name="url", id suffix
+    // "--url", or label-only ("URL"/"Website") - same ladder as other sections
+    const websiteSlotInputs = scope => {
+      const byAttr = Array.from((scope || document).querySelectorAll(
+        'input[data-automation-id="website"], input[data-automation-id*="website" i], input[name="url"], input[id$="--url" i], input[id*="website" i]'
+      ));
+      if (byAttr.length) return byAttr;
+      return scope ? inputsByLabelIn(scope, /^(url|website)\b/i) : [];
+    };
 
     const section = getSection();
     log('websites: section =', describe(section),
-      '| url slots =', (section || document).querySelectorAll(anchor).length,
+      '| url slots =', websiteSlotInputs(section).length,
       '| kit urls =', urls.join(', '));
     if (!section) {
       log('websites: automation-ids on page matching /website|url|social/:', automationIdsLike(/website|url|social/i));
@@ -1500,15 +1577,18 @@
     // No programmatic Add here - this tenant's Websites Add button ignores
     // synthetic clicks. Fill the slots the user pre-added, like the other
     // pre-expanded sections.
-    const slotCount = section.querySelectorAll(anchor).length;
+    const slotCount = websiteSlotInputs(section).length;
     if (!slotCount) {
       log('websites: no URL slots found - click Add on the Websites section manually, then re-run the fill');
+      log('websites: fields present in section:',
+        Array.from(section.querySelectorAll(FIELD_INPUT_SEL)).map(describeField).join(' ') || '(none)');
+      log('websites: section outerHTML (first 8000 chars):', (section.outerHTML || '').slice(0, 8000));
       websitesNeedManualAdd = true;
       return 0;
     }
     log(`websites: ${slotCount} existing slot(s) for ${urls.length} url(s) - filling without auto-add`);
 
-    const slotInputs = () => Array.from((getSection() || document).querySelectorAll(anchor));
+    const slotInputs = () => websiteSlotInputs(getSection());
 
     let filled = 0;
     let slot = 0;
