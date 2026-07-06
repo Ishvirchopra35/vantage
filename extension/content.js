@@ -1228,14 +1228,14 @@
   // Pick the closest option, not the first partial hit: "Java" must not pick
   // "Java Servlets" over "Java (Programming Language)", and "MongoDB Atlas"
   // should fall back to "MongoDB" when no fuller option exists.
-  function bestOptionMatch(options, text) {
+  function bestOptionMatch(options, text, { fallbackFirst = false } = {}) {
     const norm = s => String(s).toLowerCase().replace(/\s+/g, ' ').trim();
     const stripParen = s => s.replace(/\s*\(.*?\)\s*$/, '').trim();
     const t = norm(text);
     if (!t) return null;
     const cands = options
       .map(o => ({ o, txt: norm(o.textContent) }))
-      .filter(c => c.txt && !/^no\s+items\.?$/.test(c.txt));
+      .filter(c => c.txt && !/^no\s+items\.?$/.test(c.txt) && !/^select one$/.test(c.txt));
 
     // 1. exact
     let hit = cands.find(c => c.txt === t);
@@ -1253,6 +1253,9 @@
     // 5. option text contained in the term (option "MongoDB" for "MongoDB Atlas")
     const rev = cands.filter(c => c.txt.length > 3 && t.includes(c.txt)).sort((a, b) => b.txt.length - a.txt.length);
     if (rev.length) return rev[0].o;
+    // 6. first result, only where explicitly allowed (the search already ran
+    // on the full term, so the top result is the engine's best guess)
+    if (fallbackFirst && cands.length) return cands[0].o;
     return null;
   }
 
@@ -1262,29 +1265,42 @@
     return node;
   }
 
-  // Click a prompt option so Workday actually registers the selection: full
-  // pointer sequence on the option, then its deepest descendant, then any
-  // inner checkbox - verifying registration between attempts. Logs the exact
-  // element clicked so a wrong target is visible in the console.
+  // Click a prompt option so Workday registers the selection. When the option
+  // contains a radio/checkbox, THAT control is the real target - clicking the
+  // option div and then the control double-clicks and toggles the selection
+  // back off. So: one primary click, generous success signals (registration,
+  // control checked, popup closed), and at most one alternate click that is
+  // skipped whenever the control already took the selection.
   async function selectPromptOption(name, option, isRegistered) {
     if (isRegistered()) {
       log(name, ': already selected - no click needed');
       return true;
     }
-    const targets = [option];
-    const deep = deepestChild(option);
-    if (deep !== option) targets.push(deep);
-    const cb = option.querySelector('input[type="checkbox"]');
-    if (cb) targets.push(cb);
 
-    for (const target of targets) {
-      if (!target.isConnected) continue;
-      log(name, ': clicking option element:', (target.outerHTML || '').slice(0, 300));
-      simulateClick(target);
-      for (let i = 0; i < 6; i++) {
+    const control = option.querySelector('input[type="radio"], input[type="checkbox"]');
+    const primary = control || option;
+    const deep = deepestChild(option);
+    const alternate = control ? option : (deep !== option ? deep : null);
+
+    const landed = async () => {
+      for (let i = 0; i < 8; i++) {
         await sleep(300);
         if (isRegistered()) return true;
+        if (control && control.isConnected && control.checked) return true; // control took the selection
+        if (!option.isConnected) return true; // popup closed after the click - selection landed
       }
+      return false;
+    };
+
+    log(name, ': clicking option element:', (primary.outerHTML || '').slice(0, 300));
+    simulateClick(primary);
+    if (await landed()) return true;
+
+    // Never re-click when the control is already checked - that deselects
+    if (alternate && alternate.isConnected && !(control && control.isConnected && control.checked)) {
+      log(name, ': first click did not register - trying:', (alternate.outerHTML || '').slice(0, 300));
+      simulateClick(alternate);
+      if (await landed()) return true;
     }
     return false;
   }
@@ -1319,6 +1335,9 @@
     }
     document.execCommand('selectAll');
     document.execCommand('delete');
+    // Snapshot options already in the DOM - stale popups from other sections
+    // must never be matched against this search
+    const staleOpts = new Set(document.querySelectorAll(WD_OPTION_SEL));
     for (const ch of String(text)) {
       document.execCommand('insertText', false, ch);
       await sleep(50);
@@ -1330,7 +1349,7 @@
     let lastOptions = [];
     for (let i = 0; i < 8 && !match && !noItems; i++) {
       await sleep(i === 0 ? 800 : 400);
-      lastOptions = Array.from(document.querySelectorAll(WD_OPTION_SEL));
+      lastOptions = Array.from(document.querySelectorAll(WD_OPTION_SEL)).filter(o => !staleOpts.has(o));
       noItems = lastOptions.some(o => /^no\s+items\.?$/i.test(o.textContent.trim()));
       if (noItems) break;
       match = bestOptionMatch(lastOptions, text);
@@ -1413,18 +1432,72 @@
         if (await fillField(`education[${i}].gradYear`, target, String(edu.graduation_year))) filled++;
       }
 
-      // School: plain text input on some tenants, a multiselect search prompt
-      // (type → suggestions → click) on others
+      // Degree: a standard listbox dropdown, filled only when the kit has data
+      if (edu.degree) {
+        const degreeBtn = panel()?.querySelector('button[id$="--degree" i], button[aria-haspopup="listbox"]');
+        if (degreeBtn) {
+          if (await fillWorkdayListbox(`education[${i}].degree`, degreeBtn, edu.degree)) filled++;
+        } else {
+          log(`education[${i}].degree: no listbox button found in panel`);
+        }
+      } else {
+        log(`education[${i}].degree: no kit data - left blank`);
+      }
+
+      // School last: on prompt-style tenants selecting it consumes the search
+      // input that panel resolution anchors on
       const schoolEl = anchors()[i] || null;
       if (isWorkdayPrompt(schoolEl)) {
         if (await fillWorkdayPrompt(`education[${i}].school`, () => educationAnchors(getScope())[i] || null, edu.school)) filled++;
       } else {
         if (await fillField(`education[${i}].school`, schoolEl, edu.school)) filled++;
       }
-      // Degree (button-listbox) / field of study (prompt): no kit data - left
-      // blank on purpose; the panel[0] dump shows their identifiers
+      // Field of study (prompt): no kit data - left blank on purpose
     }
     return filled;
+  }
+
+  // Standard Workday listbox dropdown: <button aria-haspopup="listbox"> opens
+  // a [role="listbox"]; click the option that best matches the value.
+  async function fillWorkdayListbox(name, button, value) {
+    if (!button || !value || filledEls.has(button)) return false;
+    const current = (button.textContent || '').trim();
+    if (current && !/^select one$/i.test(current)) {
+      log(name, `: keeping existing selection "${current}"`);
+      return false;
+    }
+
+    log(name, ': opening listbox', describe(button));
+    const staleOpts = new Set(document.querySelectorAll('[role="listbox"] [role="option"]'));
+    simulateClick(button);
+
+    let options = [];
+    for (let i = 0; i < 8 && !options.length; i++) {
+      await sleep(300);
+      options = Array.from(document.querySelectorAll('[role="listbox"] [role="option"], ul[role="listbox"] li'))
+        .filter(o => !staleOpts.has(o));
+    }
+    if (!options.length) {
+      log(name, ': listbox did not open or has no options');
+      closeWorkdayPopup(button);
+      return false;
+    }
+
+    const match = bestOptionMatch(options, value);
+    if (!match) {
+      log(name, `: no option matched "${value}" - options:`, options.slice(0, 10).map(o => `"${o.textContent.trim()}"`).join(', '));
+      closeWorkdayPopup(button);
+      return false;
+    }
+
+    log(name, `: selecting "${match.textContent.trim()}" -`, (match.outerHTML || '').slice(0, 200));
+    simulateClick(match);
+    await sleep(400);
+    const after = (button.isConnected ? button.textContent : '').trim();
+    const ok = !!after && !/^select one$/i.test(after);
+    if (ok) filledEls.add(button);
+    log(name, ok ? `: selected "${after}"` : ': selection did not register on the button');
+    return ok;
   }
 
   // Skills is a tag/autocomplete input: typing alone registers nothing - the
@@ -1471,12 +1544,13 @@
         log(`skills: could not focus search input for "${skill}" - skipped`);
         continue;
       }
+      // Clear any leftover query, snapshot the options already in the DOM
+      // (stale popups from other sections must never be matched), then type
+      // the FULL skill name and commit with Enter
       document.execCommand('selectAll');
       document.execCommand('delete');
-      // Partial query: some tenant taxonomies only match on prefixes - type the
-      // first 3 characters and match the full skill against the suggestions
-      const query = skill.length > 3 ? skill.slice(0, 3) : skill;
-      for (const ch of query) {
+      const staleOpts = new Set(document.querySelectorAll(WD_OPTION_SEL));
+      for (const ch of skill) {
         document.execCommand('insertText', false, ch);
         await sleep(50);
       }
@@ -1490,10 +1564,10 @@
       let noItems = false;
       for (let i = 0; i < 8 && !match && !noItems; i++) {
         await sleep(i === 0 ? 800 : 400);
-        lastOptions = Array.from(document.querySelectorAll(WD_OPTION_SEL));
+        lastOptions = Array.from(document.querySelectorAll(WD_OPTION_SEL)).filter(o => !staleOpts.has(o));
         noItems = lastOptions.some(o => /^no\s+items\.?$/i.test(o.textContent.trim()));
         if (noItems) break;
-        match = bestOptionMatch(lastOptions, skill);
+        match = bestOptionMatch(lastOptions, skill, { fallbackFirst: true });
       }
 
       if (!match) {

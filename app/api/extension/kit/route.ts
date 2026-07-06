@@ -6,6 +6,8 @@
 // ALTER TABLE profiles ADD COLUMN IF NOT EXISTS github_url text;
 // Optional (kit.location stays empty until it exists):
 // ALTER TABLE profiles ADD COLUMN IF NOT EXISTS location text;
+// Optional (kit education degree stays null until it exists):
+// ALTER TABLE profiles ADD COLUMN IF NOT EXISTS degree text;
 
 import { createClient } from '@supabase/supabase-js'
 import { ok, unauthorized } from '@/lib/apiResponse'
@@ -34,6 +36,7 @@ interface ProjectEntry {
 interface EducationEntry {
   school: string
   graduation_year: number | null
+  degree: string | null
 }
 
 interface Kit {
@@ -74,17 +77,29 @@ export async function GET(request: Request): Promise<Response> {
 
   if (profileError || !profile) return unauthorized()
 
-  // The location column is an optional migration - query it separately so a
-  // missing column degrades to an empty location instead of a failed request.
+  // location and degree are optional migrations - queried separately so
+  // missing columns degrade to empty values instead of a failed request.
   let location = ''
-  const { data: locationRow, error: locationError } = await supabase
+  let degree: string | null = null
+  const { data: extraRow, error: extraError } = await supabase
     .from('profiles')
-    .select('location')
+    .select('location, degree')
     .eq('id', profile.id)
     .limit(1)
     .single()
-  if (!locationError && locationRow && typeof locationRow.location === 'string') {
-    location = locationRow.location
+  if (!extraError && extraRow) {
+    if (typeof extraRow.location === 'string') location = extraRow.location
+    if (typeof extraRow.degree === 'string' && extraRow.degree) degree = extraRow.degree
+  } else {
+    const { data: locationRow, error: locationError } = await supabase
+      .from('profiles')
+      .select('location')
+      .eq('id', profile.id)
+      .limit(1)
+      .single()
+    if (!locationError && locationRow && typeof locationRow.location === 'string') {
+      location = locationRow.location
+    }
   }
 
   const jobUrl = new URL(request.url).searchParams.get('url') ?? ''
@@ -152,7 +167,7 @@ export async function GET(request: Request): Promise<Response> {
     pronouns: null,
     referralSource: 'Job Board',
     skills: (profile.skills as string[] | null) ?? [],
-    education: university ? [{ school: university, graduation_year: graduationYear }] : [],
+    education: university ? [{ school: university, graduation_year: graduationYear, degree }] : [],
     coverLetter,
     answers,
     experience: (profile.experience as WorkExperienceEntry[] | null) ?? [],
