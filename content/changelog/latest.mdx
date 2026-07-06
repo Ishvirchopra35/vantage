@@ -510,3 +510,10 @@ title: Chrome extension - Workday dates via ARIA arrow-stepping, prompt search c
 - extension/content.js: selector hardening from the real tenant dump - experience anchors also match input[name="jobTitle"] / id$="--jobTitle", company matches input[name="companyName"], location input[name="location"], education anchors match id$="--school"
 - websites: unchanged - already fills only pre-existing slots and sets the popup "click Add Another manually" note when slots are missing (verified: flag true with leftover URLs, false when slots suffice)
 - harness (scratchpad): spinner mocks now replicate the real tenant exactly - typed digits ignored, direct value writes snap back to widget state (React controlled input), only arrows change aria-valuenow (seeding month=1/year=2026 on first press); prompt popups render only on Enter. First-run logs confirm every date fills via arrow-stepping. Standard 21/21, custom tenant 17/17, restricted skills 3/3
+
+---
+date: 2026-07-06
+type: Update
+title: Chrome extension - version marker for stale-build detection
+- extension/manifest.json: version bumped 1.0.0 -> 1.1.0
+- extension/content.js: the "workday fill start" log now includes the extension version (via chrome.runtime.getManifest()), so a stale build that was not reloaded at chrome://extensions is immediately visible in the console. The Enter-commit fix for multiselect search (school, field of study, skills) was already shipped in the previous release; the type -> Enter -> wait -> click sequence is verified by the harness (standard 21/21, custom 17/17, restricted 3/3)

@@ -782,7 +782,11 @@
   async function workdayDirectFill(kit, values) {
     let filled = 0;
 
-    log('workday fill start - kit fields with data:',
+    // Version marker: if this line shows an old version, the extension was not
+    // reloaded at chrome://extensions after an update
+    let extVersion = 'unknown';
+    try { extVersion = chrome.runtime.getManifest().version; } catch (_) {}
+    log(`workday fill start (extension v${extVersion}) - kit fields with data:`,
       Object.entries(values).filter(([, v]) => v).map(([k]) => k).join(', '));
 
     for (const { key, selectors, labels } of WORKDAY_FIELD_MAP) {
