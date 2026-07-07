@@ -67,13 +67,14 @@ export async function generateText(
 
 export async function generateJSON<T = unknown>(
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  maxTokens = 3000
 ): Promise<T> {
   const jsonSystemPrompt =
     systemPrompt +
     '\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown formatting, no backticks, no explanation text before or after the JSON.';
 
-  const raw = await generateText(jsonSystemPrompt, userPrompt, 3000);
+  const raw = await generateText(jsonSystemPrompt, userPrompt, maxTokens);
 
   try {
     const cleaned = raw

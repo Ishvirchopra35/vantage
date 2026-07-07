@@ -537,3 +537,29 @@ title: Chrome extension - full-name skill queries, single-click prompt selection
 - extension/content.js: new fillWorkdayListbox for standard listbox dropdowns (button[aria-haspopup="listbox"] -> [role="listbox"] options) wired into education for the Degree field, filled from kit education[].degree and left blank without kit data; keeps any existing selection
 - app/api/extension/kit/route.ts: kit education entries now include degree, read from the optional profiles.degree column (same graceful-degradation pattern as location; optional migration: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS degree text)
 - harness (scratchpad): school options are now radio-based with toggle semantics and a popup that stays open (asserts exactly one click and no toggle-off, plus skills immunity to the stale school popup); skills search is token-based and records committed queries (asserts full names, not "pyt"); degree listbox mock with armed clicks. Standard 23/23, custom tenant 19/19, restricted skills 3/3
+
+---
+date: 2026-07-06
+type: Feature
+title: Tailoring results as a per-bullet diff view; PDF flow removed
+- app/api/tailor-resume/route.ts: rewritten to return structured JSON instead of raw resume text/HTML. The AI now returns { changes: [{ section, original, tailored, reason }], tailored_resume_text, skill_gaps } in one generateJSON call (60s timeout, 6000 token cap); changes are sanitized server-side (well-formed fields only, original must differ from tailored, capped at 60). The HTML surgical-edit mode, profiles.resume_html fetch, and the entire PDF generation/upload block (generateResumeBuffer, storage upload, pdf_url) are removed - response is now { document, changes, skillGaps, atsScore }. Tailoring rules preserved: no invented facts, metrics verbatim, bullets under 20 words, max 1-2 keywords per bullet, unchanged bullets stay out of changes. Inline ATS scoring and event tracking unchanged; console.log calls removed
+- app/(dashboard)/tailor/page.tsx: Tailored Resume tab is now a stacked diff grouped by resume section (uppercase section labels): original bullet in muted strikethrough, tailored bullet highlighted green, one-line reason underneath, a "Copy bullet" button per change, and a "Copy all tailored bullets" button at the top that copies the full updated resume as plain text. PDF download buttons removed from the resume tab (cover letter print-to-PDF untouched); after tailoring the page lands on the diff tab; falls back to the full tailored text when no per-bullet changes are returned (e.g. older documents)
+- lib/ai.ts: generateJSON accepts an optional maxTokens parameter (default 3000, unchanged for existing callers) so the tailor route can request 6000 tokens for the full resume + changes payload
+- lib/generatePdf.ts: now unused, kept in place in case the PDF flow returns
+
+---
+date: 2026-07-06
+type: Improvement
+title: Tailoring - active JD keyword weaving, per-entry grouping in the diff view, tighter cards
+- app/api/tailor-resume/route.ts: prompt rewritten around a primary goal of mirroring the job description's language - the AI scans required_skills, key_responsibilities, and keywords and rewrites bullets that touch those areas using the job's exact terminology (e.g. React/Node.js/PostgreSQL/Jest/Agile named where the work plausibly involved them), still capped at 2 keywords per bullet and never forced into unrelated bullets; the reason field must NAME the keyword when one was woven in ("Added PostgreSQL keyword from job description"). Each change now includes an entry field - the company or project name the bullet belongs to, as written in the resume - sanitized alongside the other fields
+- app/(dashboard)/tailor/page.tsx: diff view now groups two levels deep - section heading, then the company/project name as a subheading above its bullets (changes without an entry render directly under the section); bullet cards' horizontal padding halved (14px 16px -> 14px 8px), vertical unchanged
+
+---
+date: 2026-07-06
+type: Fix
+title: Reverted shadcn init - restored original design system
+- app/globals.css: restored from git HEAD - removed shadcn's oklch variable overrides (--card, --muted, --border, --accent, --radius were clobbered), the tw-animate-css and shadcn/tailwind.css imports, the sidebar/chart/popover variable sets, the .dark class block, and the @layer base overrides; all original CSS variables and app styles are back
+- app/layout.tsx: restored from git HEAD - removed the Geist font import and cn() className on the html element
+- package.json / package-lock.json: restored from git HEAD - removed @base-ui/react, class-variance-authority, clsx, lucide-react, tailwind-merge, tw-animate-css, and the shadcn dev dependency; node_modules pruned via npm install
+- deleted shadcn-created files: components.json, components/ui/button.tsx, lib/utils.ts (cn helper), .mcp.json (shadcn MCP server registration), skills-lock.json and .agents/ (shadcn skill files), plus the enabledMcpjsonServers shadcn entry in .claude/settings.local.json
+- tailwind.config.ts was never modified by shadcn (Tailwind v4 config lives in CSS) - no changes needed

@@ -22,7 +22,19 @@
       "Bash(Get-Content \"C:\\\\Users\\\\ishvi\\\\OneDrive\\\\Desktop\\\\Code\\\\Projects\\\\Vantage\\\\vantage\\\\content\\\\changelog\\\\latest.mdx\")",
       "Bash(Select-Object -Last 10)",
       "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -First 30)",
-      "PowerShell(node --check extension/content.js; node --check extension/popup.js; Write-Output \"syntax ok\")"
+      "PowerShell(node --check extension/content.js; node --check extension/popup.js; Write-Output \"syntax ok\")",
+      "Bash(npm init *)",
+      "Bash(RESTRICTED_SKILLS=1 node harness.js)",
+      "Bash(CUSTOM_TENANT=1 node harness.js)",
+      "Bash(rg -l0 '[\\\\x{2012}-\\\\x{2015}\\\\x{2212}\\\\x{2500}]')",
+      "Bash(xargs -0 perl -i -0777 -pe 's/\\\\xE2\\\\x80[\\\\x92-\\\\x95]|\\\\xE2\\\\x88\\\\x92|\\\\xE2\\\\x94\\\\x80/-/g')",
+      "Bash(git reset *)",
+      "Bash(echo \"tsc exit: $?\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(git checkout *)",
+      "Bash(rm components.json components/ui/button.tsx lib/utils.ts .mcp.json)",
+      "Bash(rmdir components/ui)",
+      "Bash(npm ls *)"
     ]
   }
 }

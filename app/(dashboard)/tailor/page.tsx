@@ -35,7 +35,14 @@ interface ATSScore {
 interface Doc {
   id: string
   content: string
-  pdf_url?: string | null
+}
+
+interface TailorChange {
+  section: string
+  entry: string
+  original: string
+  tailored: string
+  reason: string
 }
 
 // --- Helpers -----------------------------------------------------------------
@@ -209,10 +216,12 @@ export default function TailorPage() {
 
   // Step 3
   const [tailoredDoc, setTailoredDoc] = useState<Doc | null>(null)
+  const [tailorChanges, setTailorChanges] = useState<TailorChange[]>([])
   const [tailoredAtsScore, setTailoredAtsScore] = useState<ATSScore | null>(null)
   const [coverDoc, setCoverDoc] = useState<Doc | null>(null)
   const [activeTab, setActiveTab] = useState<'ats' | 'resume' | 'cover'>('resume')
   const [copied, setCopied] = useState<'resume' | 'cover' | null>(null)
+  const [copiedBullet, setCopiedBullet] = useState<number | null>(null)
 
   // Log application
   const [logCompany, setLogCompany] = useState('')
@@ -350,9 +359,9 @@ export default function TailorPage() {
     setLoading(l => ({ ...l, tailor: true }))
     const { data, error } = await apiFetch<{
       document: Doc
+      changes: TailorChange[]
       skillGaps: string[]
       atsScore: ATSScore | null
-      pdfUrl: string | null
     }>('/api/tailor-resume', {
       method: 'POST',
       body: JSON.stringify({ jobId: parsedJob.id }),
@@ -362,10 +371,11 @@ export default function TailorPage() {
       setActionError(error || 'Could not tailor resume. Please try again.')
       return
     }
-    setTailoredDoc({ ...data.document, pdf_url: data.pdfUrl ?? null })
+    setTailoredDoc(data.document)
+    setTailorChanges(data.changes ?? [])
     if (data.atsScore) setTailoredAtsScore(data.atsScore)
     setStep(3)
-    setActiveTab('ats')
+    setActiveTab('resume')
   }
 
   async function generateCoverLetter() {
@@ -399,6 +409,36 @@ export default function TailorPage() {
     await navigator.clipboard.writeText(plain)
     setCopied(type)
     setTimeout(() => setCopied(null), 2000)
+  }
+
+  async function copyBullet(text: string, idx: number) {
+    await navigator.clipboard.writeText(text)
+    setCopiedBullet(idx)
+    setTimeout(() => setCopiedBullet(null), 2000)
+  }
+
+  // Group changes by resume section, then by parent entry (company / project
+  // name), preserving the order they appear in
+  interface EntryGroup { name: string; items: { change: TailorChange; idx: number }[] }
+  interface SectionGroup { name: string; entries: EntryGroup[] }
+
+  function groupChanges(changes: TailorChange[]): SectionGroup[] {
+    const sections: SectionGroup[] = []
+    changes.forEach((change, idx) => {
+      let section = sections.find(s => s.name === change.section)
+      if (!section) {
+        section = { name: change.section, entries: [] }
+        sections.push(section)
+      }
+      const entryName = change.entry || ''
+      let entry = section.entries.find(e => e.name === entryName)
+      if (!entry) {
+        entry = { name: entryName, items: [] }
+        section.entries.push(entry)
+      }
+      entry.items.push({ change, idx })
+    })
+    return sections
   }
 
   function downloadAsPDF(content: string, filename: string) {
@@ -923,82 +963,125 @@ export default function TailorPage() {
               </div>
             )}
 
-            {/* -- Tailored Resume tab -- */}
+            {/* -- Tailored Resume tab: per-bullet diff view -- */}
             {activeTab === 'resume' && (
               <div style={card}>
                 {tailoredDoc ? (
                   <>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '14px' }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                        <button
-                          onClick={() => copyToClipboard(tailoredDoc.content, 'resume')}
-                          style={smallSecondaryBtn}
-                        >
-                          {copied === 'resume' ? 'Copied!' : 'Copy'}
-                        </button>
-                        {tailoredDoc.pdf_url ? (
-                          <a
-                            href={tailoredDoc.pdf_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ ...smallSecondaryBtn, textDecoration: 'none' }}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                              <polyline points="7 10 12 15 17 10" />
-                              <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                            <span style={{ marginLeft: '6px' }}>Download PDF</span>
-                          </a>
-                        ) : (
-                          <button
-                            onClick={() => downloadAsPDF(tailoredDoc.content, `${parsedJob.company} - ${parsedJob.title} - Tailored Resume.pdf`)}
-                            style={smallSecondaryBtn}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                              <polyline points="7 10 12 15 17 10" />
-                              <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                            <span style={{ marginLeft: '6px' }}>Download PDF</span>
-                          </button>
-                        )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '18px' }}>
+                      <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
+                        {tailorChanges.length > 0
+                          ? `${tailorChanges.length} bullet${tailorChanges.length === 1 ? '' : 's'} tailored for this job`
+                          : 'Tailored resume'}
                       </div>
+                      <button
+                        onClick={() => copyToClipboard(tailoredDoc.content, 'resume')}
+                        style={smallSecondaryBtn}
+                        title="Copies the full updated resume text, ready to paste into Google Docs or Word"
+                      >
+                        {copied === 'resume' ? 'Copied!' : 'Copy all tailored bullets'}
+                      </button>
                     </div>
-                    {isHtmlContent(tailoredDoc.content) ? (
-                      <div
-                        style={{
-                          fontFamily: "'Times New Roman', Times, serif",
+
+                    {tailorChanges.length > 0 ? (
+                      groupChanges(tailorChanges).map(group => (
+                        <div key={group.name} style={{ marginBottom: '24px' }}>
+                          <div style={{
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            color: 'var(--muted)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            marginBottom: '10px',
+                          }}>
+                            {group.name}
+                          </div>
+                          {group.entries.map(entry => (
+                            <div key={entry.name || '(entry)'} style={{ marginBottom: '14px' }}>
+                              {entry.name && (
+                                <div style={{
+                                  fontSize: '13px',
+                                  fontWeight: 600,
+                                  color: 'var(--text)',
+                                  marginBottom: '8px',
+                                }}>
+                                  {entry.name}
+                                </div>
+                              )}
+                              {entry.items.map(({ change, idx }) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '10px',
+                                    padding: '14px 8px',
+                                    marginBottom: '10px',
+                                    background: 'var(--bg)',
+                                  }}
+                                >
+                                  <div style={{
+                                    fontSize: '13px',
+                                    color: 'var(--muted)',
+                                    textDecoration: 'line-through',
+                                    lineHeight: 1.6,
+                                    marginBottom: '8px',
+                                  }}>
+                                    {change.original}
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                                    <div style={{
+                                      flex: 1,
+                                      fontSize: '13px',
+                                      color: 'var(--text)',
+                                      lineHeight: 1.6,
+                                      background: 'rgba(34,197,94,0.08)',
+                                      border: '1px solid rgba(34,197,94,0.2)',
+                                      borderRadius: '8px',
+                                      padding: '8px 10px',
+                                    }}>
+                                      {change.tailored}
+                                    </div>
+                                    <button
+                                      onClick={() => void copyBullet(change.tailored, idx)}
+                                      style={{ ...smallSecondaryBtn, flexShrink: 0 }}
+                                    >
+                                      {copiedBullet === idx ? 'Copied!' : 'Copy bullet'}
+                                    </button>
+                                  </div>
+                                  {change.reason && (
+                                    <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>
+                                      {change.reason}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      ))
+                    ) : (
+                      <>
+                        <div style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '12px' }}>
+                          No individual bullet changes were returned - full tailored text below.
+                        </div>
+                        <pre style={{
+                          fontFamily: "'Courier New', Courier, monospace",
                           fontSize: '13px',
-                          lineHeight: 1.6,
+                          lineHeight: 1.7,
                           color: 'var(--text)',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
                           maxHeight: '600px',
                           overflowY: 'auto',
                           background: 'var(--bg)',
                           border: '1px solid var(--border)',
                           borderRadius: '10px',
-                          padding: '24px 28px',
-                        }}
-                        dangerouslySetInnerHTML={{ __html: tailoredDoc.content }}
-                      />
-                    ) : (
-                      <pre style={{
-                        fontFamily: "'Courier New', Courier, monospace",
-                        fontSize: '13px',
-                        lineHeight: 1.7,
-                        color: 'var(--text)',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        maxHeight: '600px',
-                        overflowY: 'auto',
-                        background: 'var(--bg)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '10px',
-                        padding: '16px',
-                        margin: 0,
-                      }}>
-                        {tailoredDoc.content}
-                      </pre>
+                          padding: '16px',
+                          margin: 0,
+                        }}>
+                          {isHtmlContent(tailoredDoc.content) ? stripHtml(tailoredDoc.content) : tailoredDoc.content}
+                        </pre>
+                      </>
                     )}
                   </>
                 ) : (
