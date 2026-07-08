@@ -7,9 +7,10 @@ const btnBase: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '6px',
-  borderRadius: '10px',
+  borderRadius: 'var(--radius)',
   padding: '10px 18px',
   fontSize: '13px',
+  fontFamily: 'var(--font-display)',
   fontWeight: 600,
   cursor: 'pointer',
   border: 'none',
@@ -40,7 +41,8 @@ export function UpgradeButton() {
       type="button"
       onClick={() => void handleUpgrade()}
       disabled={loading}
-      style={{ ...btnBase, background: 'var(--accent)', color: 'var(--bg)', opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+      className="btn-gold-hover"
+      style={{ ...btnBase, background: 'var(--gold-dim)', color: 'var(--gold)', border: '1px solid var(--gold-border)', opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
     >
       {loading && <Spinner size="sm" />}
       {loading ? 'Redirecting…' : 'Upgrade'}

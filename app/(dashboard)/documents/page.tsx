@@ -37,10 +37,8 @@ export default async function DocumentsPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
-      <div className="flex w-full flex-col px-4 py-12">
-        <div className="w-full">
-          <DocumentsClient documents={documents} />
-        </div>
+      <div className="dashboard-page">
+        <DocumentsClient documents={documents} />
       </div>
     </div>
   )

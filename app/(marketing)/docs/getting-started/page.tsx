@@ -1,11 +1,13 @@
 import DocsLayout from '@/components/marketing/DocsLayout';
 import Link from 'next/link';
+import ArrowIcon from '@/components/ui/ArrowIcon';
 
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Getting Started -Vantage Docs',
+  title: 'Getting Started · Docs',
   description: 'Set up your Vantage account, upload your resume, and submit your first tailored application.',
+  alternates: { canonical: '/docs/getting-started' },
 };
 
 export default function GettingStartedPage() {
@@ -31,13 +33,13 @@ export default function GettingStartedPage() {
               <strong style={strong}>Complete your profile</strong> - Fill in your target roles, skills, university, and graduation year. This information is injected into every AI prompt, which significantly improves the quality and relevance of generated output.
             </li>
             <li style={li}>
-              <strong style={strong}>Paste your first job URL</strong> - Go to the Tailor page and paste a job posting URL. Vantage fetches the listing, extracts the ATS keywords, and generates a tailored resume.
+              <strong style={strong}>Paste your first job URL</strong> - Go to the Tailor page and paste a job posting URL. Vantage reads the listing and pulls out the ATS keywords (ATS is the software companies use to screen resumes); click Tailor My Resume to generate the tailored version.
             </li>
             <li style={li}>
               <strong style={strong}>Review your ATS score and tailored resume</strong> - Compare your original score against the tailored version. Look at the keyword matches and any skill gaps listed at the bottom.
             </li>
             <li style={li}>
-              <strong style={strong}>Log the application in your tracker</strong> - After you apply, add the job to your application tracker so you can monitor your status and response rate over time.
+              <strong style={strong}>Log the application</strong> - After you apply, open the Applications page and click Log application so you can monitor your status and response rate over time.
             </li>
           </ol>
         </section>
@@ -59,7 +61,7 @@ export default function GettingStartedPage() {
               Upload a comprehensive base resume rather than a trimmed one-page version. Vantage works best when it has more experience to draw from.
             </li>
             <li style={li}>
-              Use the actual job posting URL rather than pasting the description manually. URL-based parsing captures more structured data from the listing.
+              Use the actual job posting URL rather than pasting the description manually. Reading the URL directly captures more detail from the listing.
             </li>
           </ul>
         </section>
@@ -73,7 +75,7 @@ export default function GettingStartedPage() {
             </p>
           </div>
           <div style={faq}>
-            <p style={faqQ}>The job URL did not parse correctly.</p>
+            <p style={faqQ}>The job URL did not load correctly.</p>
             <p style={p}>
               Some job boards use heavy JavaScript rendering that prevents content extraction. If the URL fails, paste the job description text directly into the text input on the Tailor page.
             </p>
@@ -86,11 +88,11 @@ export default function GettingStartedPage() {
           </div>
         </section>
 
-        <p style={updated}>Last updated: May 15, 2026</p>
+        <p style={updated}>Last updated: July 8, 2026</p>
 
         <div style={nav}>
           <span />
-          <Link href="/docs/resume-tailoring" style={navLink}>Resume tailoring →</Link>
+          <Link href="/docs/resume-tailoring" style={navLink}>Resume tailoring <ArrowIcon /></Link>
         </div>
       </div>
     </DocsLayout>

@@ -563,3 +563,248 @@ title: Reverted shadcn init - restored original design system
 - package.json / package-lock.json: restored from git HEAD - removed @base-ui/react, class-variance-authority, clsx, lucide-react, tailwind-merge, tw-animate-css, and the shadcn dev dependency; node_modules pruned via npm install
 - deleted shadcn-created files: components.json, components/ui/button.tsx, lib/utils.ts (cn helper), .mcp.json (shadcn MCP server registration), skills-lock.json and .agents/ (shadcn skill files), plus the enabledMcpjsonServers shadcn entry in .claude/settings.local.json
 - tailwind.config.ts was never modified by shadcn (Tailwind v4 config lives in CSS) - no changes needed
+
+---
+date: 2026-07-07
+type: Improvement
+title: Design system v2 - Outfit/Manrope fonts, gold accent, elevation tokens
+- app/layout.tsx: Google Fonts link tags in head (preconnect + stylesheet) loading Outfit 600/700/800 (display) and Manrope 400/500/600 (body)
+- app/globals.css: new tokens merged into the existing :root and light-theme blocks (all existing variables and app styles preserved) - --card-raised, --card-sunken, --border-subtle, --gold, --gold-dim, --gold-border, --radius-sm (8px), --radius-lg (16px), --shadow-sm/md/lg/glow, --font-display (Outfit), --font-body (Manrope), each with light-mode variants where they differ; html/body font-family switched to var(--font-body) with the old system stack as fallback, body gains line-height 1.5 and antialiasing; new h1-h6 rule with var(--font-display), weight 700, letter-spacing -0.02em
+- components/Sidebar.tsx (styles only, desktop + mobile drawer): sidebar root uses var(--font-body); active nav item gets var(--card-raised) background and var(--shadow-sm) on top of the existing accent left border; nav items get transition all 0.15s ease and var(--radius-sm); sidebar/topbar/drawer borders use var(--border-subtle); avatar gets 2px solid var(--gold-border); rectangular border-radius values (4/5/8/10px) standardized to var(--radius-sm) - circular elements (avatar, Pro/Free pills, close button) intentionally kept round
+
+---
+date: 2026-07-07
+type: Improvement
+title: Sidebar nav hover state
+- components/Sidebar.tsx: NavLink tracks a hovered state via useState with onMouseEnter/onMouseLeave on the link; non-active items show background var(--card-raised) on hover (fades via the existing 0.15s transition), active items unchanged (they already have the raised background plus shadow); coming-soon placeholders stay inert
+
+---
+date: 2026-07-07
+type: Improvement
+title: Landing page redesign - gold signature treatment, Outfit/Manrope type system
+- components/marketing/MarketingNav.tsx: dark/light toggle removed entirely (theme state, Sun/Moon icons, drawer toggle all deleted - marketing pages now render dark); navbar background rgba(10,10,10,0.8) with backdrop blur(12px) and var(--border) bottom border; wordmark in Outfit 700 at 1.35rem; "Get started" CTA now the signature gold treatment (var(--gold) border, var(--gold-dim) background, gold text, var(--radius)); nav links restyled via .mkt-nav-link
+- app/(marketing)/page.tsx: hero pill badge replaced with gold "BUILT FOR RECRUITING SEASON" eyebrow (Outfit 500 12px uppercase); headline Outfit 800 clamp(48px, 8vw, 96px) letter-spacing -0.04em with "There's a better way." in gold on its own line; subheadline Manrope 16px max-width 480px; gold primary + outlined secondary CTAs (12px radius, 14px Manrope 600, 12px 24px padding); microcopy updated to "Free during early access"; all section eyebrows unified to gold Outfit 600 11px uppercase; pain-point cards get var(--shadow-md) + var(--radius); feature cards use var(--card-raised) + var(--shadow-md) with hover to var(--gold-border) border + var(--shadow-glow) (0.2s ease), 36px var(--gold-dim) icon tiles with gold icons; how-it-works steps get a large Outfit 800 gold watermark number at 0.15 opacity behind relative content, var(--card) background, 2px var(--gold-border) top border, new per-step icons; pricing Pro card featured with var(--card-raised) + var(--gold-border) + var(--shadow-glow) and gold-dim "Most popular" badge, prices Outfit 800 42px, checkmarks gold for Pro / var(--score-green) for Free, CTAs gold; removed the redundant fixed background div
+- components/marketing/MarketingFooter.tsx: background var(--bg) (was var(--card)), top border var(--border-subtle), root font Manrope, copyright/tagline 13px, wordmark Outfit 700, social link colors moved from hardcoded hex to var(--muted)/var(--text)
+- app/globals.css: stale unused .lp-* landing classes replaced with .lp-grid-3/.lp-grid-4/.lp-pricing-grid (responsive: 4-col to 2-col to 1-col) and .lp-feature-card with the gold hover state; .mkt-nav-link restyled to Manrope 14px var(--muted) uppercase letter-spacing 0.06em with color-based hover/active; .mkt-footer-link pinned to Manrope 13px
+
+---
+date: 2026-07-07
+type: Improvement
+title: Landing page density + gold visibility pass
+- app/(marketing)/page.tsx: section vertical padding cut ~40% (hero 96px -> 56px, mid sections 90px -> 54px, closing CTA 80/96px -> 48/56px) for a denser page
+- app/globals.css: dark-mode --gold-border strengthened from 0.25 to 0.4 alpha and --shadow-glow's outer glow from 4px 24px at 0.08 to 6px 32px at 0.18 - at the old values the gold ring and glow were imperceptible on the #0a0a0a background, which made feature-card hover and the Pro pricing card read flat (the styles themselves were already wired: shadow-md default on feature cards, card-raised/gold-border/glow/gold checkmarks on Pro); everything referencing the tokens (feature hover, Pro card, how-it-works top borders, sidebar avatar ring) gets the stronger treatment automatically
+- app/globals.css: .lp-feature-card transition narrowed from all to box-shadow + border-color (0.2s ease)
+
+---
+date: 2026-07-07
+type: Improvement
+title: Landing hero eyebrow re-specced, pain-point cards raised
+- app/(marketing)/page.tsx: hero eyebrow set to exact spec (gold, Outfit 500, 11px uppercase, 0.1em tracking, 16px bottom margin - was 12px/0.12em/20px); hero section gains paddingTop 80 so it clears the navbar; "Sound familiar?" cards moved to var(--card-raised) background with padding 20, fontSize 15, lineHeight 1.6, color var(--text)
+
+---
+date: 2026-07-07
+type: Improvement
+title: Dashboard design overhaul - Outfit/Manrope type, gold signature, new Auto-apply page
+- components/Sidebar.tsx: nav items now 40px tall with 0 12px padding and var(--radius-sm); active item gets var(--card-raised) background + 2px var(--gold) left border + 600 weight (transparent left border on inactive prevents layout shift); hover shows var(--card-raised) + var(--text); nav container padding 12px 16px for the consistent 16px horizontal gutter; logo wordmark in var(--font-display) 700 (desktop, topbar, drawer); avatar borderRadius 50% keeping the 2px gold-border ring; new "Auto-apply" nav item between Interview Prep and Profile with a gold dot + NEW badge (Outfit 600 10px uppercase)
+- app/(dashboard)/apply/page.tsx (new): /apply index page - the apply/[jobId] flow was orphaned (nothing linked to it), so the nav item needed a destination; lists the user's parsed jobs (id/title/company/location/created_at, newest first, 50 cap) as dash-rows linking to /apply/[jobId], EmptyState pointing to /tailor when no jobs
+- app/globals.css: .dashboard-main-inner padding 32px -> 32px 40px; .status-badge restyled (var(--radius-sm), Outfit 600 11px uppercase 0.06em); status color vars remapped - applied gold-dim/gold, interviewing rgba(34,197,94,0.1)/score-green, rejected+ghosted rgba(239,68,68,0.1)/score-red, offer left green as before (spec didn't cover it); new .dash-row class (14px 16px padding, border-subtle bottom border, hover to card-raised, 0.15s) and .input-gold-focus class (gold-border + 3px gold-dim ring on focus; !important to beat inline border)
+- app/dashboard/page.tsx: greeting title Outfit 700 24px -0.02em with 14px Manrope subtitle; stat cards on var(--card-raised) + var(--shadow-md), values Outfit 800 32px -0.03em, labels Manrope 12px uppercase 0.06em; section titles now eyebrow style (Outfit 600 12px uppercase 0.08em muted); all three list sections converted from bordered pills to .dash-row rows
+- page titles normalized to Outfit 700 24px -0.02em + Manrope 14px muted subtitles: tracker, jobs, interview, networking, billing, strategy (both variants), tailor, apply/[jobId], SettingsClient, ProfileForm, DocumentsClient
+- per-page padding overrides removed (tracker, tailor, strategy had their own 40px 16px 80px stacking on the layout padding) - the layout's 32px 40px now governs spacing on every inner page
+- app/(dashboard)/tailor/page.tsx: inputs on var(--card-sunken) with var(--radius), 12px 16px padding, Manrope 14 + input-gold-focus focus ring (URL input and paste textarea); primaryBtn (Parse job / Continue / Tailor / cover letter) switched to the gold treatment (gold-dim bg, gold-border border, gold text, Outfit 600, 12px 24px); new pre-parse placeholder under the input - "Paste a job URL above to get started" with three gold-check hint lines (tailored resume, ATS score, cover letter)
+
+---
+date: 2026-07-07
+type: Improvement
+title: Landing page depth pass - feature hierarchy, section headlines, quote cards, gold glow
+- app/(marketing)/page.tsx: feature section split into a real hierarchy - three lead cards (Resume tailoring, ATS scoring, Auto-apply engine) at 28px padding with 18px Outfit names and fuller descriptions, plus a compact 5-up supporting row (28px icon tiles, 14px names); eyebrow moved to "YOUR UNFAIR ADVANTAGE" with the old eyebrow text promoted to a proper h2
+- every section now has an Outfit 700 clamp(24-30px) headline under its eyebrow: "Applying more isn't working." / "Everything you need to get hired" / "Upload once. Tailor every time." / "Free to start. Unlimited for $8."
+- pain points recast as first-person quotes (figure/blockquote with em-dash attributions like "every senior in recruiting season") in .lp-pain-card - gold-border left rule that intensifies to full gold on hover
+- gold glow depth pass: primary CTAs (hero, both pricing cards, bottom) get .lp-glow-cta ambient gold glow that strengthens on hover; how-it-works cards get an inset gold glow bleeding down from their gold top border; Pro pricing card now carries the most dramatic treatment on the page (shadow-glow + 48px gold halo + shadow-lg); bottom CTA section wrapped in full-bleed border-subtle hairlines top and bottom
+- app/globals.css: new .lp-glow-cta, .lp-pain-card, .lp-grid-5 (5/3/1 responsive) classes
+
+---
+date: 2026-07-07
+type: Improvement
+title: Closing CTA section as a hero bookend
+- app/(marketing)/page.tsx: bottom CTA rebuilt to mirror the hero - Outfit 800 at clamp(36px, 6vw, 64px) with -0.04em tracking, headline now two beats with the closer "Start with an unfair advantage." in gold (echoing the hero's gold line and the brand tagline); section padding 96px inside the hairlines; CTA enlarged (15px, 14px 28px padding) with hero-style microcopy beneath ("Free during early access · No credit card required")
+- app/globals.css: new .lp-glow-cta-lg for the closing CTA - gold-border ring + 32px halo at rest, full-gold ring + 48px halo and a 1px lift on hover, transform disabled under prefers-reduced-motion
+
+---
+date: 2026-07-07
+type: Improvement
+title: Closing CTA rebuilt as a glowing band with a before/after diff artifact
+- app/(marketing)/page.tsx: the centered bookend closer (64px headline + gold second line + hairlines) is replaced by a full-width glowing band - var(--card-raised) with a gold border and the page's strongest halo (shadow-glow + 64px gold bloom + shadow-lg). Left column: "YOUR NEXT APPLICATION" eyebrow, the approved "Stop sending the same resume to every job." headline at Outfit 700 clamp(26-38px), the glowing CTA and early-access microcopy. Right column: a product-diff artifact on var(--card-sunken) - the hero's own line "Applied to 100 jobs. Heard back from 1." struck through under a BEFORE label, rewritten as "Applied to 12 jobs. Landed 4 interviews." with a gold left bar under AFTER VANTAGE, plus ATS 84/100 (gold) and INTERVIEWING (green) chips echoing the app's badge language; artifact is aria-hidden illustration
+- app/globals.css: new .lp-cta-band-grid (1.1fr/0.9fr, single column under 768px); .lp-glow-cta-lg retained for the CTA ring/halo hover
+
+---
+date: 2026-07-07
+type: Improvement
+title: Consistent skeleton loading states across all dashboard pages
+- app/globals.css: @keyframes shimmer (opacity 0.5 -> 1 -> 0.5, used at 1.4s ease-in-out infinite) and @keyframes fade-in with a .fade-in class (0.2s ease) - the shimmer keyframe previously only existed inside SkeletonLoader's scoped style tag, so tracker's and StrategyReport's skeleton animations silently never ran unless that component happened to be mounted
+- components/ui/SkeletonLoader.tsx: rewritten to the new spec - var(--card-raised) background (was a linear-gradient sweep, which also violated the no-gradients rule), var(--radius), opacity shimmer, aria-hidden, scoped style tag removed
+- full-page spinners replaced with layout-matched skeletons: interview (title/subtitle bars + start-session card + 3 session rows), apply/[jobId] (back-link + title bars + 3 section cards)
+- text/spinner placeholders replaced with skeleton rows: ats ("Loading scores..." -> 4 table-row blocks), networking outreach tracker (centered spinner -> 3 row blocks)
+- tracker: loading state upgraded from 3 generic bars to the real layout (4 stat-tile skeletons in the stats grid + 5 row skeletons in the table card), now via SkeletonLoader
+- loaded content fades in via .fade-in on: tracker stats grid + table, ats table, networking tracker table, interview list view, apply/[jobId] page root, StrategyReport report body
+- no changes needed: jobs (localStorage-cached list, loading is a non-blocking refresh banner), tailor (no page-level gate; autoLoading is an inline banner), documents/settings/profile/billing/strategy wrapper/apply index (server-rendered, data resolves before paint)
+
+---
+date: 2026-07-07
+type: Improvement
+title: Dashboard consistency pass - custom selects, gold primary buttons, unified badges/cards/labels
+- app/globals.css: new .dash-select class (card-sunken background, var(--radius), appearance:none with an inline SVG chevron background image, gold focus ring, card-raised option styling) and .btn-gold-hover (gold ring + 16px glow on hover, disabled-safe); .status-badge padding tightened to 3px 8px; --status-offer-* remapped to rgba(34,197,94,0.15)/score-green
+- every native select converted to .dash-select: tracker log form, networking message type + job, interview job picker, ats job + resume version, jobs job-type + date-posted filters, ProfileForm graduation year + years of experience
+- every primary action button now wears the gold treatment with hover glow: tracker (+ Log application, Log), networking (Find contacts, Generate), interview (Start new session x2), ats (Run ATS check), jobs (Fetch New, Fetch Jobs), tailor (Parse job, Continue, Tailor My Resume, Generate Cover Letter, Log)
+- status colors standardized in the three remaining indigo/amber maps (tracker, ApplicationDetailModal, apply/[jobId]): applied gold-dim/gold, interviewing green 0.1, offer green 0.15, rejected+ghosted red 0.1; badge shape unified (radius-sm, Outfit 600 11px uppercase 0.06em, 3px 8px)
+- var(--shadow-md) + var(--border) added to every card missing it: tracker, networking, interview (start + past sessions), ats (history/score-now/insights), tailor, billing, strategy locked card, StrategyReport, ProfileForm, SettingsClient, DocumentsClient, apply/[jobId], dashboard section cards; modals (ApplicationDetailModal, Settings delete confirm) get shadow-lg; stray 12/14px radii normalized to var(--radius)
+- section labels unified to the eyebrow style (Outfit 600 11px uppercase 0.08em muted): networking numbered sections, interview card titles, ats card titles, StrategyReport (Key Insights / Next steps / Skills) with the green FOCUS HERE and red STOP APPLYING HERE coloring removed
+- row hover states (card-raised, 0.15s): tracker table rows, ats history rows, networking outreach rows, interview past-session rows, DocumentsClient cards (onMouseEnter/Leave)
+- interview empty state rebuilt: gold-dim icon tile, "No sessions yet" Outfit 600 15px, "Start a session above to practice with AI feedback" Manrope 13px
+- jobs initial load: full-page spinner replaced with 4 job-card skeletons (missed in the earlier skeleton audit - the gate is initialLoadDone, not a loading useState(true)); saved-job indigo border swapped for var(--gold-border)
+
+---
+date: 2026-07-07
+type: Fix
+title: Job pickers everywhere now source exclusively from the application tracker
+- app/(dashboard)/apply/page.tsx: the Auto-apply list now queries applications (company, role, job_id, non-deleted, job_id required) instead of the raw jobs table - applications always carry company/role so "Untitled job" rows can no longer appear; deduped by job_id, rows read "Company · Role / Tracked date"; empty state now points to the tracker ("Auto-apply works from your application tracker")
+- app/(dashboard)/ats/page.tsx + networking/page.tsx: the jobs dropdown queries already required a tracker application via applications!inner(id) but still surfaced jobs whose applications were soft-deleted; both now filter applications.deleted_at is null
+- interview job picker already sourced from applications with deleted_at excluded - no change needed; tailor and apply/[jobId] fetch single jobs by explicit id, not lists
+
+---
+date: 2026-07-07
+type: Fix
+title: Full audit - everything that consumes jobs sources from the application tracker
+- lib/userContext.ts: fetchApplicationHistory filtered applications with .eq('deleted', false) - a column that does not exist (schema is deleted_at) - so all four history queries errored silently and buildUserContext reported an empty application history to every AI route (tailoring, cover letters, strategy feedback, interview prep, outreach); all four now use .is('deleted_at', null), restoring real tracker data as the context source
+- lib/rateLimit.ts: same phantom-column bug in both application-cap counts (checkLimit + getRemainingLimits) meant the 150-application free-tier cap silently never enforced via the intended path; both now use .is('deleted_at', null)
+- audit of every from('jobs') call confirmed the remaining surface is correct: job pickers/lists (ats, networking, interview, apply index) are tracker-scoped with soft-deleted applications excluded; by-id job fetches (tailor flow, ats-score, tailor-resume, generate-cover-letter, generate-outreach, interview-prep, answer-question, fill-snippet, extension kit, apply/[jobId]) stay unrestricted deliberately - the parse -> tailor -> log flow operates on a job before it is tracked; .in('id', jobIds) enrichment calls (applications API, interview page) already derive their ids from tracker rows; api/strategy-feedback was already fully tracker-sourced and never touches the jobs table
+
+---
+date: 2026-07-07
+type: Improvement
+title: CustomSelect component replaces every native dashboard dropdown
+- components/CustomSelect.tsx (new): fully custom React dropdown - card-sunken trigger with rotating SVG chevron, absolute-positioned list (zIndex 50, card-raised, gold-border, shadow-lg, 4px offset, width matches trigger, maxHeight 240 with scroll), options with gold-dim/gold hover and gold 600 selected state, outside-click close via document mousedown listener, position:relative wrapper so the list anchors inside its card, placeholder + disabled support, listbox/option ARIA roles
+- all 10 native selects replaced: tracker log-form status, networking message type + job, interview job picker (the one that overflowed its card - now flex:1 wrapper, clipped list with scroll), ats job + resume version, jobs job-type + date-posted filters, ProfileForm graduation year + years of experience (numeric values bridged via String/parseInt)
+- app/globals.css: .dash-select class removed - superseded by CustomSelect; remaining native selects are marketing-only (ContactForm, DocsLayout)
+- page padding audit re-verified: .dashboard-main-inner (32px 40px) is the single content wrapper for every dashboard page including /apply, /profile, /settings; no page carries its own outer padding
+
+---
+date: 2026-07-07
+type: Improvement
+title: Dashboard polish pass - input focus glow, zebra rows, rich empty states, danger zone, interview mid-section
+- app/globals.css: dashboard-wide gold focus glow - .dashboard-main input:focus / textarea:focus get the gold-border + 3px gold-dim ring, covering every current and future field with one rule; .dash-row gains nth-child(odd) card-sunken zebra striping (hover still wins); new .dash-card-row class - raised card rows (shadow-md) that hover to gold-border + shadow-glow
+- app/(dashboard)/apply/page.tsx: rows rebuilt as .dash-card-row cards with a gold auto-apply bolt icon tile, Outfit titles, and a gold "Start →" affordance, 10px gaps between cards
+- app/(dashboard)/interview/page.tsx: new "how practice works" strip between the session starter and past sessions - three raised tiles (Real questions / Answer out loud / Scored feedback) with gold icon tiles; past-session rows get zebra striping
+- app/(dashboard)/strategy/StrategyReport.tsx: Key Insights cards get the landing how-it-works treatment - 2px gold-border top edge with an inset gold glow, #N markers now gold Outfit
+- components/SettingsClient.tsx: danger zone is now a distinct red-tinted container (rgba red 0.04 bg, 0.25 red border, var(--radius)) with a red eyebrow label and an Outfit 600 red delete button
+- empty states upgraded to icon + title + subtitle: ats history, networking outreach tracker, tracker (adds gold icon + gold-hover CTA), jobs feed, and the dashboard home's three section empties via a new SectionEmpty helper (emptyStateStyle removed)
+- zebra row striping with hover-restore added to tracker table, ats history, networking outreach, and interview session rows
+
+---
+date: 2026-07-07
+type: Improvement
+title: Full SEO pass - metadata, sitemap, robots, structured data
+- app/layout.tsx: metadataBase from NEXT_PUBLIC_APP_URL, richer default title/description naming the core features and audience, authors/creator Ishvir Chopra, default Open Graph + Twitter card tags
+- app/(marketing)/layout.tsx: title template "%s — Vantage" scoped to marketing pages only (dashboard titles untouched)
+- app/(marketing)/page.tsx: thorough landing metadata - absolute title "Vantage — AI Resume Tailoring, ATS Scoring & Auto-Apply for Students", long description naming Ishvir Chopra, CS students/new grads/Waterloo, 15 keywords covering the target queries, canonical /, OG + Twitter tags; JSON-LD @graph with Organization (founder Person Ishvir Chopra) + SoftwareApplication (name, description, url, free offer) injected via script tag
+- every marketing page normalized to the template pattern with canonical URLs: about (rewritten description naming the founder and audience), contact, privacy, terms, docs index + all 11 docs pages (also fixes "Cover Letters -Vantage Docs" style typos); blog index and changelog had no metadata at all - both added
+- app/(marketing)/blog/[slug]/page.tsx: generateMetadata now emits the bare post title (template adds the suffix), excerpt description, canonical /blog/[slug], OG article tags with publishedTime + author, Twitter card
+- app/sitemap.ts (new): all 19 marketing/docs routes with priorities + every blog post from content/blog with its publish date as lastModified
+- app/robots.ts (new): allows all public pages, disallows the authed app routes (/dashboard, /tailor, /tracker, etc.) and /api, points to sitemap.xml
+- note: canonical/OG absolute URLs resolve against NEXT_PUBLIC_APP_URL - must be set in Vercel for production
+
+---
+date: 2026-07-08
+type: Improvement
+title: Plain-language pass across all user-facing copy
+- replaced jargon in visible strings app-wide: "parse" to "read"/"analyze", "fetch" to "find"/"load" (tailor, jobs, ats, apply, profile, privacy, docs, blog)
+- "token" no longer shown to users: the extension pairing secret is now called a "connection code" everywhere (components/ExtensionTokenSection.tsx, docs/extension, docs/auto-fill, apply/[jobId] links); variable and DB names (extension_token) unchanged
+- tailor page: "Parse job" button is now "Analyze job"; jobs page: "Fetch New"/"Fetch Jobs" now "Find New"/"Find Jobs", "Fetching..." now "Finding..."
+- ATS now gets a brief plain-language clarification on first mention per page (tailor, ats, dashboard, apply detail, strategy report, landing, privacy, and the getting-started/resume-tailoring/auto-fill/extension/strategy-feedback docs)
+- removed em dashes from all live user-facing text: app/layout.tsx + (marketing)/layout.tsx + (marketing)/page.tsx titles now use a hyphen; landing quote attribution dash removed
+- error copy moved to active voice ("We could not read this job posting.", "We could not load jobs right now.")
+- note: the append-only changelog, SEO meta keyword strings, and terse compact data labels (tracker stat tiles/columns) were intentionally left unchanged
+
+---
+date: 2026-07-08
+type: Feature
+title: Blog post - The New Vantage design overhaul
+- content/blog/the-new-vantage-design-overhaul.mdx: News-category post announcing the design system v2 overhaul (gold accent, Outfit/Manrope type, redesigned landing + dashboard, per-bullet tailoring diff, plain-language pass)
+- appears as the featured post on /blog and is picked up automatically by generateStaticParams and the sitemap
+
+---
+date: 2026-07-08
+type: Improvement
+title: Subtle gold particle background on the landing page
+- components/marketing/Particles.tsx (new): canvas particle field with mouse magnetism, alpha fade near edges, dpr-aware sizing; self-contained (no external cn/util dep), transparent background, pointer-events-none and aria-hidden so it never intercepts clicks or reaches assistive tech
+- components/marketing/LandingParticles.tsx (new): theme-aware wrapper that feeds a variation of --gold to the field — brighter gold (#e0bd6a) on the dark #0a0a0a bg, deeper amber-gold (#b8862f) on the light #fafafa bg — and swaps live via a MutationObserver on the html data-theme attribute
+- app/(marketing)/page.tsx: landing content wrapped in a relative container with the particles absolutely positioned behind (z-0) and content above (z-1); scoped to the landing page only, so blog/docs/other marketing pages are unaffected. Placed inside a relative wrapper rather than a fixed -z-1 layer because html/body both paint an opaque var(--bg)
+
+---
+date: 2026-07-08
+type: Improvement
+title: Unified page letterhead across every dashboard page
+- components/ui/PageHeader.tsx (new): one shared header for every dashboard page - a gold signature tick, an Outfit title (26px, tighter tracking), an optional muted subtitle, and an optional right-aligned action slot. Presentational only, so it works in both server and client pages
+- app/globals.css: added .page-header / .page-header-kicker / .page-header-action classes, including the mobile stack where the action becomes a full-width tap target
+- replaced the ad-hoc, incrementally-built headers on every page with PageHeader: dashboard home, jobs, tracker (Applications), tailor, ats, strategy (both locked and report states), networking, interview, apply, billing, documents, settings, profile. Headers were previously a mix of div/h1, 24px, and 4/8/24/28px margins
+- ats page now has a real page title ("ATS scores") for the first time; its score list keeps a quiet "Score history" section label. Settings dropped its stray in-card back button (navigation is the sidebar)
+- copy tidied to sentence case where the header changed: "Job feed", "Find new", "Interview practice"
+
+---
+date: 2026-07-08
+type: Improvement
+title: One answer-method control per interview session instead of per card
+- app/(dashboard)/interview/page.tsx: the Voice/Type toggle used to sit inside every question card, crowding each one. Replaced it with a single segmented "Answer with" control in the session toolbar (next to the category tabs); every card now follows that one selection
+- answerMode state changed from a per-question Record to a single session-wide AnswerMode; browsers without speech recognition auto-default to Type and the Voice segment is disabled
+- each card keeps its own "Hear question" button; the crowded hear + voice + type button cluster is gone
+
+---
+date: 2026-07-08
+type: Improvement
+title: Auto-apply page now leads with Chrome extension setup
+- app/(dashboard)/apply/page.tsx: added a "Set up once" card with a two-step checklist - install the Chrome extension, then connect it with a connection code - above the job selection list, reframed as "Then apply / Choose an application"
+- step 2 reflects real state: it reads profiles.extension_token in parallel with the applications query and shows a green check when a connection code already exists (links to Profile to manage it, otherwise to generate one)
+- the extension is not on the Chrome Web Store yet, so step 1's "Get the extension" button uses a CHROME_EXTENSION_URL placeholder constant pointing at the /docs/extension install guide (no dead href="#"); swap the constant for the store URL when the extension ships
+- applications query parallelized with the new profile lookup via Promise.all
+
+---
+date: 2026-07-08
+type: Fix
+title: Documentation accuracy pass across all docs pages
+- audited every /docs page against the current app and corrected drift from features that changed
+- auto-fill: rewrote to match the real flow (Auto-apply page + Chrome extension fill + the Application Questions answerer); removed the "Apply Prep > Console tab / Copy-paste tab" steps for console-snippet and answers-panel UIs that no longer exist
+- interview-prep: third question category is Role-specific (was wrongly "Company-specific"); answer method is now one session-level "Answer with Voice/Type" control, not a per-question choice; assessment described as Content + Delivery scores with filler-word detection
+- ats-scoring: scoring happens in the Tailor flow (ATS Score tab); the ATS page is the read-only score history, not a place you paste a job
+- resume-tailoring: steps now match the real buttons (Analyze job -> Tailor My Resume) and tabbed results
+- application-tracking: button is "Log application" (not "Add application"); page is "Applications"
+- cover-letters: generated from the Tailor flow's Cover Letter tab and saved to Documents
+- extension: noted the Chrome Web Store listing is not live yet (developer-mode install for now); fixed the troubleshooting step that pointed at the removed console-snippet tab; removed the nonexistent "direct link from your Profile page"
+- networking: contact search targets recruiters/hiring managers via public LinkedIn search and is capped per day
+- getting-started: tailor and log-application steps corrected; bumped "Last updated" to July 8, 2026 on every edited page (billing was already accurate)
+
+---
+date: 2026-07-08
+type: Fix
+title: Stop showing raw errors to users; log them to console.error instead
+- lib/apiResponse.ts: serverError() no longer returns the raw exception message to the client. It logs the real error with console.error and returns a generic "Something went wrong on our end. Please try again." This fixes raw-error exposure across all 49 API routes that use it in their catch blocks
+- app/(auth)/login + signup: Supabase auth errors are logged and mapped to friendly copy ("Incorrect email or password.", "An account with this email already exists.") instead of surfacing the raw message
+- app/(dashboard)/interview: three spots (tracker load, assess, start session) that showed the raw error/e.message now log it and show a friendly message
+- app/(dashboard)/ats: raw Supabase error messages on load replaced with a friendly message + console.error
+- app/(dashboard)/actions.ts (updateProfile): upsert and catch now log the raw error and return a friendly message, so ProfileForm no longer displays raw DB errors
+- components/ResumeUpload.tsx: upload catch shows a friendly message and logs the raw error
+- app/error.tsx: the global error boundary now logs the error via console.error (the raw message it displays was already gated to development only)
+
+---
+date: 2026-07-08
+type: Fix
+title: Logo now legible in light mode
+- app/globals.css: the logo mark is a light silver PNG with no dark-background variant, so it blended into the light theme. Added a light-mode-only CSS filter (brightness(0.45) contrast(1.2)) on img[src="/logo.png"] that shifts it to a dark graphite tone while keeping the metallic gradient. Dark mode is unchanged; no JSX edits needed since the rule targets the logo images directly
+
+---
+date: 2026-07-08
+type: Update
+title: Light mode is now the default theme
+- app/layout.tsx: the SSR <html data-theme> and the pre-hydration theme script now default to "light" instead of "dark" when no preference is stored
+- components/Sidebar.tsx + components/SettingsClient.tsx: theme toggles initialize to "light" as the fallback
+- components/marketing/LandingParticles.tsx: particle color falls back to the light-mode gold before hydration
+- returning users who previously picked a theme keep their choice (localStorage vantage-theme is unchanged)

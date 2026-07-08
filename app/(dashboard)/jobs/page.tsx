@@ -5,9 +5,13 @@ import Link from 'next/link'
 import ScoreBadge from '@/components/ui/ScoreBadge'
 import Spinner from '@/components/ui/Spinner'
 import EmptyState from '@/components/ui/EmptyState'
+import SkeletonLoader from '@/components/ui/SkeletonLoader'
+import CustomSelect from '@/components/CustomSelect'
+import PageHeader from '@/components/ui/PageHeader'
 import { track } from '@/lib/analytics'
 
 // --- Types --------------------------------------------------------------------
+
 
 interface JobFeedItem {
   id: string
@@ -86,8 +90,9 @@ function JobCard({
   return (
     <div style={{
       background: 'var(--card)',
-      border: `1px solid ${job.is_saved ? 'rgba(99,102,241,0.3)' : 'var(--border)'}`,
-      borderRadius: '12px',
+      border: `1px solid ${job.is_saved ? 'var(--gold-border)' : 'var(--border)'}`,
+      borderRadius: 'var(--radius)',
+      boxShadow: 'var(--shadow-md)',
       padding: '18px 20px',
       display: 'flex',
       flexDirection: 'column',
@@ -137,7 +142,7 @@ function JobCard({
             fontWeight: 600,
             padding: '2px 8px',
             borderRadius: '6px',
-            background: 'rgba(255,255,255,0.06)',
+            background: 'var(--card-raised)',
             color: 'var(--muted)',
             border: '1px solid var(--border)',
           }}>
@@ -180,7 +185,7 @@ function JobCard({
             color: job.is_saved ? '#818cf8' : 'var(--muted)',
             borderColor: job.is_saved ? 'rgba(99,102,241,0.3)' : 'var(--border)',
             marginLeft: 'auto',
-            opacity: saving ? 0.5 : 1,
+            opacity: 1,
           }}
         >
           <HeartIcon filled={job.is_saved} />
@@ -195,12 +200,11 @@ function JobCard({
 interface Filters {
   location: string
   jobType: string
-  remote: boolean
   salaryMin: string
   datePosted: string
 }
 
-const EMPTY_FILTERS: Filters = { location: '', jobType: '', remote: false, salaryMin: '', datePosted: '' }
+const EMPTY_FILTERS: Filters = { location: '', jobType: '', salaryMin: '', datePosted: '' }
 
 const JOB_TYPE_TO_CONTRACT: Record<string, string[]> = {
   'full-time': ['permanent'],
@@ -218,11 +222,11 @@ export default function JobsPage() {
   const [initialLoadDone, setInitialLoadDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const hasActiveFilters = filters.location !== '' || filters.jobType !== '' || filters.remote || filters.salaryMin !== '' || filters.datePosted !== ''
+  const hasActiveFilters = filters.location !== '' || filters.jobType !== '' || filters.salaryMin !== '' || filters.datePosted !== ''
 
   function clearFilters() { setFilters(EMPTY_FILTERS) }
 
-  // Only called when user clicks "Fetch New Jobs" - never on filter change
+  // Only called when user clicks "Find New" - never on filter change
   async function fetchJobs() {
     setLoading(true)
     setError(null)
@@ -231,7 +235,7 @@ export default function JobsPage() {
       const json = await res.json()
 
       if (!res.ok) {
-        setError(json.error || 'Failed to fetch jobs.')
+        setError(json.error || 'We could not load jobs right now. Try again.')
         return
       }
 
@@ -272,20 +276,31 @@ export default function JobsPage() {
   }, [])
 
   async function handleSave(id: string, currentValue: boolean) {
+    const nextValue = !currentValue
+
+    // Optimistic update: flip the heart immediately so there's no perceived
+    // delay, then persist in the background and revert only if the request fails.
+    const applySaved = (saved: boolean) => {
+      setAllJobs(prev => {
+        const updated = prev.map(j => j.id === id ? { ...j, is_saved: saved } : j)
+        localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles, jobs: updated }))
+        return updated
+      })
+    }
+
+    applySaved(nextValue)
     setSavingIds(prev => new Set([...prev, id]))
+
     try {
       const res = await fetch(`/api/job-feed/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_saved: !currentValue }),
+        body: JSON.stringify({ is_saved: nextValue }),
       })
-      if (res.ok) {
-        const updated = allJobs.map(j => j.id === id ? { ...j, is_saved: !currentValue } : j)
-        setAllJobs(updated)
-        localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles, jobs: updated }))
-      }
-    } catch {}
-    finally {
+      if (!res.ok) applySaved(currentValue) // revert on server error
+    } catch {
+      applySaved(currentValue) // revert on network error
+    } finally {
       setSavingIds(prev => { const s = new Set(prev); s.delete(id); return s })
     }
   }
@@ -332,12 +347,6 @@ export default function JobsPage() {
       const loc = filters.location.toLowerCase()
       list = list.filter(j => j.location.toLowerCase().includes(loc))
     }
-    if (filters.remote) {
-      list = list.filter(j =>
-        j.location.toLowerCase().includes('remote') ||
-        j.title.toLowerCase().includes('remote')
-      )
-    }
 
     return [...list].sort((a, b) => {
       if (a.is_saved !== b.is_saved) return a.is_saved ? -1 : 1
@@ -359,7 +368,7 @@ export default function JobsPage() {
   }
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+    <div className="dashboard-page">
 
       {error && (
         <div style={{
@@ -376,23 +385,37 @@ export default function JobsPage() {
       )}
 
       {/* -- Header -------------------------------------------------------- */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', gap: '12px', flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>Job Feed</div>
-          <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
-            Personalized listings matched to your target roles
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => void fetchJobs()}
-          disabled={loading}
-          style={{ ...smallBtn, opacity: loading ? 0.6 : 1 }}
-        >
-          {loading && <Spinner size="sm" />}
-          {loading ? 'Fetching…' : 'Fetch New'}
-        </button>
-      </div>
+      <PageHeader
+        title="Job feed"
+        subtitle="Personalized listings matched to your target roles."
+        action={(
+          <button
+            type="button"
+            onClick={() => void fetchJobs()}
+            disabled={loading}
+            className="btn-gold-hover"
+            style={{
+              background: 'var(--gold-dim)',
+              border: '1px solid var(--gold-border)',
+              color: 'var(--gold)',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 600,
+              borderRadius: 'var(--radius)',
+              padding: '10px 20px',
+              fontSize: '13px',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            {loading && <Spinner size="sm" />}
+            {loading ? 'Finding…' : 'Find new'}
+          </button>
+        )}
+      />
 
       {/* -- Filter bar ---------------------------------------------------- */}
       <div style={{
@@ -401,7 +424,7 @@ export default function JobsPage() {
         alignItems: 'center',
         flexWrap: 'wrap',
         marginBottom: '16px',
-        padding: '12px 16px',
+        padding: '15px 16px',
         background: 'var(--card)',
         border: '1px solid var(--border)',
         borderRadius: '10px',
@@ -411,49 +434,48 @@ export default function JobsPage() {
           placeholder="Location"
           value={filters.location}
           onChange={e => setFilters(prev => ({ ...prev, location: e.target.value }))}
-          style={{ padding: '6px 10px', borderRadius: '7px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '12px', outline: 'none', width: '120px' }}
+          className="filter-control"
+          style={{ width: '120px' }}
         />
-        <select
+        <CustomSelect
           value={filters.jobType}
-          onChange={e => setFilters(prev => ({ ...prev, jobType: e.target.value }))}
-          style={{ padding: '6px 10px', borderRadius: '7px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '12px', outline: 'none', cursor: 'pointer' }}
-        >
-          <option value="">Any type</option>
-          <option value="full-time">Full-time</option>
-          <option value="part-time">Part-time</option>
-          <option value="contract">Contract</option>
-          <option value="internship">Internship</option>
-        </select>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--muted)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-          <input
-            type="checkbox"
-            checked={filters.remote}
-            onChange={e => setFilters(prev => ({ ...prev, remote: e.target.checked }))}
-          />
-          Remote only
-        </label>
+          onChange={v => setFilters(prev => ({ ...prev, jobType: v }))}
+          options={[
+            { value: '', label: 'Any type' },
+            { value: 'full-time', label: 'Full-time' },
+            { value: 'part-time', label: 'Part-time' },
+            { value: 'contract', label: 'Contract' },
+            { value: 'internship', label: 'Internship' },
+          ]}
+          triggerClassName="filter-control"
+          style={{ minWidth: '140px' }}
+        />
         <input
           type="number"
           placeholder="Min salary"
           value={filters.salaryMin}
           onChange={e => setFilters(prev => ({ ...prev, salaryMin: e.target.value }))}
-          style={{ padding: '6px 10px', borderRadius: '7px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '12px', outline: 'none', width: '110px' }}
+          className="filter-control"
+          style={{ width: '110px' }}
         />
-        <select
+        <CustomSelect
           value={filters.datePosted}
-          onChange={e => setFilters(prev => ({ ...prev, datePosted: e.target.value }))}
-          style={{ padding: '6px 10px', borderRadius: '7px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '12px', outline: 'none', cursor: 'pointer' }}
-        >
-          <option value="">Any time</option>
-          <option value="today">Today</option>
-          <option value="week">This week</option>
-          <option value="month">This month</option>
-        </select>
+          onChange={v => setFilters(prev => ({ ...prev, datePosted: v }))}
+          options={[
+            { value: '', label: 'Any time' },
+            { value: 'today', label: 'Today' },
+            { value: 'week', label: 'This week' },
+            { value: 'month', label: 'This month' },
+          ]}
+          triggerClassName="filter-control"
+          style={{ minWidth: '130px' }}
+        />
         {hasActiveFilters && (
           <button
             type="button"
             onClick={clearFilters}
-            style={{ fontSize: '12px', color: 'var(--muted)', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            className="filter-control"
+            style={{ width: 'auto', color: 'var(--muted)', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             Clear filters
           </button>
@@ -462,9 +484,10 @@ export default function JobsPage() {
 
       {/* -- Content ------------------------------------------------------- */}
       {!initialLoadDone ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '16px' }}>
-          <Spinner size="lg" />
-          <div style={{ fontSize: '13px', color: 'var(--muted)' }}>Loading…</div>
+        <div className="jobs-grid">
+          {[1, 2, 3, 4].map(i => (
+            <SkeletonLoader key={i} height={180} />
+          ))}
         </div>
       ) : noTargetRoles ? (
         <EmptyState
@@ -476,11 +499,17 @@ export default function JobsPage() {
       ) : visible.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '20px' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
+            <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+              </svg>
+            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
               No jobs yet
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
-              {hasActiveFilters ? 'No jobs match your filters. Try adjusting or clearing them.' : 'Click the button below to fetch personalized jobs.'}
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)' }}>
+              {hasActiveFilters ? 'No jobs match your filters. Try adjusting or clearing them.' : 'Click the button below to find jobs picked for you.'}
             </div>
           </div>
           {!hasActiveFilters && (
@@ -488,14 +517,16 @@ export default function JobsPage() {
               type="button"
               onClick={() => void fetchJobs()}
               disabled={loading}
+              className="btn-gold-hover"
               style={{
-                background: 'var(--accent)',
-                border: 'none',
-                borderRadius: '8px',
+                background: 'var(--gold-dim)',
+                border: '1px solid var(--gold-border)',
+                borderRadius: 'var(--radius)',
                 padding: '10px 20px',
+                fontFamily: 'var(--font-display)',
                 fontSize: '14px',
                 fontWeight: 600,
-                color: '#000',
+                color: 'var(--gold)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -504,7 +535,7 @@ export default function JobsPage() {
               }}
             >
               {loading ? <Spinner size="sm" /> : null}
-              {loading ? 'Fetching…' : 'Fetch Jobs'}
+              {loading ? 'Finding…' : 'Find Jobs'}
             </button>
           )}
         </div>
@@ -513,7 +544,7 @@ export default function JobsPage() {
           {loading && (
             <div style={{ marginBottom: '16px', padding: '12px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--muted)' }}>
               <Spinner size="sm" />
-              Fetching new jobs…
+              Finding new jobs…
             </div>
           )}
           <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '12px' }}>

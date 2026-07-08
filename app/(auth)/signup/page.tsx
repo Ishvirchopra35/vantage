@@ -9,7 +9,7 @@ const INPUT_STYLE: React.CSSProperties = {
   width: '100%',
   background: 'var(--bg)',
   border: '1px solid var(--border)',
-  borderRadius: 10,
+  borderRadius: 'var(--radius-sm)',
   padding: '10px 12px',
   color: 'var(--text)',
   fontSize: 14,
@@ -106,7 +106,12 @@ export default function SignupPage() {
       });
 
       if (signUpError) {
-        setError(signUpError.message);
+        console.error('[signup] sign-up failed:', signUpError);
+        setError(
+          /already|registered|exists/i.test(signUpError.message)
+            ? 'An account with this email already exists. Try signing in instead.'
+            : 'We could not create your account. Please try again.'
+        );
         setLoading(false);
         return;
       }
@@ -123,11 +128,13 @@ export default function SignupPage() {
   };
 
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(255,255,255,0.08)';
+    e.currentTarget.style.boxShadow = '0 0 0 3px var(--gold-dim)';
+    e.currentTarget.style.borderColor = 'var(--gold-border)';
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     e.currentTarget.style.boxShadow = 'none';
+    e.currentTarget.style.borderColor = 'var(--border)';
   };
 
   return (
@@ -145,7 +152,8 @@ export default function SignupPage() {
         style={{
           background: 'var(--card)',
           border: '1px solid var(--border)',
-          borderRadius: 14,
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-lg)',
           padding: 32,
           width: '100%',
           maxWidth: 400,
@@ -154,6 +162,7 @@ export default function SignupPage() {
         {/* Wordmark */}
         <div
           style={{
+            fontFamily: 'var(--font-display)',
             fontSize: 24,
             fontWeight: 700,
             color: 'var(--text)',
@@ -273,18 +282,13 @@ export default function SignupPage() {
         <button
           onClick={handleSignUp}
           disabled={loading}
+          className="ds-btn-primary btn-gold-hover"
           style={{
             width: '100%',
-            background: 'var(--accent)',
-            color: '#000',
-            border: 'none',
-            borderRadius: 10,
             padding: 12,
             fontSize: 14,
-            fontWeight: 600,
             cursor: loading ? 'not-allowed' : 'pointer',
             marginTop: 4,
-            opacity: loading ? 0.6 : 1,
           }}
         >
           {loading ? (
@@ -314,11 +318,11 @@ export default function SignupPage() {
             style={{
               marginTop: 14,
               padding: 12,
-              borderRadius: 10,
+              borderRadius: 'var(--radius-sm)',
               fontSize: 13,
               background: 'rgba(239,68,68,0.1)',
               border: '1px solid rgba(239,68,68,0.3)',
-              color: '#ef4444',
+              color: 'var(--score-red)',
             }}
           >
             {validationError}
@@ -331,11 +335,11 @@ export default function SignupPage() {
             style={{
               marginTop: 12,
               padding: 12,
-              borderRadius: 10,
+              borderRadius: 'var(--radius-sm)',
               fontSize: 13,
               background: 'rgba(239,68,68,0.1)',
               border: '1px solid rgba(239,68,68,0.3)',
-              color: '#ef4444',
+              color: 'var(--score-red)',
             }}
           >
             {error}

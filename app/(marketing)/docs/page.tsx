@@ -1,8 +1,9 @@
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Documentation -Vantage',
+  title: 'Documentation',
   description: 'Everything you need to get the most out of Vantage. Guides for resume tailoring, ATS scoring, cover letters, auto-fill, and more.',
+  alternates: { canonical: '/docs' },
 };
 
 const SECTIONS = [
@@ -34,7 +35,7 @@ const SECTIONS = [
   {
     label: 'Auto-fill',
     href: '/docs/auto-fill',
-    desc: 'Fill out job application forms in seconds using the browser extension, console snippet, or answers panel.',
+    desc: 'Fill job application forms with the Vantage Chrome extension, and generate answers to open-ended questions.',
   },
   {
     label: 'Strategy feedback',
@@ -64,6 +65,7 @@ const SECTIONS = [
 ];
 
 import Link from 'next/link';
+import ArrowIcon from '@/components/ui/ArrowIcon';
 
 export default function DocsHomePage() {
   return (
@@ -113,13 +115,10 @@ export default function DocsHomePage() {
               justifyContent: 'space-between',
               gap: '16px',
               padding: '20px 24px',
-              background: 'var(--card)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
               textDecoration: 'none',
               transition: 'border-color 0.15s',
             }}
-            className="docs-home-card"
+            className="ds-card docs-home-card"
           >
             <div>
               <div
@@ -149,7 +148,7 @@ export default function DocsHomePage() {
                 flexShrink: 0,
               }}
             >
-              →
+              <ArrowIcon />
             </span>
           </Link>
         ))}

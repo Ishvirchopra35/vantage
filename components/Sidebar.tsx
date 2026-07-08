@@ -24,6 +24,7 @@ type NavItem = {
   locked?: boolean;
   comingSoon?: boolean;
   freemiumOnly?: boolean;
+  isNew?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -34,6 +35,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/strategy', label: 'Strategy' },
   { href: '/networking', label: 'Networking' },
   { href: '/interview', label: 'Interview Prep' },
+  { href: '/apply', label: 'Auto-apply', isNew: true },
   { href: '/profile', label: 'Profile' },
   { href: '/settings', label: 'Settings' },
   { href: '/billing', label: 'Billing', freemiumOnly: true },
@@ -106,13 +108,13 @@ function SunMoonIcon({ theme }: { theme: 'dark' | 'light' }) {
 }
 
 function ThemeToggle() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
 
   useEffect(() => {
     const stored = window.localStorage.getItem('vantage-theme');
     const current = (stored === 'dark' || stored === 'light')
       ? stored
-      : (document.documentElement.getAttribute('data-theme') as 'dark' | 'light' | null) ?? 'dark';
+      : (document.documentElement.getAttribute('data-theme') as 'dark' | 'light' | null) ?? 'light';
     setTheme(current);
   }, []);
 
@@ -134,7 +136,7 @@ function ThemeToggle() {
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: '8px',
+        borderRadius: 'var(--radius-sm)',
         border: 'none',
         background: 'transparent',
         color: 'var(--muted)',
@@ -194,15 +196,18 @@ export default function Sidebar({
     const active = isActivePath(pathname, item.href);
     const locked = item.locked && !canSeeStrategy;
     const comingSoon = item.comingSoon ?? false;
+    const [hovered, setHovered] = useState(false);
 
     const baseStyle = {
       display: 'flex',
       alignItems: 'center',
       gap: '8px',
-      minHeight: '36px',
-      padding: '0 16px',
-      paddingLeft: active ? '13px' : '16px',
-      borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',
+      height: '40px',
+      padding: '0 12px',
+      borderLeft: active ? '2px solid var(--gold)' : '2px solid transparent',
+      borderRadius: 'var(--radius-sm)',
+      background: active ? 'var(--gold-dim)' : hovered ? 'var(--card-raised)' : 'transparent',
+      transition: 'all 0.15s ease',
       textDecoration: 'none' as const,
       fontSize: '13px',
       lineHeight: 1,
@@ -224,7 +229,7 @@ export default function Sidebar({
               fontSize: '10px',
               color: 'var(--muted)',
               border: '1px solid var(--border)',
-              borderRadius: '4px',
+              borderRadius: 'var(--radius-sm)',
               padding: '1px 6px',
               marginLeft: '8px',
               whiteSpace: 'nowrap',
@@ -240,16 +245,24 @@ export default function Sidebar({
       <Link
         href={item.href}
         onClick={() => mobile && setMobileOpen(false)}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         aria-disabled={locked}
         style={{
           ...baseStyle,
-          color: active ? 'var(--text)' : 'var(--muted)',
+          color: active || hovered ? 'var(--text)' : 'var(--muted)',
           fontWeight: active ? 600 : 400,
           cursor: locked ? 'default' : 'pointer',
           opacity: locked ? 0.72 : 1,
         }}
       >
         <span style={{ flex: 1 }}>{item.label}</span>
+        {item.isNew && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontFamily: 'var(--font-display)', fontSize: '10px', fontWeight: 600, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+            <span aria-hidden="true" style={{ fontSize: '7px', lineHeight: 1 }}>●</span>
+            New
+          </span>
+        )}
         {locked && <span style={{ display: 'inline-flex', color: 'currentColor' }}><LockIcon /></span>}
       </Link>
     );
@@ -264,9 +277,10 @@ export default function Sidebar({
         width: '220px',
         height: '100vh',
         background: 'var(--card)',
-        borderRight: '1px solid var(--border)',
+        borderRight: '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
+        fontFamily: 'var(--font-body)',
       }}
     >
       <div style={{ padding: '18px 16px 14px', borderBottom: '1px solid var(--border)' }}>
@@ -276,6 +290,7 @@ export default function Sidebar({
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
+            fontFamily: 'var(--font-display)',
             fontSize: '17px',
             fontWeight: 700,
             color: 'var(--text)',
@@ -283,12 +298,12 @@ export default function Sidebar({
             letterSpacing: '0.01em',
           }}
         >
-          <img src="/logo.png" width={24} height={24} style={{ borderRadius: '5px', objectFit: 'cover' }} alt="Vantage logo" />
+          <img src="/logo.png" width={24} height={24} style={{ borderRadius: 'var(--radius-sm)', objectFit: 'cover' }} alt="Vantage logo" />
           Vantage
         </Link>
       </div>
 
-      <nav style={{ display: 'flex', flexDirection: 'column', paddingTop: '12px', gap: '12px', flex: 1 }}>
+      <nav style={{ display: 'flex', flexDirection: 'column', padding: '12px 16px 0', gap: '12px', flex: 1 }}>
         {NAV_ITEMS.filter(item => !item.freemiumOnly || enableFreemium).map((item) => (
           <NavLink key={item.href} item={item} />
         ))}
@@ -301,7 +316,8 @@ export default function Sidebar({
             style={{
               width: '28px',
               height: '28px',
-              borderRadius: '999px',
+              borderRadius: '50%',
+              border: '2px solid var(--gold-border)',
               background: 'var(--border)',
               color: 'var(--text)',
               display: 'grid',
@@ -319,7 +335,7 @@ export default function Sidebar({
                 {profile?.full_name || 'Your profile'}
               </span>
               {enableFreemium && (plan === 'pro' ? (
-                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: '#f2f2f2', color: '#000', flexShrink: 0 }}>Pro</span>
+                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'var(--accent)', color: 'var(--bg)', flexShrink: 0 }}>Pro</span>
               ) : (
                 <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', flexShrink: 0 }}>Free</span>
               ))}
@@ -343,7 +359,7 @@ export default function Sidebar({
               marginTop: '12px',
               width: '100%',
               padding: '6px 10px',
-              borderRadius: '8px',
+              borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--border)',
               background: 'transparent',
               color: 'var(--text)',
@@ -410,7 +426,7 @@ export default function Sidebar({
             width: '36px',
             height: '36px',
             border: '1px solid var(--border)',
-            borderRadius: '10px',
+            borderRadius: 'var(--radius-sm)',
             background: 'transparent',
             color: 'var(--text)',
             display: 'inline-flex',
@@ -427,13 +443,14 @@ export default function Sidebar({
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
+            fontFamily: 'var(--font-display)',
             fontSize: '17px',
             fontWeight: 700,
             color: 'var(--text)',
             textDecoration: 'none',
           }}
         >
-          <img src="/logo.png" width={24} height={24} style={{ borderRadius: '5px', objectFit: 'cover' }} alt="Vantage logo" />
+          <img src="/logo.png" width={24} height={24} style={{ borderRadius: 'var(--radius-sm)', objectFit: 'cover' }} alt="Vantage logo" />
           Vantage
         </Link>
         <div style={{ width: '36px', height: '36px' }} />
@@ -455,7 +472,7 @@ export default function Sidebar({
               textDecoration: 'none',
             }}
           >
-            <img src="/logo.png" width={24} height={24} style={{ borderRadius: '5px', objectFit: 'cover' }} alt="Vantage logo" />
+            <img src="/logo.png" width={24} height={24} style={{ borderRadius: 'var(--radius-sm)', objectFit: 'cover' }} alt="Vantage logo" />
             Vantage
           </Link>
           <button
@@ -481,7 +498,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        <nav style={{ display: 'flex', flexDirection: 'column', paddingTop: '12px', gap: '12px', flex: 1 }}>
+        <nav style={{ display: 'flex', flexDirection: 'column', padding: '12px 16px 0', gap: '12px', flex: 1 }}>
           {NAV_ITEMS.filter(item => !item.freemiumOnly || enableFreemium).map((item) => (
             <NavLink key={item.href} item={item} mobile />
           ))}
@@ -494,7 +511,8 @@ export default function Sidebar({
               style={{
                 width: '28px',
                 height: '28px',
-                borderRadius: '999px',
+                borderRadius: '50%',
+                border: '2px solid var(--gold-border)',
                 background: 'var(--border)',
                 color: 'var(--text)',
                 display: 'grid',
@@ -512,7 +530,7 @@ export default function Sidebar({
                   {profile?.full_name || 'Your profile'}
                 </span>
                 {enableFreemium && (plan === 'pro' ? (
-                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: '#f2f2f2', color: '#000', flexShrink: 0 }}>Pro</span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'var(--accent)', color: 'var(--bg)', flexShrink: 0 }}>Pro</span>
                 ) : (
                   <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', flexShrink: 0 }}>Free</span>
                 ))}
@@ -619,8 +637,9 @@ export default function Sidebar({
             right: 0;
             height: 56px;
             padding: 0 16px;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--border-subtle);
             background: var(--card);
+            font-family: var(--font-body);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -642,7 +661,8 @@ export default function Sidebar({
             bottom: 0;
             width: 220px;
             background: var(--card);
-            border-right: 1px solid var(--border);
+            border-right: 1px solid var(--border-subtle);
+            font-family: var(--font-body);
             display: flex;
             flex-direction: column;
             transform: translateX(-100%);

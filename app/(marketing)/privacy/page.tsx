@@ -1,8 +1,9 @@
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Privacy Policy - Vantage',
-  description: 'How we collect, use, and protect your data at Vantage.',
+  title: 'Privacy Policy',
+  description: 'How Vantage collects, uses, and protects your data.',
+  alternates: { canonical: '/privacy' },
 };
 
 export default function PrivacyPage() {
@@ -121,7 +122,7 @@ export default function PrivacyPage() {
               fontSize: '0.95rem',
             }}
           >
-            You upload PDF files of your resume. We extract the plain text from these files and store both the original PDF and the extracted text. This data is used to generate tailored resumes, cover letters, and ATS scoring.
+            You upload PDF files of your resume. We extract the plain text from these files and store both the original PDF and the extracted text. This data is used to generate tailored resumes, cover letters, and ATS scoring (ATS is the software companies use to screen resumes).
           </p>
         </div>
 
@@ -515,7 +516,7 @@ export default function PrivacyPage() {
               fontSize: '0.95rem',
             }}
           >
-            When you provide a job posting URL, we use Jina.ai to fetch and parse the content. Jina.ai's privacy policy applies to URLs you submit.
+            When you provide a job posting URL, we use Jina.ai to load and read the content. Jina.ai's privacy policy applies to URLs you submit.
           </p>
         </div>
       </section>

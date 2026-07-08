@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Spinner from '@/components/ui/Spinner'
+import SkeletonLoader from '@/components/ui/SkeletonLoader'
+import CustomSelect from '@/components/CustomSelect'
+import ArrowIcon from '@/components/ui/ArrowIcon'
+import PageHeader from '@/components/ui/PageHeader'
+import { sessionProgress } from '@/lib/interviewProgress'
 
 // --- Types --------------------------------------------------------------------
 
@@ -58,11 +63,12 @@ const inputStyle: React.CSSProperties = {
 }
 
 const primaryBtn: React.CSSProperties = {
-  background: 'var(--accent)',
-  color: 'var(--bg)',
-  border: 'none',
-  borderRadius: '10px',
-  padding: '10px 18px',
+  background: 'var(--gold-dim)',
+  color: 'var(--gold)',
+  border: '1px solid var(--gold-border)',
+  borderRadius: 'var(--radius)',
+  padding: '10px 20px',
+  fontFamily: 'var(--font-display)',
   fontSize: '13px',
   fontWeight: 600,
   cursor: 'pointer',
@@ -84,6 +90,28 @@ const ghostBtn: React.CSSProperties = {
   alignItems: 'center',
   gap: '6px',
   whiteSpace: 'nowrap' as const,
+}
+
+// Map a session's practice progress to a status-badge pill. Complete reuses the
+// green offer palette, in-progress the gold applied palette, and not-started a
+// muted neutral treatment consistent with the design system.
+function progressBadge(assessed: number, total: number): {
+  label: string
+  className: string
+  style?: React.CSSProperties
+} {
+  switch (sessionProgress(assessed, total)) {
+    case 'complete':
+      return { label: 'Complete', className: 'status-badge status-offer' }
+    case 'in_progress':
+      return { label: 'In progress', className: 'status-badge status-applied' }
+    default:
+      return {
+        label: 'Not started',
+        className: 'status-badge',
+        style: { color: 'var(--muted)', borderColor: 'var(--border)' },
+      }
+  }
 }
 
 // --- Page ---------------------------------------------------------------------
@@ -111,7 +139,9 @@ export default function InterviewPage() {
 
   const [localFeedback, setLocalFeedback] = useState<Record<string, Assessment>>({})
   const [typedAnswers, setTypedAnswers] = useState<Record<string, string>>({})
-  const [answerMode, setAnswerMode] = useState<Record<string, AnswerMode>>({})
+  // One answer method for the whole session, not per question - set via the
+  // toolbar control above the cards.
+  const [answerMode, setAnswerMode] = useState<AnswerMode>('voice')
   const [assessingMap, setAssessingMap] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -140,7 +170,8 @@ export default function InterviewPage() {
       setSessions((sessionsData ?? []) as InterviewSession[])
 
       if (appsRes.error) {
-        setError(`Failed to load your tracker: ${appsRes.error.message}`)
+        console.error('[interview] failed to load tracker:', appsRes.error)
+        setError('We could not load your applications. Please try again.')
         setJobsList([])
         setLoading(false)
         return
@@ -189,6 +220,11 @@ export default function InterviewPage() {
       ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
     )
   }
+
+  // Browsers without speech recognition can only type - default the session there.
+  useEffect(() => {
+    if (!supportsSpeech()) setAnswerMode('type')
+  }, [])
 
   function speak(text: string) {
     if (typeof window === 'undefined') return
@@ -274,7 +310,8 @@ export default function InterviewPage() {
       )
       setTypedAnswers(prev => ({ ...prev, [question]: '' }))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Network error')
+      console.error('[interview] assessment request failed:', e)
+      setError('Network error. Please try again.')
     } finally {
       setAssessingMap(prev => ({ ...prev, [question]: false }))
     }
@@ -314,7 +351,8 @@ export default function InterviewPage() {
       setSessions(prev => [json.session!, ...prev])
       setActiveSession(json.session!)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Network error')
+      console.error('[interview] start session request failed:', e)
+      setError('Network error. Please try again.')
     } finally {
       setCreating(false)
     }
@@ -322,8 +360,17 @@ export default function InterviewPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '48px' }}>
-        <Spinner size="lg" />
+      <div className="dashboard-page">
+        <div style={{ marginBottom: '28px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <SkeletonLoader width={220} height={26} />
+          <SkeletonLoader width={340} height={14} />
+        </div>
+        <SkeletonLoader height={170} />
+        <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {[1, 2, 3].map(i => (
+            <SkeletonLoader key={i} height={64} />
+          ))}
+        </div>
       </div>
     )
   }
@@ -332,34 +379,30 @@ export default function InterviewPage() {
 
   if (!activeSession) {
     return (
-      <div style={{ maxWidth: '820px', margin: '0 auto' }}>
-        <div style={{ marginBottom: '28px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>Interview Practice</div>
-          <div style={{ fontSize: '13px', color: 'var(--muted)' }}>Generate tailored questions and get AI feedback on your answers</div>
-        </div>
+      <div className="fade-in dashboard-page">
+        <PageHeader
+          title="Interview practice"
+          subtitle="Generate tailored questions and get AI feedback on your answers."
+        />
 
         {/* Start session card */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '24px', marginBottom: '20px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '14px' }}>Start a new session</div>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px', marginBottom: '20px' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '14px' }}>Start a new session</div>
 
           {!useManual ? (
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <select
+              <CustomSelect
                 value={selectedJobId}
-                onChange={e => setSelectedJobId(e.target.value)}
-                style={{ ...inputStyle, flex: 1 }}
-              >
-                <option value="">
-                  {jobsList.length > 0 ? 'Select a job from your tracker…' : 'No applications in your tracker yet'}
-                </option>
-                {jobsList.map(j => (
-                  <option key={j.key} value={j.key}>{j.title} - {j.company}</option>
-                ))}
-              </select>
+                onChange={setSelectedJobId}
+                placeholder={jobsList.length > 0 ? 'Select a job from your tracker…' : 'No applications in your tracker yet'}
+                options={jobsList.map(j => ({ value: j.key, label: `${j.title} - ${j.company}` }))}
+                style={{ flex: 1 }}
+              />
               <button
                 type="button"
                 onClick={() => void handleStartSession()}
                 disabled={!selectedJobId || creating}
+                className="btn-gold-hover"
                 style={{ ...primaryBtn, opacity: !selectedJobId || creating ? 0.6 : 1 }}
               >
                 {creating && <Spinner size="sm" />}
@@ -405,6 +448,7 @@ export default function InterviewPage() {
                   type="button"
                   onClick={() => void handleStartSession()}
                   disabled={!manualJob.title.trim() || !manualJob.company.trim() || creating}
+                  className="btn-gold-hover"
                   style={{ ...primaryBtn, opacity: !manualJob.title.trim() || !manualJob.company.trim() || creating ? 0.6 : 1 }}
                 >
                   {creating && <Spinner size="sm" />}
@@ -417,9 +461,9 @@ export default function InterviewPage() {
           <button
             type="button"
             onClick={() => { setUseManual(v => !v); setSelectedJobId(''); setManualJob({ title: '', company: '', description: '' }) }}
-            style={{ marginTop: '10px', background: 'none', border: 'none', fontSize: '12px', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+            style={{ marginTop: '10px', background: 'none', border: 'none', fontSize: '12px', color: 'var(--muted)', cursor: 'pointer', padding: 0 }}
           >
-            {useManual ? '← Select from tracker instead' : "Don't see your job? Enter it manually"}
+            {useManual ? <><ArrowIcon direction="left" /> Select from tracker instead</> : "Don't see your job? Enter it manually"}
           </button>
 
           {error && (
@@ -429,62 +473,100 @@ export default function InterviewPage() {
           )}
         </div>
 
+        {/* How practice works */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+          {[
+            {
+              title: 'Real questions',
+              description: 'Generated from the job’s actual requirements.',
+              icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>,
+            },
+            {
+              title: 'Answer out loud',
+              description: 'Speak your answer or type it - your call.',
+              icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /></svg>,
+            },
+            {
+              title: 'Scored feedback',
+              description: 'Every answer graded, with what to fix next.',
+              icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>,
+            },
+          ].map(tip => (
+            <div key={tip.title} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '16px' }}>
+              <div style={{ width: '28px', height: '28px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)', marginBottom: '10px' }}>
+                {tip.icon}
+              </div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>{tip.title}</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: '12px', color: 'var(--muted)', lineHeight: 1.5 }}>{tip.description}</div>
+            </div>
+          ))}
+        </div>
+
         {/* Past sessions */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '24px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '16px' }}>Past sessions</div>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '16px' }}>Past sessions</div>
 
           {sessions.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', fontSize: '13px', color: 'var(--muted)' }}>
-              No sessions yet. Start one above to practice.
+            <div style={{ textAlign: 'center', padding: '40px 24px' }}>
+              <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>
+                No sessions yet
+              </div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)' }}>
+                Start a session above to practice with AI feedback
+              </div>
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-              <thead>
-                <tr>
-                  {['Company', 'Date', 'Progress', ''].map(h => (
-                    <th key={h} style={{ textAlign: 'left', padding: '0 12px 10px 0', fontSize: '11px', fontWeight: 600, color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.map(s => {
-                  const job = s.job_id ? jobsList.find(j => j.jobId === s.job_id) : undefined
-                  const meta = !s.job_id ? s.questions?._meta : null
-                  const displayCompany = job?.company ?? meta?.company ?? '-'
-                  const displayTitle = job?.title ?? meta?.title ?? null
-                  const qs = s.questions
-                  const total = (qs?.behavioral_questions?.length ?? 0) +
-                    (qs?.technical_questions?.length ?? 0) +
-                    (qs?.role_specific_questions?.length ?? 0)
-                  const practiced = Object.keys(s.feedback ?? {}).length
-                  return (
-                    <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '12px 12px 12px 0', color: 'var(--text)', fontWeight: 500 }}>
-                        {displayCompany}
-                        {displayTitle && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {displayTitle}</span>}
-                      </td>
-                      <td style={{ padding: '12px 12px 12px 0', color: 'var(--muted)', whiteSpace: 'nowrap', fontSize: '12px' }}>
+            <div>
+              {sessions.map(s => {
+                const job = s.job_id ? jobsList.find(j => j.jobId === s.job_id) : undefined
+                const meta = !s.job_id ? s.questions?._meta : null
+                const displayCompany = job?.company ?? meta?.company ?? '-'
+                const displayTitle = job?.title ?? meta?.title ?? null
+                const primaryLine = displayTitle ?? displayCompany
+                const qs = s.questions
+                const total = (qs?.behavioral_questions?.length ?? 0) +
+                  (qs?.technical_questions?.length ?? 0) +
+                  (qs?.role_specific_questions?.length ?? 0)
+                const practiced = Object.keys(s.feedback ?? {}).length
+                const badge = progressBadge(practiced, total)
+                const resume = () => { setActiveSession(s); setLocalFeedback(s.feedback ?? {}); setError(null) }
+                return (
+                  <div
+                    key={s.id}
+                    className="dash-row"
+                    onClick={resume}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {primaryLine}
+                        {displayTitle && displayCompany !== '-' && (
+                          <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {displayCompany}</span>
+                        )}
+                      </div>
+                      <div style={{ marginTop: '4px', fontSize: '12px', color: 'var(--muted)' }}>
                         {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </td>
-                      <td style={{ padding: '12px 12px 12px 0', color: 'var(--muted)' }}>
-                        {practiced} / {total} assessed
-                      </td>
-                      <td style={{ padding: '12px 0' }}>
-                        <button
-                          type="button"
-                          onClick={() => { setActiveSession(s); setLocalFeedback(s.feedback ?? {}); setError(null) }}
-                          style={{ ...ghostBtn, padding: '6px 12px', fontSize: '12px', borderRadius: '8px' }}
-                        >
-                          Resume
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                      <span className={badge.className} style={badge.style}>{badge.label}</span>
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); resume() }}
+                        style={{ ...ghostBtn, padding: '6px 12px', fontSize: '12px', borderRadius: '8px' }}
+                      >
+                        Resume
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
       </div>
@@ -519,12 +601,12 @@ export default function InterviewPage() {
   ]
 
   return (
-    <div style={{ maxWidth: '820px', margin: '0 auto' }}>
+    <div className="dashboard-page">
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
         <div>
-          <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>Practice session</div>
-          <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--text)', marginBottom: '4px' }}>Practice session</div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)' }}>
             {assessedCount} of {totalQuestions} questions assessed
           </div>
         </div>
@@ -533,7 +615,7 @@ export default function InterviewPage() {
           onClick={() => { setActiveSession(null); setLocalFeedback({}); setError(null) }}
           style={ghostBtn}
         >
-          ← Back to sessions
+          <ArrowIcon direction="left" /> Back to sessions
         </button>
       </div>
 
@@ -551,40 +633,80 @@ export default function InterviewPage() {
       )}
 
       {/* Progress bar */}
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '20px' }}>
         <div style={{ height: '4px', background: 'var(--border)', borderRadius: '2px', overflow: 'hidden' }}>
-          <div style={{ width: `${totalQuestions > 0 ? (assessedCount / totalQuestions) * 100 : 0}%`, height: '100%', background: 'var(--accent)', borderRadius: '2px', transition: 'width 0.3s' }} />
+          <div style={{ width: `${totalQuestions > 0 ? (assessedCount / totalQuestions) * 100 : 0}%`, height: '100%', background: 'var(--gold)', borderRadius: '2px', transition: 'width 0.3s' }} />
         </div>
       </div>
 
-      {/* Category tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            style={{
-              fontSize: '12px',
-              padding: '6px 14px',
-              borderRadius: '20px',
-              border: '1px solid',
-              cursor: 'pointer',
-              fontWeight: tab === t.key ? 600 : 400,
-              background: tab === t.key ? 'var(--accent)' : 'transparent',
-              color: tab === t.key ? 'var(--bg)' : 'var(--muted)',
-              borderColor: tab === t.key ? 'var(--accent)' : 'var(--border)',
-            }}
+      {/* Toolbar: category tabs (left) + one answer method for every card (right) */}
+      <div style={{ display: 'flex', gap: '14px', marginBottom: '20px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {TABS.map(t => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              style={{
+                fontSize: '12px',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                border: '1px solid',
+                cursor: 'pointer',
+                fontWeight: tab === t.key ? 600 : 400,
+                background: tab === t.key ? 'var(--accent)' : 'transparent',
+                color: tab === t.key ? 'var(--bg)' : 'var(--muted)',
+                borderColor: tab === t.key ? 'var(--accent)' : 'var(--border)',
+              }}
+            >
+              {t.label} <span style={{ opacity: 0.7 }}>({t.count})</span>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span className="ds-section-label">Answer with</span>
+          <div
+            role="group"
+            aria-label="Answer method"
+            style={{ display: 'inline-flex', gap: '2px', padding: '2px', background: 'var(--card-sunken)', border: '1px solid var(--border)', borderRadius: '20px' }}
           >
-            {t.label} <span style={{ opacity: 0.7 }}>({t.count})</span>
-          </button>
-        ))}
+            {(['voice', 'type'] as AnswerMode[]).map(m => {
+              const active = answerMode === m
+              const disabled = m === 'voice' && !supportsSpeech()
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setAnswerMode(m)}
+                  disabled={disabled}
+                  aria-pressed={active}
+                  title={disabled ? 'Voice is not available in this browser' : undefined}
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: active ? 600 : 500,
+                    padding: '5px 16px',
+                    borderRadius: '18px',
+                    border: 'none',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    background: active ? 'var(--accent)' : 'transparent',
+                    color: active ? 'var(--bg)' : 'var(--muted)',
+                    opacity: disabled ? 0.4 : 1,
+                    transition: 'background 0.15s ease, color 0.15s ease',
+                  }}
+                >
+                  {m === 'voice' ? 'Voice' : 'Type'}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Question cards */}
       {(currentQuestions ?? []).map((q: string) => {
         const assessment = allFeedback[q]
-        const mode: AnswerMode = answerMode[q] ?? (supportsSpeech() ? 'voice' : 'type')
+        const mode: AnswerMode = supportsSpeech() ? answerMode : 'type'
         const isThisRecording = isRecording && recordingQuestionKey === q
         const isAssessing = !!assessingMap[q]
         const recorded = recordingMap[q] ?? { final: '', interim: '' }
@@ -592,37 +714,22 @@ export default function InterviewPage() {
         return (
           <div
             key={q}
-            style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', marginBottom: '12px' }}
+            className="ds-card"
+            style={{ padding: '24px', marginBottom: '20px' }}
           >
             {/* Question row */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', marginBottom: assessment || isThisRecording || (mode === 'type') ? '16px' : '0' }}>
-              <div style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--text)', flex: 1 }}>{q}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px', marginBottom: assessment || isThisRecording || (mode === 'type') ? '20px' : '0' }}>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.6, color: 'var(--text)', flex: 1 }}>{q}</div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end', flexShrink: 0 }}>
-                {/* Hear + mode toggle */}
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    onClick={() => speak(q)}
-                    style={{ fontSize: '12px', color: 'var(--muted)', background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', padding: '5px 12px', cursor: 'pointer' }}
-                  >
-                    Hear question
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAnswerMode(prev => ({ ...prev, [q]: 'voice' }))}
-                    style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', border: '1px solid var(--border)', cursor: 'pointer', background: mode === 'voice' ? 'var(--accent)' : 'transparent', color: mode === 'voice' ? 'var(--bg)' : 'var(--muted)' }}
-                  >
-                    Voice
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAnswerMode(prev => ({ ...prev, [q]: 'type' }))}
-                    style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', border: '1px solid var(--border)', cursor: 'pointer', background: mode === 'type' ? 'var(--accent)' : 'transparent', color: mode === 'type' ? 'var(--bg)' : 'var(--muted)' }}
-                  >
-                    Type
-                  </button>
-                </div>
+                {/* Hear question */}
+                <button
+                  type="button"
+                  onClick={() => speak(q)}
+                  style={{ fontSize: '12px', color: 'var(--muted)', background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', padding: '5px 12px', cursor: 'pointer' }}
+                >
+                  Hear question
+                </button>
 
                 {/* Action buttons */}
                 {mode === 'voice' ? (
@@ -632,7 +739,8 @@ export default function InterviewPage() {
                         type="button"
                         onClick={() => startRecording(q)}
                         disabled={isThisRecording || isAssessing}
-                        style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: 600, cursor: isThisRecording || isAssessing ? 'not-allowed' : 'pointer', opacity: isThisRecording || isAssessing ? 0.5 : 1 }}
+                        className="btn-gold-hover"
+                        style={{ background: 'var(--gold-dim)', color: 'var(--gold)', border: '1px solid var(--gold-border)', borderRadius: '8px', padding: '8px 14px', fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 600, cursor: isThisRecording || isAssessing ? 'not-allowed' : 'pointer', opacity: isThisRecording || isAssessing ? 0.5 : 1 }}
                       >
                         Start answering
                       </button>
@@ -650,7 +758,7 @@ export default function InterviewPage() {
                       type="button"
                       onClick={() => void submitAssessment(activeSession.id, q, "I don't know")}
                       disabled={isAssessing}
-                      style={{ background: 'none', border: 'none', fontSize: '12px', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                      style={{ background: 'none', border: 'none', fontSize: '12px', color: 'var(--muted)', cursor: 'pointer', padding: 0 }}
                     >
                       I don't know
                     </button>
@@ -660,7 +768,8 @@ export default function InterviewPage() {
                     type="button"
                     onClick={() => void submitAssessment(activeSession.id, q, typedAnswers[q] ?? '')}
                     disabled={!typedAnswers[q]?.trim() || isAssessing}
-                    style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: 600, cursor: !typedAnswers[q]?.trim() || isAssessing ? 'not-allowed' : 'pointer', opacity: !typedAnswers[q]?.trim() || isAssessing ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    className="btn-gold-hover"
+                    style={{ background: 'var(--gold-dim)', color: 'var(--gold)', border: '1px solid var(--gold-border)', borderRadius: '8px', padding: '8px 14px', fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 600, cursor: !typedAnswers[q]?.trim() || isAssessing ? 'not-allowed' : 'pointer', opacity: !typedAnswers[q]?.trim() || isAssessing ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                   >
                     {isAssessing && <Spinner size="sm" />}
                     {isAssessing ? 'Assessing…' : 'Submit'}
@@ -676,7 +785,7 @@ export default function InterviewPage() {
                 value={typedAnswers[q] ?? ''}
                 onChange={e => setTypedAnswers(prev => ({ ...prev, [q]: e.target.value }))}
                 rows={4}
-                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 12px', color: 'var(--text)', fontSize: '13px', marginTop: '4px', minHeight: '80px', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none' }}
+                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 12px', color: 'var(--text)', fontSize: '13px', minHeight: '80px', resize: 'vertical', fontFamily: 'var(--font-body)', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none' }}
               />
             )}
 
@@ -690,7 +799,7 @@ export default function InterviewPage() {
                   </div>
                 )}
                 {(recorded.final || recorded.interim) && (
-                  <div style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
                     {recorded.final}
                     {recorded.interim && <em style={{ opacity: 0.6 }}> {recorded.interim}</em>}
                   </div>
@@ -700,10 +809,10 @@ export default function InterviewPage() {
 
             {/* Assessment result */}
             {assessment && (
-              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
-                  <div style={{ fontSize: '14px', color: 'var(--muted)' }}>
-                    Score <span style={{ color: 'var(--text)', fontWeight: 600 }}>{assessment.score}/10</span>
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--gold-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 600, color: 'var(--gold)', background: 'var(--gold-dim)', border: '1px solid var(--gold-border)', borderRadius: '20px', padding: '4px 12px' }}>
+                    Score <span style={{ fontSize: '14px' }}>{assessment.score}/10</span>
                   </div>
                   {assessment.content_score !== undefined && (
                     <>
@@ -725,22 +834,22 @@ export default function InterviewPage() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
                   <div>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#4ade80', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Strengths</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600, color: '#4ade80', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Strengths</div>
                     {(assessment.strengths ?? []).length === 0 ? (
-                      <span style={{ fontSize: '13px', color: 'var(--muted)' }}>-</span>
+                      <span style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)' }}>-</span>
                     ) : (
                       <ul style={{ margin: 0, paddingLeft: '16px' }}>
                         {assessment.strengths.map((s, i) => (
-                          <li key={i} style={{ fontSize: '13px', color: 'var(--text)', marginBottom: '4px', lineHeight: 1.5 }}>{s}</li>
+                          <li key={i} style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--text)', marginBottom: '4px', lineHeight: 1.5 }}>{s}</li>
                         ))}
                       </ul>
                     )}
                   </div>
                   <div>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#f59e0b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Improve</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600, color: '#f59e0b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Improve</div>
                     <ul style={{ margin: 0, paddingLeft: '16px' }}>
                       {(assessment.improvements ?? []).map((s, i) => (
-                        <li key={i} style={{ fontSize: '13px', color: 'var(--text)', marginBottom: '4px', lineHeight: 1.5 }}>{s}</li>
+                        <li key={i} style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--text)', marginBottom: '4px', lineHeight: 1.5 }}>{s}</li>
                       ))}
                     </ul>
                   </div>
@@ -755,7 +864,7 @@ export default function InterviewPage() {
                 )}
 
                 {assessment.better_answer_hint && (
-                  <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'var(--bg)', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
+                  <div style={{ padding: '10px 14px', borderRadius: 'var(--radius)', background: 'var(--bg)', border: '1px solid var(--border)', fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
                     {assessment.better_answer_hint}
                   </div>
                 )}
@@ -767,11 +876,11 @@ export default function InterviewPage() {
 
       {/* Prep tips */}
       {(qs.tips ?? []).length > 0 && (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', marginTop: '8px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '12px' }}>Prep tips</div>
+        <div className="ds-card" style={{ marginTop: '20px' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '12px' }}>Prep tips</div>
           <ul style={{ margin: 0, paddingLeft: '18px' }}>
             {(qs.tips ?? []).map((t, i) => (
-              <li key={i} style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '6px', lineHeight: 1.6 }}>{t}</li>
+              <li key={i} style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)', marginBottom: '6px', lineHeight: 1.6 }}>{t}</li>
             ))}
           </ul>
         </div>

@@ -1,11 +1,13 @@
 import DocsLayout from '@/components/marketing/DocsLayout';
 import Link from 'next/link';
+import ArrowIcon from '@/components/ui/ArrowIcon';
 
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Billing - Vantage Docs',
+  title: 'Billing · Docs',
   description: 'Free vs Pro plan comparison, how to upgrade, cancel, and manage your Vantage subscription.',
+  alternates: { canonical: '/docs/billing' },
 };
 
 export default function BillingPage() {
@@ -84,8 +86,8 @@ export default function BillingPage() {
 
         <p style={updated}>Last updated: May 15, 2026</p>
         <div style={nav}>
-          <Link href="/docs/interview-prep" style={navLink}>← Interview prep</Link>
-          <Link href="/docs/extension" style={navLink}>Browser extension →</Link>
+          <Link href="/docs/interview-prep" style={navLink}><ArrowIcon direction="left" /> Interview prep</Link>
+          <Link href="/docs/extension" style={navLink}>Browser extension <ArrowIcon /></Link>
         </div>
       </div>
     </DocsLayout>

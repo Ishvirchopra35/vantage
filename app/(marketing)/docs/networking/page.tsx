@@ -1,11 +1,13 @@
 import DocsLayout from '@/components/marketing/DocsLayout';
 import Link from 'next/link';
+import ArrowIcon from '@/components/ui/ArrowIcon';
 
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Networking Assistant - Vantage Docs',
+  title: 'Networking Assistant · Docs',
   description: 'Find contacts at target companies and generate personalized outreach messages.',
+  alternates: { canonical: '/docs/networking' },
 };
 
 export default function NetworkingPage() {
@@ -18,7 +20,7 @@ export default function NetworkingPage() {
         <section style={section}>
           <h2 style={h2}>How it works</h2>
           <p style={p}>The networking assistant has two parts: contact sourcing and message generation.</p>
-          <p style={p}><strong style={strong}>Contact sourcing</strong> uses LinkedIn public search to find people at your target companies. It looks for employees whose roles or departments align with your target positions. This is a best-effort search - it finds people at the company, but cannot guarantee finding specific individuals.</p>
+          <p style={p}><strong style={strong}>Contact sourcing</strong> searches public LinkedIn profiles for recruiters, hiring managers, and talent acquisition people at your target company. This is a best-effort search - it surfaces likely contacts but cannot guarantee finding a specific individual, and it is capped at a set number of searches per day.</p>
           <p style={p}><strong style={strong}>Message generation</strong> creates personalized outreach messages based on the contact&apos;s role, company, and your profile. Messages reference your actual experience and the specific company rather than using generic templates.</p>
         </section>
 
@@ -50,7 +52,7 @@ export default function NetworkingPage() {
           <h2 style={h2}>Tips for best results</h2>
           <ul style={ul}>
             <li style={li}>Always personalize the generated message further. A good AI draft plus a personal touch outperforms either alone.</li>
-            <li style={li}>Target people in roles adjacent to what you are applying for, not just HR or recruiters. Engineers reaching out to engineers tends to get better response rates.</li>
+            <li style={li}>Reach out to more than one contact at a company. A recruiter and a hiring manager often respond very differently.</li>
             <li style={li}>Send connection requests and follow up with a cold email if no response after a week.</li>
           </ul>
         </section>
@@ -67,10 +69,10 @@ export default function NetworkingPage() {
           </div>
         </section>
 
-        <p style={updated}>Last updated: May 15, 2026</p>
+        <p style={updated}>Last updated: July 8, 2026</p>
         <div style={nav}>
-          <Link href="/docs/strategy-feedback" style={navLink}>← Strategy feedback</Link>
-          <Link href="/docs/interview-prep" style={navLink}>Interview prep →</Link>
+          <Link href="/docs/strategy-feedback" style={navLink}><ArrowIcon direction="left" /> Strategy feedback</Link>
+          <Link href="/docs/interview-prep" style={navLink}>Interview prep <ArrowIcon /></Link>
         </div>
       </div>
     </DocsLayout>

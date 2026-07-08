@@ -1,8 +1,9 @@
 import ContactForm from '@/components/marketing/ContactForm';
 
 export const metadata = {
-  title: 'Contact - Vantage',
-  description: 'Get in touch with the Vantage team.',
+  title: 'Contact',
+  description: 'Get in touch with the Vantage team - questions, feedback, or support.',
+  alternates: { canonical: '/contact' },
 };
 
 export default function ContactPage() {

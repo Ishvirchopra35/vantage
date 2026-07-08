@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { ApplicationRow } from '@/app/api/applications/route'
 import ApplicationDetailModal from '@/components/ApplicationDetailModal'
+import SkeletonLoader from '@/components/ui/SkeletonLoader'
+import CustomSelect from '@/components/CustomSelect'
+import PageHeader from '@/components/ui/PageHeader'
 
 // --- Types --------------------------------------------------------------------
 
@@ -27,19 +30,19 @@ const STATUS_LABEL: Record<Status, string> = {
 }
 
 const STATUS_COLOR: Record<Status, string> = {
-  applied: 'rgba(99,102,241,0.15)',
-  interviewing: 'rgba(245,158,11,0.15)',
+  applied: 'var(--gold-dim)',
+  interviewing: 'rgba(34,197,94,0.1)',
   offer: 'rgba(34,197,94,0.15)',
-  rejected: 'rgba(239,68,68,0.15)',
-  ghosted: 'rgba(107,114,128,0.15)',
+  rejected: 'rgba(239,68,68,0.1)',
+  ghosted: 'rgba(239,68,68,0.1)',
 }
 
 const STATUS_TEXT: Record<Status, string> = {
-  applied: '#818cf8',
-  interviewing: '#f59e0b',
-  offer: '#22c55e',
-  rejected: '#ef4444',
-  ghosted: '#9ca3af',
+  applied: 'var(--gold)',
+  interviewing: 'var(--score-green)',
+  offer: 'var(--score-green)',
+  rejected: 'var(--score-red)',
+  ghosted: 'var(--score-red)',
 }
 
 // All valid status options for the dropdown, in order
@@ -107,6 +110,7 @@ const card = {
   background: 'var(--card)',
   border: '1px solid var(--border)',
   borderRadius: 'var(--radius)',
+  boxShadow: 'var(--shadow-md)',
   padding: '24px',
 }
 
@@ -123,11 +127,12 @@ const inputStyle = {
 }
 
 const primaryBtn = {
-  background: 'var(--accent)',
-  color: 'var(--bg)',
-  border: 'none',
-  borderRadius: '10px',
-  padding: '10px 18px',
+  background: 'var(--gold-dim)',
+  color: 'var(--gold)',
+  border: '1px solid var(--gold-border)',
+  borderRadius: 'var(--radius)',
+  padding: '10px 20px',
+  fontFamily: 'var(--font-display)',
   fontSize: '14px',
   fontWeight: 600,
   cursor: 'pointer',
@@ -135,7 +140,6 @@ const primaryBtn = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '8px',
-  transition: 'opacity 0.15s',
   minHeight: '44px',
 }
 
@@ -336,25 +340,22 @@ export default function TrackerPage() {
 
   return (
     <div style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '40px 16px 80px' }}>
+      <div className="dashboard-page">
 
         {/* -- Header ------------------------------------------------------- */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
-          <div>
-            <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
-              Applications
-            </h1>
-            <p style={{ color: 'var(--muted)', fontSize: '15px', marginTop: '6px', marginBottom: 0 }}>
-              Track every application in one place.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowLogForm(v => !v)}
-            style={primaryBtn}
-          >
-            {showLogForm ? 'Cancel' : '+ Log application'}
-          </button>
-        </div>
+        <PageHeader
+          title="Applications"
+          subtitle="Track every application in one place."
+          action={(
+            <button
+              onClick={() => setShowLogForm(v => !v)}
+              className="btn-gold-hover"
+              style={primaryBtn}
+            >
+              {showLogForm ? 'Cancel' : '+ Log application'}
+            </button>
+          )}
+        />
 
         {/* -- At-limit banner ---------------------------------------------- */}
         {atLimit && (
@@ -399,15 +400,11 @@ export default function TrackerPage() {
               </div>
               <div style={{ flex: '0 0 140px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Status</div>
-                <select
+                <CustomSelect
                   value={logStatus}
-                  onChange={e => setLogStatus(e.target.value as Status)}
-                  style={{ ...inputStyle, cursor: 'pointer' }}
-                >
-                  {ALL_STATUSES.map(s => (
-                    <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-                  ))}
-                </select>
+                  onChange={v => setLogStatus(v as Status)}
+                  options={ALL_STATUSES.map(s => ({ value: s, label: STATUS_LABEL[s] }))}
+                />
               </div>
               <div style={{ flex: '0 0 140px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Date applied</div>
@@ -421,6 +418,7 @@ export default function TrackerPage() {
               <button
                 onClick={handleLogSubmit}
                 disabled={logSubmitting || !logCompany.trim() || !logRole.trim()}
+                className="btn-gold-hover"
                 style={{
                   ...primaryBtn,
                   flex: '0 0 auto',
@@ -448,7 +446,7 @@ export default function TrackerPage() {
 
         {/* -- Stats bar ---------------------------------------------------- */}
         {!loading && applications.length > 0 && (
-          <div className="tracker-stats-grid">
+          <div className="tracker-stats-grid fade-in">
             {[
               { label: 'Total', value: total.toString() },
               { label: 'Response rate', value: responseRate },
@@ -463,22 +461,20 @@ export default function TrackerPage() {
           </div>
         )}
 
-        {/* -- Loading ------------------------------------------------------ */}
+        {/* -- Loading: skeleton mirrors stats grid + table ------------------ */}
         {loading && (
-          <div style={{ ...card }}>
-            {[1, 2, 3].map(i => (
-              <div
-                key={i}
-                style={{
-                  height: '52px',
-                  background: 'var(--border)',
-                  borderRadius: '8px',
-                  marginBottom: i < 3 ? '10px' : 0,
-                  animation: 'shimmer 1.4s ease infinite',
-                }}
-              />
-            ))}
-          </div>
+          <>
+            <div className="tracker-stats-grid">
+              {[1, 2, 3, 4].map(i => (
+                <SkeletonLoader key={i} height={76} />
+              ))}
+            </div>
+            <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {[1, 2, 3, 4, 5].map(i => (
+                <SkeletonLoader key={i} height={52} />
+              ))}
+            </div>
+          </>
         )}
 
         {/* -- Error -------------------------------------------------------- */}
@@ -502,13 +498,19 @@ export default function TrackerPage() {
             textAlign: 'center',
             padding: '64px 24px',
           }}>
-            <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
+            <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+                <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+              </svg>
+            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
               No applications yet
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '24px' }}>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)', marginBottom: '24px' }}>
               Log your first application to start tracking.
             </div>
-            <button onClick={() => setShowLogForm(true)} style={primaryBtn}>
+            <button onClick={() => setShowLogForm(true)} className="btn-gold-hover" style={primaryBtn}>
               + Log application
             </button>
           </div>
@@ -531,7 +533,7 @@ export default function TrackerPage() {
 
         {/* -- Table -------------------------------------------------------- */}
         {!loading && applications.length > 0 && (
-          <div className="tracker-table-wrapper" style={{ ...card, padding: 0 }}>
+          <div className="tracker-table-wrapper fade-in" style={{ ...card, padding: 0 }}>
             {/* columns: company(flex) | role(flex) | status(100px) | since(52px) | ats(52px) | delete(32px) */}
             <div style={{
               display: 'grid',
@@ -565,16 +567,19 @@ export default function TrackerPage() {
                 <div
                   key={row.id}
                   onClick={() => { if (!row.id.startsWith('temp-') && !isDeleting) setSelectedAppId(row.id) }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--card-raised)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = idx % 2 === 0 ? 'var(--card-sunken)' : 'transparent' }}
                   style={{
                     display: 'grid',
                     gridTemplateColumns: 'minmax(0,2fr) minmax(0,2fr) 100px 52px 52px 32px',
                     padding: '13px 20px',
+                    background: idx % 2 === 0 ? 'var(--card-sunken)' : 'transparent',
                     borderBottom: idx < applications.length - 1 ? '1px solid var(--border)' : 'none',
                     gap: '12px',
                     alignItems: 'center',
                     minHeight: '48px',
                     opacity: row.id.startsWith('temp-') || isDeleting ? 0.5 : 1,
-                    transition: 'opacity 0.15s',
+                    transition: 'opacity 0.15s, background 0.15s ease',
                     overflow: 'visible',
                     cursor: row.id.startsWith('temp-') || isDeleting ? 'default' : 'pointer',
                   }}
@@ -609,10 +614,13 @@ export default function TrackerPage() {
                         background: STATUS_COLOR[row.status],
                         color: STATUS_TEXT[row.status],
                         border: 'none',
-                        borderRadius: '6px',
-                        padding: '4px 10px',
-                        fontSize: '12px',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '3px 8px',
+                        fontFamily: 'var(--font-display)',
+                        fontSize: '11px',
                         fontWeight: 600,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase' as const,
                         cursor: isUpdating || isDeleting ? 'default' : 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -638,10 +646,10 @@ export default function TrackerPage() {
                         left: dropdownPos.left,
                         background: 'var(--card)',
                         border: '1px solid var(--border)',
-                        borderRadius: '10px',
+                        borderRadius: 'var(--radius)',
                         zIndex: 9999,
                         minWidth: '140px',
-                        boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                        boxShadow: 'var(--shadow-lg)',
                         overflow: 'hidden',
                       }}
                     >

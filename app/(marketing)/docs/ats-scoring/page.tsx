@@ -1,11 +1,13 @@
 import DocsLayout from '@/components/marketing/DocsLayout';
 import Link from 'next/link';
+import ArrowIcon from '@/components/ui/ArrowIcon';
 
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'ATS Scoring - Vantage Docs',
+  title: 'ATS Scoring · Docs',
   description: 'Understand how ATS systems evaluate resumes and how Vantage scores yours.',
+  alternates: { canonical: '/docs/ats-scoring' },
 };
 
 export default function AtsScoringPage() {
@@ -24,10 +26,10 @@ export default function AtsScoringPage() {
         <section style={section}>
           <h2 style={h2}>How to use it</h2>
           <ol style={ol}>
-            <li style={li}>Go to the <strong style={strong}>ATS</strong> page from your dashboard, or score during the tailoring flow.</li>
-            <li style={li}>Paste the job posting URL or description.</li>
-            <li style={li}>Vantage compares your resume against extracted keywords and evaluates four sub-scores.</li>
-            <li style={li}>Review your overall score and each sub-score breakdown.</li>
+            <li style={li}>Go to the <strong style={strong}>Tailor</strong> page and paste a job posting URL or description.</li>
+            <li style={li}>Once Vantage reads the job, open the <strong style={strong}>ATS Score</strong> tab. It compares your resume against the extracted keywords and evaluates four sub-scores.</li>
+            <li style={li}>Review your overall score, each sub-score, and the keywords you match versus the ones you are missing.</li>
+            <li style={li}>Open the <strong style={strong}>ATS</strong> page from your dashboard any time to see your saved scores and how they trend over time.</li>
           </ol>
         </section>
 
@@ -55,7 +57,7 @@ export default function AtsScoringPage() {
           <h2 style={h2}>Tips for best results</h2>
           <ul style={ul}>
             <li style={li}>The most impactful improvement is almost always keyword coverage. Use the tailoring feature to incorporate missing keywords from your existing experience.</li>
-            <li style={li}>Use a simple, single-column resume format. ATS parsers struggle with multi-column layouts, tables, and embedded images.</li>
+            <li style={li}>Use a simple, single-column resume format. ATS systems struggle to read multi-column layouts, tables, and embedded images.</li>
             <li style={li}>Use standard section headings like &quot;Experience,&quot; &quot;Education,&quot; and &quot;Skills&quot; rather than creative alternatives.</li>
           </ul>
         </section>
@@ -68,14 +70,14 @@ export default function AtsScoringPage() {
           </div>
           <div style={faq}>
             <p style={faqQ}>My format score is low but my resume looks fine.</p>
-            <p style={p}>Visual appearance and ATS parseability are different. A beautifully designed resume with columns or icons may confuse an ATS parser. Use a simple, text-based layout.</p>
+            <p style={p}>How a resume looks and how well an ATS can read it are two different things. A beautifully designed resume with columns or icons may confuse an ATS. Use a simple, text-based layout.</p>
           </div>
         </section>
 
-        <p style={updated}>Last updated: May 15, 2026</p>
+        <p style={updated}>Last updated: July 8, 2026</p>
         <div style={nav}>
-          <Link href="/docs/resume-tailoring" style={navLink}>← Resume tailoring</Link>
-          <Link href="/docs/cover-letters" style={navLink}>Cover letters →</Link>
+          <Link href="/docs/resume-tailoring" style={navLink}><ArrowIcon direction="left" /> Resume tailoring</Link>
+          <Link href="/docs/cover-letters" style={navLink}>Cover letters <ArrowIcon /></Link>
         </div>
       </div>
     </DocsLayout>

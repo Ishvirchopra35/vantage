@@ -26,8 +26,10 @@ export function rateLimited(feature: string, limit: number, resetDays: number) {
 }
 
 export function serverError(e: unknown) {
-  const message = e instanceof Error ? e.message : 'Internal server error';
-  return err(message, 500);
+  // Log the real error server-side (visible in server logs), but never leak
+  // internal details to the client - return a generic, user-friendly message.
+  console.error('[serverError]', e);
+  return err('Something went wrong on our end. Please try again.', 500);
 }
 
 export default {

@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { MDXRemote } from 'next-mdx-remote/rsc'
 import { getBlogPost, getBlogPosts } from '@/lib/mdx'
 import components from '@/components/mdx/MDXComponents'
+import ArrowIcon from '@/components/ui/ArrowIcon'
 
 export const dynamic = 'force-static'
 
@@ -32,11 +33,26 @@ export async function generateMetadata({
   try {
     const { frontmatter } = await getBlogPost(slug)
     return {
-      title: `${frontmatter.title} - Vantage Blog`,
+      title: frontmatter.title,
       description: frontmatter.excerpt,
+      alternates: { canonical: `/blog/${slug}` },
+      openGraph: {
+        type: 'article',
+        url: `/blog/${slug}`,
+        siteName: 'Vantage',
+        title: frontmatter.title,
+        description: frontmatter.excerpt,
+        publishedTime: `${frontmatter.date}T00:00:00Z`,
+        authors: [frontmatter.author],
+      },
+      twitter: {
+        card: 'summary',
+        title: frontmatter.title,
+        description: frontmatter.excerpt,
+      },
     }
   } catch {
-    return { title: 'Blog - Vantage' }
+    return { title: 'Blog' }
   }
 }
 
@@ -70,7 +86,7 @@ export default async function BlogPostPage({
           href="/blog"
           style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none', display: 'inline-block', marginBottom: 32 }}
         >
-          ← Blog
+          <ArrowIcon direction="left" /> Blog
         </Link>
 
         {/* Meta line */}

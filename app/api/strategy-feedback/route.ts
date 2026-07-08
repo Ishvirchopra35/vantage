@@ -6,6 +6,7 @@ import { withTimeout } from '@/lib/withTimeout'
 import { generateJSON } from '@/lib/ai'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
 import { createClient } from '@/lib/supabase/server'
+import { hasRealJobTitle } from '@/lib/jobFilters'
 
 export interface StrategyFeedback {
   top_insights: string[]
@@ -105,10 +106,13 @@ export async function GET(request: Request): Promise<Response> {
   const responseCount = breakdown.interviewing + breakdown.offer
   const responseRate = total > 0 ? Math.round((responseCount / total) * 1000) / 10 : 0
 
-  // Response rate grouped by role
+  // Response rate grouped by role. Defensive guard: only group rows whose role
+  // is a real job title so a null/empty/whitespace/"Untitled" role can't surface
+  // in the strategy output grouping (Requirement 4.4).
   const roleMap: Record<string, { total: number; successes: number }> = {}
   for (const app of apps) {
-    const role = app.role ?? 'Unknown'
+    if (!hasRealJobTitle(app.role)) continue
+    const role = app.role as string
     if (!roleMap[role]) roleMap[role] = { total: 0, successes: 0 }
     roleMap[role].total++
     if (app.status === 'interviewing' || app.status === 'offer') roleMap[role].successes++

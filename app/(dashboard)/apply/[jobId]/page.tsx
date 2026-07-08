@@ -6,13 +6,15 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import ScoreBadge from '@/components/ui/ScoreBadge'
 import Spinner from '@/components/ui/Spinner'
+import SkeletonLoader from '@/components/ui/SkeletonLoader'
+import ArrowIcon from '@/components/ui/ArrowIcon'
 
 // --- Types --------------------------------------------------------------------
 
 type AppStatus = 'applied' | 'interviewing' | 'offer' | 'rejected' | 'ghosted'
 
 interface Job {
-  id: string
+  id: string | null
   title: string
   company: string
   required_skills: string[] | null
@@ -61,19 +63,19 @@ const STATUS_LABEL: Record<AppStatus, string> = {
 }
 
 const STATUS_COLOR: Record<AppStatus, string> = {
-  applied: 'rgba(99,102,241,0.15)',
-  interviewing: 'rgba(245,158,11,0.15)',
+  applied: 'var(--gold-dim)',
+  interviewing: 'rgba(34,197,94,0.1)',
   offer: 'rgba(34,197,94,0.15)',
-  rejected: 'rgba(239,68,68,0.15)',
-  ghosted: 'rgba(107,114,128,0.15)',
+  rejected: 'rgba(239,68,68,0.1)',
+  ghosted: 'rgba(239,68,68,0.1)',
 }
 
 const STATUS_TEXT: Record<AppStatus, string> = {
-  applied: '#818cf8',
-  interviewing: '#f59e0b',
-  offer: '#22c55e',
-  rejected: '#ef4444',
-  ghosted: '#9ca3af',
+  applied: 'var(--gold)',
+  interviewing: 'var(--score-green)',
+  offer: 'var(--score-green)',
+  rejected: 'var(--score-red)',
+  ghosted: 'var(--score-red)',
 }
 
 // --- Checklist ----------------------------------------------------------------
@@ -144,59 +146,128 @@ export default function ApplyPrepPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
-      const [jobRes, docsRes, atsRes, appRes, profileRes] = await Promise.all([
-        supabase
+      // The route param is an opaque apply-target id. It is resolved
+      // application-id-first (the auto-apply page links with an application id),
+      // then falls back to a legacy jobs.id deep link.
+      const param = jobId
+
+      let resolvedJob: Job | null = null
+      let resolvedApplication: AppRow | null = null
+      // documents/ats_scores are keyed by job_id; null for manual targets.
+      let dataJobId: string | null = null
+
+      // Step 1: resolve the param as an application id.
+      const appByIdRes = await supabase
+        .from('applications')
+        .select('id, status, company, role, applied_date, job_id')
+        .eq('id', param)
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .maybeSingle()
+
+      if (appByIdRes.data) {
+        const app = appByIdRes.data as AppRow
+        resolvedApplication = app
+        if (app.job_id) {
+          // Job-linked application: load the real job and key docs/ats by job_id.
+          const jobRes = await supabase
+            .from('jobs')
+            .select('id, title, company, required_skills, keywords')
+            .eq('id', app.job_id)
+            .eq('user_id', user.id)
+            .maybeSingle()
+          if (jobRes.data) {
+            resolvedJob = jobRes.data as Job
+            dataJobId = app.job_id
+          } else {
+            // Job row missing/inaccessible — synthesize from the application.
+            resolvedJob = { id: null, title: app.role, company: app.company, required_skills: null, keywords: null }
+          }
+        } else {
+          // Manual application (null job_id): synthesize a display job.
+          // documents/ats_scores are keyed on job_id, so they resolve empty and
+          // their existing empty states render.
+          resolvedJob = { id: null, title: app.role, company: app.company, required_skills: null, keywords: null }
+        }
+      } else {
+        // Step 2: legacy fallback — treat the param as a jobs.id deep link.
+        const jobRes = await supabase
           .from('jobs')
           .select('id, title, company, required_skills, keywords')
-          .eq('id', jobId)
+          .eq('id', param)
           .eq('user_id', user.id)
-          .single(),
-        supabase
-          .from('documents')
-          .select('id, type, content, created_at')
-          .eq('job_id', jobId)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('ats_scores')
-          .select('id, overall_score')
-          .eq('job_id', jobId)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('applications')
-          .select('id, status, company, role, applied_date, job_id')
-          .eq('job_id', jobId)
-          .eq('user_id', user.id)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('profiles')
-          .select('extension_token')
-          .eq('id', user.id)
-          .single(),
-      ])
+          .maybeSingle()
+        if (jobRes.data) {
+          resolvedJob = jobRes.data as Job
+          dataJobId = (jobRes.data as Job).id
+          const appRes = await supabase
+            .from('applications')
+            .select('id, status, company, role, applied_date, job_id')
+            .eq('job_id', param)
+            .eq('user_id', user.id)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          resolvedApplication = (appRes.data as AppRow | null) ?? null
+        }
+      }
 
-      if (jobRes.error || !jobRes.data) {
+      // Step 3: neither an application nor a job resolved.
+      if (!resolvedJob) {
         setPageError('Job not found or you do not have access.')
         setPageLoading(false)
         return
       }
 
-      setJob(jobRes.data as Job)
-      const docs = (docsRes.data ?? []) as DocRow[]
+      // Load documents + ats (keyed by job_id) and the profile. Skip the
+      // job_id-keyed queries for manual targets so they resolve empty.
+      let docs: DocRow[] = []
+      let ats: AtsRow | null = null
+      let profileRes: { data: { extension_token: string | null } | null }
+
+      if (dataJobId) {
+        const [docsRes, atsRes, pRes] = await Promise.all([
+          supabase
+            .from('documents')
+            .select('id, type, content, created_at')
+            .eq('job_id', dataJobId)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('ats_scores')
+            .select('id, overall_score')
+            .eq('job_id', dataJobId)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('profiles')
+            .select('extension_token')
+            .eq('id', user.id)
+            .single(),
+        ])
+        docs = (docsRes.data ?? []) as DocRow[]
+        ats = (atsRes.data as AtsRow | null) ?? null
+        profileRes = pRes as { data: { extension_token: string | null } | null }
+      } else {
+        profileRes = await supabase
+          .from('profiles')
+          .select('extension_token')
+          .eq('id', user.id)
+          .single() as { data: { extension_token: string | null } | null }
+      }
+
+      setJob(resolvedJob)
       setResumeDoc(docs.find(d => d.type === 'tailored_resume') ?? null)
       setCoverDoc(docs.find(d => d.type === 'cover_letter') ?? null)
-      setAtsScore((atsRes.data as AtsRow | null) ?? null)
-      setApplication((appRes.data as AppRow | null) ?? null)
-      setExtensionInstalled(!!(profileRes.data as { extension_token: string | null } | null)?.extension_token)
+      setAtsScore(ats)
+      setApplication(resolvedApplication)
+      setExtensionInstalled(!!profileRes.data?.extension_token)
 
-      if (appRes.data?.id) {
-        const qRes = await fetch(`/api/answer-question?applicationId=${appRes.data.id}`)
+      if (resolvedApplication?.id) {
+        const qRes = await fetch(`/api/answer-question?applicationId=${resolvedApplication.id}`)
         if (qRes.ok) {
           const qJson = await qRes.json()
           setQuestions(
@@ -297,10 +368,19 @@ export default function ApplyPrepPage() {
           setApplication(prev => prev ? { ...prev, status: 'applied', applied_date: today } : prev)
         }
       } else {
+        // No existing application (legacy job-linked deep link). Only send
+        // job_id when the resolved target has a real job id, so we never POST
+        // an application id as a job_id.
         const res = await fetch('/api/applications', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ company: job.company, role: job.title, status: 'applied', job_id: jobId, applied_date: today }),
+          body: JSON.stringify({
+            company: job.company,
+            role: job.title,
+            status: 'applied',
+            ...(job.id ? { job_id: job.id } : {}),
+            applied_date: today,
+          }),
         })
         if (res.ok) {
           const json = await res.json()
@@ -316,7 +396,8 @@ export default function ApplyPrepPage() {
   const card: React.CSSProperties = {
     background: 'var(--card)',
     border: '1px solid var(--border)',
-    borderRadius: '12px',
+    borderRadius: 'var(--radius)',
+    boxShadow: 'var(--shadow-md)',
     padding: '20px 24px',
     marginBottom: '16px',
   }
@@ -346,11 +427,12 @@ export default function ApplyPrepPage() {
 
   const primaryBtn: React.CSSProperties = {
     padding: '9px 20px',
-    background: 'var(--accent)',
-    color: 'var(--bg)',
-    border: 'none',
-    borderRadius: '8px',
+    background: 'var(--gold-dim)',
+    color: 'var(--gold)',
+    border: '1px solid var(--gold-border)',
+    borderRadius: 'var(--radius)',
     fontSize: '13px',
+    fontFamily: 'var(--font-display)',
     fontWeight: 600,
     cursor: 'pointer',
     display: 'inline-flex',
@@ -387,8 +469,16 @@ export default function ApplyPrepPage() {
 
   if (pageLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh' }}>
-        <Spinner size="lg" />
+      <div className="dashboard-page">
+        <div style={{ marginBottom: '28px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <SkeletonLoader width={120} height={12} />
+          <SkeletonLoader width={380} height={26} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <SkeletonLoader height={140} />
+          <SkeletonLoader height={140} />
+          <SkeletonLoader height={200} />
+        </div>
       </div>
     )
   }
@@ -399,31 +489,34 @@ export default function ApplyPrepPage() {
         <div style={{ fontSize: '14px', color: '#ef4444', marginBottom: '16px' }}>
           {pageError ?? 'Job not found.'}
         </div>
-        <Link href="/tracker" style={smallBtn}>← Back to tracker</Link>
+        <Link href="/tracker" style={smallBtn}><ArrowIcon direction="left" /> Back to tracker</Link>
       </div>
     )
   }
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+    <div className="fade-in dashboard-page">
 
       {/* -- Header ---------------------------------------------------------- */}
       <div style={{ marginBottom: '28px' }}>
         <Link href="/tracker" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none', display: 'inline-block', marginBottom: '10px' }}>
-          ← Back to tracker
+          <ArrowIcon direction="left" /> Back to tracker
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)', margin: 0 }}>
             {job.title} at {job.company}
           </h1>
           {application && (
             <span style={{
               background: STATUS_COLOR[application.status],
               color: STATUS_TEXT[application.status],
-              borderRadius: '6px',
-              padding: '3px 10px',
-              fontSize: '12px',
+              borderRadius: 'var(--radius-sm)',
+              padding: '3px 8px',
+              fontFamily: 'var(--font-display)',
+              fontSize: '11px',
               fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase' as const,
               flexShrink: 0,
             }}>
               {STATUS_LABEL[application.status]}
@@ -463,7 +556,7 @@ export default function ApplyPrepPage() {
               <>
                 <div style={{ fontSize: '12px', color: 'var(--muted)', flex: 1 }}>No tailored resume yet.</div>
                 <div>
-                  <Link href={`/tailor?jobId=${jobId}`} style={smallBtn}>Tailor resume →</Link>
+                  <Link href={`/tailor?jobId=${jobId}`} style={smallBtn}>Tailor resume <ArrowIcon /></Link>
                 </div>
               </>
             )}
@@ -495,7 +588,7 @@ export default function ApplyPrepPage() {
               <>
                 <div style={{ fontSize: '12px', color: 'var(--muted)', flex: 1 }}>No cover letter yet.</div>
                 <div>
-                  <Link href={`/tailor?jobId=${jobId}`} style={smallBtn}>Generate →</Link>
+                  <Link href={`/tailor?jobId=${jobId}`} style={smallBtn}>Generate <ArrowIcon /></Link>
                 </div>
               </>
             )}
@@ -513,7 +606,7 @@ export default function ApplyPrepPage() {
               <>
                 <div style={{ fontSize: '12px', color: 'var(--muted)', flex: 1 }}>No ATS score yet.</div>
                 <div>
-                  <Link href={`/tailor?jobId=${jobId}`} style={smallBtn}>Check score →</Link>
+                  <Link href={`/tailor?jobId=${jobId}`} style={smallBtn}>Check score <ArrowIcon /></Link>
                 </div>
               </>
             )}
@@ -592,7 +685,7 @@ export default function ApplyPrepPage() {
           <div style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.7 }}>
             Click the <strong>Vantage icon</strong> in your toolbar while you have the application form open.{' '}
             <Link href="/profile#extension-token" style={{ color: 'var(--accent)', textDecoration: 'none', fontSize: '13px' }}>
-              Manage token →
+              Manage connection code <ArrowIcon />
             </Link>
           </div>
         ) : (
@@ -610,7 +703,7 @@ export default function ApplyPrepPage() {
                 Install extension - 30 seconds
               </a>
               <Link href="/profile#extension-token" style={{ ...smallBtn, fontSize: '13px' }}>
-                Already installed? Get your token →
+                Already installed? Get your connection code <ArrowIcon />
               </Link>
             </div>
           </div>

@@ -2,6 +2,9 @@ import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { filterTrackedJobs } from '@/lib/jobFilters';
+import ArrowIcon from '@/components/ui/ArrowIcon';
+import PageHeader from '@/components/ui/PageHeader';
 
 export const metadata = {
   title: 'Dashboard - Vantage',
@@ -23,12 +26,14 @@ type ApplicationRow = {
   role: string;
   status: ApplicationStatus;
   created_at: string;
+  job_id: string | null;
 };
 
 type DocumentRow = {
   id: string;
   type: 'tailored_resume' | 'cover_letter';
   created_at: string;
+  job_id: string | null;
   jobs: { title: string | null; company: string | null } | null | Array<{ title: string | null; company: string | null }>;
 };
 
@@ -36,6 +41,7 @@ type AtsScoreRow = {
   id: string;
   overall_score: number | null;
   scored_at: string;
+  job_id: string | null;
   jobs: { title: string | null; company: string | null } | null | Array<{ title: string | null; company: string | null }>;
 };
 
@@ -118,6 +124,18 @@ function applicationStatusClass(status: ApplicationStatus): string {
   return `status-badge status-${status}`;
 }
 
+function SectionEmpty({ title, sub, icon }: { title: string; sub: string; icon: React.ReactNode }): React.ReactElement {
+  return (
+    <div style={{ textAlign: 'center', padding: '28px 16px' }}>
+      <div style={{ width: '32px', height: '32px', margin: '0 auto 10px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)' }}>
+        {icon}
+      </div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>{title}</div>
+      <div style={{ fontFamily: 'var(--font-body)', fontSize: '12px', color: 'var(--muted)' }}>{sub}</div>
+    </div>
+  );
+}
+
 export default async function DashboardPage() {
   const enableFreemium = process.env.NEXT_PUBLIC_ENABLE_FREEMIUM === 'true';
   const supabase = await createClient();
@@ -146,19 +164,19 @@ export default async function DashboardPage() {
       .single(),
     supabase
       .from('applications')
-      .select('id, company, role, status, created_at')
+      .select('id, company, role, status, created_at, job_id')
       .eq('user_id', user.id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false }),
     supabase
       .from('documents')
-      .select('id, type, created_at, jobs(title, company)')
+      .select('id, type, created_at, job_id, jobs(title, company)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(10),
     supabase
       .from('ats_scores')
-      .select('id, overall_score, scored_at, jobs(title, company)')
+      .select('id, overall_score, scored_at, job_id, jobs(title, company)')
       .eq('user_id', user.id)
       .order('scored_at', { ascending: false })
       .limit(5),
@@ -205,34 +223,69 @@ export default async function DashboardPage() {
       ? Math.round(avgAtsScoreValues.reduce((sum, score) => sum + score, 0) / avgAtsScoreValues.length)
       : null;
 
+  // Source of truth for "jobs the user has tracked": job_ids from the user's
+  // non-deleted applications rows (applications query already filters deleted_at null).
+  const trackedJobIds = new Set(
+    applications
+      .map((application) => application.job_id)
+      .filter((jobId): jobId is string => jobId != null)
+  );
+
+  // ATS Score History and Recent Documents join `jobs` independently, so restrict
+  // them to entries whose job is a tracked application with a real title. Rows that
+  // would otherwise fall back to a placeholder title are filtered out entirely.
+  const trackedScores = filterTrackedJobs(
+    atsScores.map((score) => ({
+      ...score,
+      jobId: score.job_id,
+      title: firstJoinedJob(score.jobs)?.title ?? null,
+    })),
+    trackedJobIds
+  );
+  const trackedDocs = filterTrackedJobs(
+    documents.map((document) => ({
+      ...document,
+      jobId: document.job_id,
+      title: firstJoinedJob(document.jobs)?.title ?? null,
+    })),
+    trackedJobIds
+  );
+
   const recentApplications = applications.slice(0, 5);
-  const recentScores = atsScores.slice(0, 3);
-  const recentDocs = documents.slice(0, 5);
+  const recentScores = trackedScores.slice(0, 3);
+  const recentDocs = trackedDocs.slice(0, 5);
 
   const statCardStyle: CSSProperties = {
-    background: 'var(--card)',
+    background: 'var(--card-raised)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius)',
+    boxShadow: 'var(--shadow-md)',
     padding: '20px 24px',
   };
 
   const statValueStyle: CSSProperties = {
-    fontSize: '28px',
-    fontWeight: 700,
+    fontFamily: 'var(--font-display)',
+    fontSize: '32px',
+    fontWeight: 800,
+    letterSpacing: '-0.03em',
     color: 'var(--text)',
     lineHeight: 1,
   };
 
   const statLabelStyle: CSSProperties = {
+    fontFamily: 'var(--font-body)',
     fontSize: '12px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
     color: 'var(--muted)',
-    marginTop: '4px',
+    marginTop: '6px',
   };
 
   const sectionCardStyle: CSSProperties = {
     background: 'var(--card)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius)',
+    boxShadow: 'var(--shadow-md)',
     padding: '20px 24px',
     marginBottom: '16px',
   };
@@ -245,9 +298,12 @@ export default async function DashboardPage() {
   };
 
   const sectionTitleStyle: CSSProperties = {
-    fontSize: '14px',
+    fontFamily: 'var(--font-display)',
+    fontSize: '12px',
     fontWeight: 600,
-    color: 'var(--text)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    color: 'var(--muted)',
   };
 
   const viewAllStyle: CSSProperties = {
@@ -256,29 +312,9 @@ export default async function DashboardPage() {
     textDecoration: 'none',
   };
 
-  const emptyStateStyle: CSSProperties = {
-    fontSize: '13px',
-    color: 'var(--muted)',
-    padding: '16px 0',
-  };
-
   const listStyle: CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
-  };
-
-  const listItemStyle: CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '14px',
-    padding: '12px 14px',
-    border: '1px solid var(--border)',
-    borderRadius: '10px',
-    background: 'transparent',
-    textDecoration: 'none',
-    color: 'inherit',
   };
 
   return (
@@ -304,19 +340,14 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '24px' }}>
-        <div>
-          <div style={{ fontSize: '22px', fontWeight: 600, color: 'var(--text)', lineHeight: 1.2 }}>
-            Good {bucket}, {firstName}
-          </div>
-          <div style={{ marginTop: '6px', fontSize: '13px', color: 'var(--muted)' }}>
-            {totalApplications > 0
-              ? `You have ${totalApplications} tracked applications, ${tailoringsThisWeek} tailorings this week, and ${profileComplete ? 'a complete profile' : 'room to improve your profile'}.`
-              : 'Start with a tailored resume and a strong first application.'}
-          </div>
-        </div>
-
-        {enableFreemium && (
+      <PageHeader
+        title={`Good ${bucket}, ${firstName}`}
+        subtitle={
+          totalApplications > 0
+            ? `You have ${totalApplications} tracked applications, ${tailoringsThisWeek} tailorings this week, and ${profileComplete ? 'a complete profile' : 'room to improve your profile'}.`
+            : 'Start with a tailored resume and a strong first application.'
+        }
+        action={enableFreemium ? (
           <span style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -329,8 +360,8 @@ export default async function DashboardPage() {
           }}>
             {plan}
           </span>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       <div className="stats-grid">
         <div style={statCardStyle}>
@@ -358,13 +389,14 @@ export default async function DashboardPage() {
               Tailor your first resume and check your ATS score to get started.
             </div>
           </div>
-          <Link href="/tailor" style={{
-            background: 'var(--accent)',
-            color: 'var(--bg)',
-            border: 'none',
-            borderRadius: '10px',
+          <Link href="/tailor" className="btn-gold-hover" style={{
+            background: 'var(--gold-dim)',
+            color: 'var(--gold)',
+            border: '1px solid var(--gold-border)',
+            borderRadius: 'var(--radius)',
             padding: '8px 16px',
             fontSize: '13px',
+            fontFamily: 'var(--font-display)',
             fontWeight: 600,
             cursor: 'pointer',
             textDecoration: 'none',
@@ -381,14 +413,14 @@ export default async function DashboardPage() {
         <div style={sectionHeaderStyle}>
           <div style={sectionTitleStyle}>Recent Applications</div>
           <Link href="/tracker" style={viewAllStyle}>
-            View all →
+            View all <ArrowIcon />
           </Link>
         </div>
 
         {recentApplications.length > 0 ? (
           <div style={listStyle}>
             {recentApplications.map((application) => (
-              <div key={application.id} style={listItemStyle}>
+              <div key={application.id} className="dash-row">
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {application.company} · {application.role}
@@ -402,7 +434,11 @@ export default async function DashboardPage() {
             ))}
           </div>
         ) : (
-          <div style={emptyStateStyle}>No applications yet.</div>
+          <SectionEmpty
+            title="No applications yet"
+            sub="Log your first application on the Applications page."
+            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>}
+          />
         )}
       </div>
 
@@ -410,7 +446,7 @@ export default async function DashboardPage() {
         <div style={sectionHeaderStyle}>
           <div style={sectionTitleStyle}>ATS Score History</div>
           <Link href="/ats" style={viewAllStyle}>
-            View all →
+            View all <ArrowIcon />
           </Link>
         </div>
 
@@ -420,10 +456,10 @@ export default async function DashboardPage() {
               const numericScore = score.overall_score ?? 0;
               const job = firstJoinedJob(score.jobs);
               return (
-                <div key={score.id} style={listItemStyle}>
+                <div key={score.id} className="dash-row">
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {job?.title || 'Untitled job'}
+                      {score.title}
                     </div>
                     <div style={{ marginTop: '4px', fontSize: '12px', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {job?.company || 'Unknown company'}
@@ -440,7 +476,11 @@ export default async function DashboardPage() {
             })}
           </div>
         ) : (
-          <div style={emptyStateStyle}>No ATS scores yet.</div>
+          <SectionEmpty
+            title="No scores yet"
+            sub="Tailor a resume to get your first ATS score."
+            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>}
+          />
         )}
       </div>
 
@@ -448,7 +488,7 @@ export default async function DashboardPage() {
         <div style={sectionHeaderStyle}>
           <div style={sectionTitleStyle}>Recent Documents</div>
           <Link href="/documents" style={viewAllStyle}>
-            View all →
+            View all <ArrowIcon />
           </Link>
         </div>
 
@@ -457,7 +497,7 @@ export default async function DashboardPage() {
             {recentDocs.map((document) => {
               const job = firstJoinedJob(document.jobs);
               return (
-                <Link key={document.id} href={`/documents/${document.id}`} style={listItemStyle}>
+                <Link key={document.id} href={`/documents/${document.id}`} className="dash-row">
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {documentTypeLabel(document.type)}
@@ -483,7 +523,11 @@ export default async function DashboardPage() {
             })}
           </div>
         ) : (
-          <div style={emptyStateStyle}>No documents yet.</div>
+          <SectionEmpty
+            title="No documents yet"
+            sub="Tailored resumes and cover letters appear here."
+            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>}
+          />
         )}
       </div>
     </div>

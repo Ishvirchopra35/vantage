@@ -2,6 +2,9 @@
 
 import { Fragment, type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import SkeletonLoader from '@/components/ui/SkeletonLoader';
+import CustomSelect from '@/components/CustomSelect';
+import PageHeader from '@/components/ui/PageHeader';
 
 type ScoreColor = 'red' | 'amber' | 'green';
 
@@ -144,6 +147,7 @@ export default function AtsPage() {
           .from('jobs')
           .select('id, title, company, applications!inner(id)')
           .eq('user_id', user.id)
+          .is('applications.deleted_at', null)
           .order('created_at', { ascending: false }),
         supabase
           .from('resumes')
@@ -162,12 +166,8 @@ export default function AtsPage() {
       ]);
 
       if (scoresRes.error || jobsRes.error || docsRes.error) {
-        setError(
-          scoresRes.error?.message ||
-            jobsRes.error?.message ||
-            docsRes.error?.message ||
-            'Failed to load ATS data.'
-        );
+        console.error('[ats] failed to load ATS data:', scoresRes.error || jobsRes.error || docsRes.error);
+        setError('We could not load your ATS scores right now. Please try again.');
         setLoading(false);
         return;
       }
@@ -379,27 +379,45 @@ export default function AtsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className="dashboard-page">
+      <PageHeader
+        title="ATS scores"
+        subtitle="ATS is the software companies use to screen resumes before a person reads them. A higher score means your resume is more likely to get through."
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div
         style={{
           background: 'var(--card)',
           border: '1px solid var(--border)',
           borderRadius: 'var(--radius)',
+          boxShadow: 'var(--shadow-md)',
           padding: '20px 24px',
         }}
       >
-        <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px' }}>
-          ATS Score History
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '16px' }}>
+          Score history
         </div>
 
         {loading ? (
-          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Loading scores...</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {[1, 2, 3, 4].map(i => (
+              <SkeletonLoader key={i} height={44} />
+            ))}
+          </div>
         ) : error ? (
           <div style={{ color: 'var(--score-red)', fontSize: '13px' }}>{error}</div>
         ) : groupedRows.length === 0 ? (
-          <div style={{ color: 'var(--muted)', fontSize: '13px' }}>No ATS scores yet.</div>
+          <div style={{ textAlign: 'center', padding: '40px 24px' }}>
+            <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>No ATS scores yet</div>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)' }}>Run a check below to see how your resume scores against a job.</div>
+          </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="fade-in" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '980px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -424,8 +442,13 @@ export default function AtsPage() {
               <tbody>
                 {groupedRows.map((group) => (
                   <Fragment key={group.jobKey}>
-                    {group.rows.map((row) => (
-                      <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    {group.rows.map((row, rowIdx) => (
+                      <tr
+                        key={row.id}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--card-raised)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = rowIdx % 2 === 0 ? 'var(--card-sunken)' : 'transparent'; }}
+                        style={{ background: rowIdx % 2 === 0 ? 'var(--card-sunken)' : 'transparent', borderBottom: '1px solid var(--border)', transition: 'background 0.15s ease' }}
+                      >
                         <td style={{ padding: '10px 8px', fontSize: '13px', color: 'var(--text)' }}>
                           {row.jobs?.title ?? 'Untitled job'}
                         </td>
@@ -485,10 +508,11 @@ export default function AtsPage() {
           background: 'var(--card)',
           border: '1px solid var(--border)',
           borderRadius: 'var(--radius)',
+          boxShadow: 'var(--shadow-md)',
           padding: '20px 24px',
         }}
       >
-        <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '12px' }}>
           Score a resume now
         </div>
 
@@ -504,77 +528,52 @@ export default function AtsPage() {
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--muted)' }}>
               Job
             </label>
-            <select
+            <CustomSelect
               value={selectedJobId}
-              onChange={(e) => setSelectedJobId(e.target.value)}
-              style={{
-                width: '100%',
-                height: '38px',
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg)',
-                color: 'var(--text)',
-                padding: '0 10px',
-                fontSize: '13px',
-              }}
-            >
-              {jobs.length === 0 ? (
-                <option value="">No jobs available</option>
-              ) : (
-                jobs.map((job) => (
-                  <option key={job.id} value={job.id}>
-                    {job.title || 'Untitled'} {job.company ? `- ${job.company}` : ''}
-                  </option>
-                ))
-              )}
-            </select>
+              onChange={setSelectedJobId}
+              options={
+                jobs.length === 0
+                  ? [{ value: '', label: 'No jobs available' }]
+                  : jobs.map((job) => ({
+                      value: job.id,
+                      label: `${job.title || 'Untitled'}${job.company ? ` - ${job.company}` : ''}`,
+                    }))
+              }
+            />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: 'var(--muted)' }}>
               Resume Version
             </label>
-            <select
+            <CustomSelect
               value={selectedResumeChoice}
-              onChange={(e) => setSelectedResumeChoice(e.target.value)}
-              style={{
-                width: '100%',
-                height: '38px',
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg)',
-                color: 'var(--text)',
-                padding: '0 10px',
-                fontSize: '13px',
-              }}
-            >
-              {resumeChoices.length === 0 ? (
-                <option value="">No resume versions available</option>
-              ) : (
-                resumeChoices.map((choice) => (
-                  <option
-                    key={choice.kind === 'base' ? `base:${choice.resumeId}` : `doc:${choice.documentId}`}
-                    value={choice.kind === 'base' ? `base:${choice.resumeId}` : `doc:${choice.documentId}`}
-                  >
-                    {choice.label}
-                  </option>
-                ))
-              )}
-            </select>
+              onChange={setSelectedResumeChoice}
+              options={
+                resumeChoices.length === 0
+                  ? [{ value: '', label: 'No resume versions available' }]
+                  : resumeChoices.map((choice) => ({
+                      value: choice.kind === 'base' ? `base:${choice.resumeId}` : `doc:${choice.documentId}`,
+                      label: choice.label,
+                    }))
+              }
+            />
           </div>
 
           <button
             type="button"
             onClick={runAtsCheck}
             disabled={running || !selectedJobId || !selectedResumeChoice}
+            className="btn-gold-hover"
             style={{
-              height: '38px',
-              borderRadius: '10px',
-              border: 'none',
-              background: 'var(--accent)',
-              color: '#000',
-              fontWeight: 700,
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--gold-border)',
+              background: 'var(--gold-dim)',
+              color: 'var(--gold)',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 600,
               fontSize: '13px',
+              padding: '10px 20px',
               cursor: running ? 'not-allowed' : 'pointer',
               opacity: running ? 0.65 : 1,
             }}
@@ -630,10 +629,11 @@ export default function AtsPage() {
             background: 'var(--card)',
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius)',
+            boxShadow: 'var(--shadow-md)',
             padding: '20px 24px',
           }}
         >
-          <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '12px' }}>
             Aggregate insights
           </div>
 
@@ -666,12 +666,13 @@ export default function AtsPage() {
 
             {insights.avgFormat !== null && insights.avgFormat < 60 && (
               <div style={{ fontSize: '13px', color: 'var(--score-amber)' }}>
-                Your resume may have formatting that ATS systems struggle to parse - avoid tables, columns, or graphics.
+                Your resume may have formatting that ATS systems struggle to read - avoid tables, columns, or graphics.
               </div>
             )}
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

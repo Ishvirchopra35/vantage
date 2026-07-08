@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import StrategyReport from './StrategyReport'
+import PageHeader from '@/components/ui/PageHeader'
 
 function LockIcon() {
   return (
@@ -16,19 +17,18 @@ function LockedState({ total }: { total: number }) {
 
   return (
     <div style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
-      <div style={{ maxWidth: '680px', margin: '0 auto', padding: '40px 16px 80px' }}>
-        <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>Strategy</h1>
-          <p style={{ color: 'var(--muted)', fontSize: '15px', marginTop: '6px', marginBottom: 0 }}>
-            Data-driven insights on your job search.
-          </p>
-        </div>
+      <div className="dashboard-page">
+        <PageHeader
+          title="Strategy"
+          subtitle="Data-driven insights on your job search."
+        />
 
         <div
           style={{
             background: 'var(--card)',
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius)',
+            boxShadow: 'var(--shadow-md)',
             padding: '48px 40px',
             textAlign: 'center',
           }}
@@ -110,13 +110,11 @@ export default async function StrategyPage() {
 
   return (
     <div style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
-      <div style={{ maxWidth: '780px', margin: '0 auto', padding: '40px 16px 80px' }}>
-        <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>Strategy</h1>
-          <p style={{ color: 'var(--muted)', fontSize: '15px', marginTop: '6px', marginBottom: 0 }}>
-            Data-driven insights on your job search.
-          </p>
-        </div>
+      <div className="dashboard-page">
+        <PageHeader
+          title="Strategy"
+          subtitle="Data-driven insights on your job search."
+        />
 
         <StrategyReport />
       </div>

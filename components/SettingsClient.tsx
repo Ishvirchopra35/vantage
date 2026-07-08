@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Spinner from '@/components/ui/Spinner'
 import ResumeUpload from '@/components/ResumeUpload'
+import PageHeader from '@/components/ui/PageHeader'
 
 interface Props {
   userId: string
@@ -13,14 +14,14 @@ interface Props {
 // --- Theme Pill ---------------------------------------------------------------
 
 function ThemePills() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [theme, setTheme] = useState<'dark' | 'light'>('light')
 
   useEffect(() => {
     const stored = window.localStorage.getItem('vantage-theme')
     const current =
       stored === 'dark' || stored === 'light'
         ? stored
-        : (document.documentElement.getAttribute('data-theme') as 'dark' | 'light' | null) ?? 'dark'
+        : (document.documentElement.getAttribute('data-theme') as 'dark' | 'light' | null) ?? 'light'
     setTheme(current)
   }, [])
 
@@ -108,13 +109,14 @@ function DeleteModal({ onClose, onConfirm, deleting }: {
         style={{
           background: 'var(--card)',
           border: '1px solid var(--border)',
-          borderRadius: '14px',
+          borderRadius: 'var(--radius)',
+          boxShadow: 'var(--shadow-lg)',
           padding: '28px',
           width: '100%',
           maxWidth: '440px',
         }}
       >
-        <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '8px' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '8px' }}>
           Delete account
         </div>
         <div style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '20px', lineHeight: 1.6 }}>
@@ -135,7 +137,7 @@ function DeleteModal({ onClose, onConfirm, deleting }: {
               padding: '9px 12px',
               background: 'var(--bg)',
               border: '1px solid var(--border)',
-              borderRadius: '8px',
+              borderRadius: 'var(--radius-sm)',
               color: 'var(--text)',
               fontSize: '13px',
               outline: 'none',
@@ -152,7 +154,7 @@ function DeleteModal({ onClose, onConfirm, deleting }: {
               padding: '8px 16px',
               background: 'transparent',
               border: '1px solid var(--border)',
-              borderRadius: '8px',
+              borderRadius: 'var(--radius-sm)',
               color: 'var(--muted)',
               fontSize: '13px',
               cursor: 'pointer',
@@ -168,8 +170,8 @@ function DeleteModal({ onClose, onConfirm, deleting }: {
               padding: '8px 16px',
               background: input === 'DELETE' && !deleting ? 'rgba(239,68,68,0.15)' : 'transparent',
               border: '1px solid rgba(239,68,68,0.3)',
-              borderRadius: '8px',
-              color: input === 'DELETE' ? '#ef4444' : 'rgba(239,68,68,0.4)',
+              borderRadius: 'var(--radius-sm)',
+              color: input === 'DELETE' ? 'var(--score-red)' : 'rgba(239,68,68,0.4)',
               fontSize: '13px',
               fontWeight: 500,
               cursor: input === 'DELETE' && !deleting ? 'pointer' : 'not-allowed',
@@ -248,36 +250,20 @@ export default function SettingsClient({ email }: Props) {
 
   return (
     <>
+      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+        <PageHeader title="Settings" subtitle="Manage your account and preferences." />
+      </div>
       <div
         style={{
           maxWidth: '600px',
           margin: '0 auto',
           background: 'var(--card)',
           border: '1px solid var(--border)',
-          borderRadius: '14px',
+          borderRadius: 'var(--radius)',
+          boxShadow: 'var(--shadow-md)',
           padding: '32px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)' }}>
-            Settings
-          </div>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--muted)',
-              cursor: 'pointer',
-              fontSize: '22px',
-              lineHeight: 1,
-              padding: '0 4px',
-            }}
-          >
-            ×
-          </button>
-        </div>
 
         {/* -- Account ------------------------------------------------- */}
         <div>
@@ -307,7 +293,7 @@ export default function SettingsClient({ email }: Props) {
             Replace your base resume. This will be used for all future tailoring and ATS scoring.
           </div>
           {resumeSuccess && (
-            <div style={{ fontSize: '13px', color: 'var(--text)', marginBottom: '16px', padding: '10px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: '8px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text)', marginBottom: '16px', padding: '10px 14px', background: 'var(--card-raised)', border: '1px solid var(--border)', borderRadius: '8px' }}>
               Resume updated successfully.
             </div>
           )}
@@ -365,25 +351,36 @@ export default function SettingsClient({ email }: Props) {
         </div>
 
         {/* -- Danger Zone --------------------------------------------- */}
-        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '24px', marginTop: '24px' }}>
-          <div style={{ ...sectionTitle, color: '#ef4444' }}>Danger zone</div>
-          <div style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '16px' }}>
+        <div
+          style={{
+            marginTop: '28px',
+            background: 'rgba(239,68,68,0.04)',
+            border: '1px solid rgba(239,68,68,0.25)',
+            borderRadius: 'var(--radius)',
+            padding: '20px',
+          }}
+        >
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--score-red)', marginBottom: '10px' }}>
+            Danger zone
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '16px', lineHeight: 1.6 }}>
             Permanently delete your account and all associated data. This cannot be undone.
           </div>
           {deleteError && (
-            <div style={{ fontSize: '12px', color: '#ef4444', marginBottom: '12px' }}>{deleteError}</div>
+            <div style={{ fontSize: '12px', color: 'var(--score-red)', marginBottom: '12px' }}>{deleteError}</div>
           )}
           <button
             type="button"
             onClick={() => setDeleteModalOpen(true)}
             style={{
               padding: '8px 16px',
-              background: 'rgba(239,68,68,0.08)',
-              border: '1px solid rgba(239,68,68,0.3)',
-              borderRadius: '8px',
-              color: '#ef4444',
+              background: 'rgba(239,68,68,0.1)',
+              border: '1px solid rgba(239,68,68,0.35)',
+              borderRadius: 'var(--radius)',
+              color: 'var(--score-red)',
+              fontFamily: 'var(--font-display)',
               fontSize: '13px',
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: 'pointer',
             }}
           >

@@ -27,7 +27,7 @@ export default function ExtensionTokenSection({
       const res = await fetch('/api/extension/token', { method: 'POST' });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setError((json as { error?: string }).error ?? 'Failed to generate token');
+        setError((json as { error?: string }).error ?? 'We could not create your connection code. Try again.');
         return;
       }
       const json = await res.json() as { token: string };
@@ -62,7 +62,7 @@ export default function ExtensionTokenSection({
   const fieldStyle = {
     width: '100%',
     background: 'var(--bg)',
-    border: '1px solid rgba(255,255,255,0.12)',
+    border: '1px solid var(--border)',
     borderRadius: '10px',
     padding: '10px 12px',
     color: 'var(--text)',
@@ -87,7 +87,7 @@ export default function ExtensionTokenSection({
           Browser Extension
         </h2>
         <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
-          Generate a token to connect the Vantage Chrome Extension. The extension uses this token to fill job application forms with your profile.
+          Generate a connection code to link the Vantage Chrome Extension. The extension uses this code to fill job application forms with your profile.
         </p>
       </div>
 
@@ -102,7 +102,7 @@ export default function ExtensionTokenSection({
           }}
         >
           <p style={{ fontSize: '12px', fontWeight: 600, color: '#22c55e', marginBottom: '8px' }}>
-            Token generated. Copy it now
+            Connection code created. Copy it now
           </p>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <input
@@ -135,7 +135,7 @@ export default function ExtensionTokenSection({
       ) : token ? (
         <div style={{ marginBottom: '16px' }}>
           <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>
-            Active token{formattedDate ? ` · Generated ${formattedDate}` : ''}
+            Active code{formattedDate ? ` · Created ${formattedDate}` : ''}
           </p>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <div
@@ -206,12 +206,12 @@ export default function ExtensionTokenSection({
           opacity: loading ? 0.6 : 1,
         }}
       >
-        {loading ? 'Generating...' : token ? 'Regenerate token' : 'Generate token'}
+        {loading ? 'Generating...' : token ? 'Regenerate connection code' : 'Generate connection code'}
       </button>
 
       {token && !newToken && (
         <p style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '8px' }}>
-          Regenerating will invalidate the current token. Update the extension with the new one.
+          Regenerating replaces your current code. Update the extension with the new one.
         </p>
       )}
     </div>

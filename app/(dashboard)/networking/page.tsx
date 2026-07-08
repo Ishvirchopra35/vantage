@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Spinner from '@/components/ui/Spinner'
+import SkeletonLoader from '@/components/ui/SkeletonLoader'
+import CustomSelect from '@/components/CustomSelect'
+import PageHeader from '@/components/ui/PageHeader'
 
 // --- Types --------------------------------------------------------------------
 
@@ -98,13 +101,15 @@ function ContactCard({ contact, onUse }: { contact: Contact; onUse: (c: Contact)
         <button
           type="button"
           onClick={() => onUse(contact)}
+          className="btn-gold-hover"
           style={{
             fontSize: '12px',
-            fontWeight: 500,
-            color: 'var(--bg)',
-            background: 'var(--accent)',
-            border: 'none',
-            borderRadius: '6px',
+            fontFamily: 'var(--font-display)',
+            fontWeight: 600,
+            color: 'var(--gold)',
+            background: 'var(--gold-dim)',
+            border: '1px solid var(--gold-border)',
+            borderRadius: 'var(--radius-sm)',
             padding: '4px 10px',
             cursor: 'pointer',
           }}
@@ -164,6 +169,7 @@ export default function NetworkingPage() {
     const { data } = await supabase
       .from('jobs')
       .select('id, title, company, applications!inner(id)')
+      .is('applications.deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(30)
     setJobs((data ?? []).map(({ id, title, company }) => ({ id, title, company })) as Job[])
@@ -311,15 +317,19 @@ export default function NetworkingPage() {
   const card: React.CSSProperties = {
     background: 'var(--card)',
     border: '1px solid var(--border)',
-    borderRadius: '14px',
+    borderRadius: 'var(--radius)',
+    boxShadow: 'var(--shadow-md)',
     padding: '24px',
     marginBottom: '20px',
   }
 
   const sectionTitle: React.CSSProperties = {
-    fontSize: '15px',
-    fontWeight: 700,
-    color: 'var(--text)',
+    fontFamily: 'var(--font-display)',
+    fontSize: '11px',
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
     marginBottom: '16px',
   }
 
@@ -344,11 +354,12 @@ export default function NetworkingPage() {
   }
 
   const primaryBtn: React.CSSProperties = {
-    background: 'var(--accent)',
-    color: 'var(--bg)',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '9px 20px',
+    background: 'var(--gold-dim)',
+    color: 'var(--gold)',
+    border: '1px solid var(--gold-border)',
+    borderRadius: 'var(--radius)',
+    padding: '10px 20px',
+    fontFamily: 'var(--font-display)',
     fontSize: '13px',
     fontWeight: 600,
     cursor: 'pointer',
@@ -376,11 +387,11 @@ export default function NetworkingPage() {
   const charWarning = isConnectionRequest && charCount > 280
 
   return (
-    <div style={{ maxWidth: '820px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '28px' }}>
-        <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>Networking</div>
-        <div style={{ fontSize: '13px', color: 'var(--muted)' }}>Find contacts and generate personalised outreach messages</div>
-      </div>
+    <div className="dashboard-page">
+      <PageHeader
+        title="Networking"
+        subtitle="Find contacts and generate personalised outreach messages."
+      />
 
       {/* -- Section 1: Find contacts ---------------------------------------- */}
       <div style={card}>
@@ -414,6 +425,7 @@ export default function NetworkingPage() {
           type="button"
           onClick={() => void handleSearch()}
           disabled={searching || !searchCompany.trim()}
+          className="btn-gold-hover"
           style={{ ...primaryBtn, opacity: searching || !searchCompany.trim() ? 0.6 : 1 }}
         >
           {searching && <Spinner size="sm" />}
@@ -464,28 +476,26 @@ export default function NetworkingPage() {
           </div>
           <div>
             <label style={labelStyle}>Message type</label>
-            <select
+            <CustomSelect
               value={messageType}
-              onChange={e => setMessageType(e.target.value as MessageType)}
-              style={{ ...inputStyle }}
-            >
-              <option value="connection_request">LinkedIn connection request</option>
-              <option value="cold_email">Cold email</option>
-              <option value="follow_up">Follow-up</option>
-            </select>
+              onChange={v => setMessageType(v as MessageType)}
+              options={[
+                { value: 'connection_request', label: 'LinkedIn connection request' },
+                { value: 'cold_email', label: 'Cold email' },
+                { value: 'follow_up', label: 'Follow-up' },
+              ]}
+            />
           </div>
           <div>
             <label style={labelStyle}>Job (optional)</label>
-            <select
+            <CustomSelect
               value={selectedJobId}
-              onChange={e => setSelectedJobId(e.target.value)}
-              style={{ ...inputStyle }}
-            >
-              <option value="">No specific job</option>
-              {jobs.map(j => (
-                <option key={j.id} value={j.id}>{j.title} - {j.company}</option>
-              ))}
-            </select>
+              onChange={setSelectedJobId}
+              options={[
+                { value: '', label: 'No specific job' },
+                ...jobs.map(j => ({ value: j.id, label: `${j.title} - ${j.company}` })),
+              ]}
+            />
           </div>
         </div>
 
@@ -493,6 +503,7 @@ export default function NetworkingPage() {
           type="button"
           onClick={() => void handleGenerate()}
           disabled={generating || !contactName.trim() || !contactCompany.trim()}
+          className="btn-gold-hover"
           style={{ ...primaryBtn, opacity: generating || !contactName.trim() || !contactCompany.trim() ? 0.6 : 1 }}
         >
           {generating && <Spinner size="sm" />}
@@ -556,15 +567,24 @@ export default function NetworkingPage() {
         <div style={sectionTitle}>3 · Outreach tracker</div>
 
         {loadingMessages ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
-            <Spinner size="md" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {[1, 2, 3].map(i => (
+              <SkeletonLoader key={i} height={40} />
+            ))}
           </div>
         ) : messages.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', fontSize: '13px', color: 'var(--muted)' }}>
-            No outreach messages yet. Generate one above to get started.
+          <div style={{ textAlign: 'center', padding: '40px 24px' }}>
+            <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>No outreach yet</div>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)' }}>Generate a message above - drafts and sent messages land here.</div>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="fade-in" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr>
@@ -576,12 +596,17 @@ export default function NetworkingPage() {
                 </tr>
               </thead>
               <tbody>
-                {messages.map(msg => {
+                {messages.map((msg, msgIdx) => {
                   const displayText = msg.user_edited_message ?? msg.generated_message
                   const toggling = togglingIds.has(msg.id)
                   const deleting = deletingIds.has(msg.id)
                   return (
-                    <tr key={msg.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <tr
+                      key={msg.id}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--card-raised)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = msgIdx % 2 === 0 ? 'var(--card-sunken)' : 'transparent' }}
+                      style={{ background: msgIdx % 2 === 0 ? 'var(--card-sunken)' : 'transparent', borderBottom: '1px solid var(--border)', transition: 'background 0.15s ease' }}
+                    >
                       <td style={{ padding: '12px 12px 12px 0', color: 'var(--text)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                         {msg.contact_linkedin_url ? (
                           <a href={msg.contact_linkedin_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)', textDecoration: 'none' }}>

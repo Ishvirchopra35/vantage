@@ -109,7 +109,7 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
                           : '2px solid transparent',
                         marginLeft: '-2px',
                         borderRadius: '0 6px 6px 0',
-                        background: active ? 'rgba(242,242,242,0.04)' : 'transparent',
+                        background: active ? 'var(--feature-icon-bg)' : 'transparent',
                         transition: 'color 0.1s',
                       }}
                     >

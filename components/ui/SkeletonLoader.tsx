@@ -10,7 +10,7 @@ export default function SkeletonLoader({
   width = '100%',
   height = '16px',
   borderRadius = 'var(--radius)',
-}: SkeletonLoaderProps) {
+}: SkeletonLoaderProps): React.ReactElement {
   const widthValue = typeof width === 'number' ? `${width}px` : width;
   const heightValue = typeof height === 'number' ? `${height}px` : height;
   const radiusValue =
@@ -18,26 +18,14 @@ export default function SkeletonLoader({
 
   return (
     <div
+      aria-hidden="true"
       style={{
         width: widthValue,
         height: heightValue,
         borderRadius: radiusValue,
-        background:
-          'linear-gradient(90deg, var(--card) 0%, var(--border) 50%, var(--card) 100%)',
-        backgroundSize: '200% 100%',
-        animation: 'shimmer 2s infinite',
+        background: 'var(--card-raised)',
+        animation: 'shimmer 1.4s ease-in-out infinite',
       }}
-    >
-      <style>{`
-        @keyframes shimmer {
-          0% {
-            background-position: 200% 0;
-          }
-          100% {
-            background-position: -200% 0;
-          }
-        }
-      `}</style>
-    </div>
+    />
   );
 }

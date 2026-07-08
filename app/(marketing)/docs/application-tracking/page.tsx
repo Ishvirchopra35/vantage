@@ -1,11 +1,13 @@
 import DocsLayout from '@/components/marketing/DocsLayout';
 import Link from 'next/link';
+import ArrowIcon from '@/components/ui/ArrowIcon';
 
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Application Tracking - Vantage Docs',
+  title: 'Application Tracking · Docs',
   description: 'Track your job applications, monitor statuses, and measure your response rate.',
+  alternates: { canonical: '/docs/application-tracking' },
 };
 
 export default function ApplicationTrackingPage() {
@@ -18,10 +20,10 @@ export default function ApplicationTrackingPage() {
         <section style={section}>
           <h2 style={h2}>How to use it</h2>
           <ol style={ol}>
-            <li style={li}>After applying to a job, go to the <strong style={strong}>Tracker</strong> page in your dashboard.</li>
-            <li style={li}>Click <strong style={strong}>Add application</strong> and enter the company, role, and job URL.</li>
+            <li style={li}>After applying to a job, open the <strong style={strong}>Applications</strong> page in your dashboard.</li>
+            <li style={li}>Click <strong style={strong}>Log application</strong> and enter the company, role, and job URL.</li>
             <li style={li}>The application starts with the status &quot;Applied.&quot;</li>
-            <li style={li}>Update the status as you progress: Applied → Interviewing → Offer, or Applied → Ghosted, or Interviewing → Rejected.</li>
+            <li style={li}>Update the status as you progress: Applied <ArrowIcon /> Interviewing <ArrowIcon /> Offer, or Applied <ArrowIcon /> Ghosted, or Interviewing <ArrowIcon /> Rejected.</li>
             <li style={li}>Add notes to any application for context (recruiter name, interview dates, etc.).</li>
           </ol>
         </section>
@@ -31,8 +33,8 @@ export default function ApplicationTrackingPage() {
           <p style={p}>The tracker shows all your applications in a sortable list with status indicators. Your response rate is calculated as (interviewing + offer) / total applications, giving you a real metric to track improvement over time.</p>
           <p style={p}>The status cycle has two paths:</p>
           <ul style={ul}>
-            <li style={li}><strong style={strong}>Success path:</strong> Applied → Interviewing → Offer</li>
-            <li style={li}><strong style={strong}>Failure paths:</strong> Applied → Ghosted, or Interviewing → Rejected</li>
+            <li style={li}><strong style={strong}>Success path:</strong> Applied <ArrowIcon /> Interviewing <ArrowIcon /> Offer</li>
+            <li style={li}><strong style={strong}>Failure paths:</strong> Applied <ArrowIcon /> Ghosted, or Interviewing <ArrowIcon /> Rejected</li>
           </ul>
           <p style={p}>As your application history grows, Vantage uses this data to improve AI outputs across all features - tailoring, cover letters, and strategy feedback all become more personalized.</p>
         </section>
@@ -58,10 +60,10 @@ export default function ApplicationTrackingPage() {
           </div>
         </section>
 
-        <p style={updated}>Last updated: May 15, 2026</p>
+        <p style={updated}>Last updated: July 8, 2026</p>
         <div style={nav}>
-          <Link href="/docs/cover-letters" style={navLink}>← Cover letters</Link>
-          <Link href="/docs/auto-fill" style={navLink}>Auto-fill →</Link>
+          <Link href="/docs/cover-letters" style={navLink}><ArrowIcon direction="left" /> Cover letters</Link>
+          <Link href="/docs/auto-fill" style={navLink}>Auto-fill <ArrowIcon /></Link>
         </div>
       </div>
     </DocsLayout>

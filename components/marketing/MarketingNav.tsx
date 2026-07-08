@@ -11,30 +11,6 @@ const NAV_LINKS = [
   { label: 'Changelog', href: '/changelog' },
 ]
 
-function SunIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="5" />
-      <line x1="12" y1="1" x2="12" y2="3" />
-      <line x1="12" y1="21" x2="12" y2="23" />
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-      <line x1="1" y1="12" x2="3" y2="12" />
-      <line x1="21" y1="12" x2="23" y2="12" />
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-    </svg>
-  )
-}
-
-function MoonIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </svg>
-  )
-}
-
 function HamburgerIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -54,24 +30,23 @@ function CloseIcon() {
   )
 }
 
+const CTA_GOLD = {
+  fontFamily: 'var(--font-body)',
+  fontSize: 14,
+  fontWeight: 600,
+  background: 'var(--gold-dim)',
+  border: '1px solid var(--gold)',
+  color: 'var(--gold)',
+  borderRadius: 'var(--radius)',
+  padding: '8px 18px',
+  textDecoration: 'none' as const,
+  flexShrink: 0,
+}
+
 export default function MarketingNav() {
   const pathname = usePathname()
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const drawerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const stored = localStorage.getItem('vantage-theme') as 'dark' | 'light' | null
-    const attr = document.documentElement.getAttribute('data-theme') as 'dark' | 'light' | null
-    setTheme(stored ?? attr ?? 'dark')
-  }, [])
-
-  function toggleTheme() {
-    const next = theme === 'dark' ? 'light' : 'dark'
-    setTheme(next)
-    document.documentElement.setAttribute('data-theme', next)
-    localStorage.setItem('vantage-theme', next)
-  }
 
   function isActive(href: string): boolean {
     if (href.startsWith('/#')) return false
@@ -112,8 +87,6 @@ export default function MarketingNav() {
     return () => document.removeEventListener('keydown', onKey)
   }, [drawerOpen])
 
-  const themeLabel = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
-
   return (
     <>
       <nav
@@ -123,8 +96,8 @@ export default function MarketingNav() {
           zIndex: 50,
           height: 76,
           background: 'var(--nav-bg)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           borderBottom: '1px solid var(--nav-border)',
         }}
       >
@@ -141,9 +114,9 @@ export default function MarketingNav() {
           {/* Wordmark */}
           <Link
             href="/"
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', textDecoration: 'none', flexShrink: 0, letterSpacing: '-0.02em' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-display)', fontSize: '1.35rem', fontWeight: 700, color: 'var(--text)', textDecoration: 'none', flexShrink: 0, letterSpacing: '-0.02em' }}
           >
-            <img src="/logo.png" width={32} height={32} style={{ borderRadius: '6px', objectFit: 'cover' }} alt="Vantage logo" />
+            <img src="/logo.png" width={32} height={32} style={{ borderRadius: 'var(--radius-sm)', objectFit: 'cover' }} alt="Vantage logo" />
             Vantage
           </Link>
 
@@ -167,44 +140,13 @@ export default function MarketingNav() {
           <div className="mkt-nav-right">
             <Link
               href="/login"
-              style={{ fontSize: 14, color: 'var(--text)', textDecoration: 'none', opacity: 0.65 }}
+              style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--muted)', textDecoration: 'none' }}
             >
               Sign in
             </Link>
-            <Link
-              href="/signup"
-              style={{
-                fontSize: 14,
-                fontWeight: 500,
-                background: 'var(--accent)',
-                color: 'var(--bg)',
-                borderRadius: 10,
-                padding: '8px 18px',
-                textDecoration: 'none',
-                flexShrink: 0,
-              }}
-            >
+            <Link href="/signup" style={CTA_GOLD}>
               Get started
             </Link>
-            <button
-              onClick={toggleTheme}
-              aria-label={themeLabel}
-              style={{
-                background: 'none',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                width: 34,
-                height: 34,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'var(--text)',
-                flexShrink: 0,
-              }}
-            >
-              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-            </button>
           </div>
 
           {/* Hamburger - visible on mobile only */}
@@ -249,7 +191,7 @@ export default function MarketingNav() {
               <Link
                 href="/"
                 onClick={() => setDrawerOpen(false)}
-                style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', textDecoration: 'none' }}
+                style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text)', textDecoration: 'none' }}
               >
                 Vantage
               </Link>
@@ -270,67 +212,36 @@ export default function MarketingNav() {
                 onClick={() => setDrawerOpen(false)}
                 style={{
                   display: 'block',
-                  fontSize: 15,
-                  color: 'var(--text)',
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 14,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: isActive(link.href) ? 'var(--text)' : 'var(--muted)',
                   textDecoration: 'none',
                   padding: '11px 0',
                   borderBottom: '1px solid var(--border)',
-                  opacity: isActive(link.href) ? 1 : 0.6,
                 }}
               >
                 {link.label}
               </Link>
             ))}
 
-            {/* Auth + theme */}
+            {/* Auth */}
             <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Link
                 href="/login"
                 onClick={() => setDrawerOpen(false)}
-                style={{ fontSize: 14, color: 'var(--muted)', textDecoration: 'none' }}
+                style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--muted)', textDecoration: 'none' }}
               >
                 Sign in
               </Link>
               <Link
                 href="/signup"
                 onClick={() => setDrawerOpen(false)}
-                style={{
-                  display: 'block',
-                  textAlign: 'center',
-                  fontSize: 14,
-                  fontWeight: 500,
-                  background: 'var(--accent)',
-                  color: 'var(--bg)',
-                  borderRadius: 10,
-                  padding: '10px 18px',
-                  textDecoration: 'none',
-                }}
+                style={{ ...CTA_GOLD, display: 'block', textAlign: 'center', padding: '10px 18px' }}
               >
                 Get started
               </Link>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                <button
-                  onClick={toggleTheme}
-                  aria-label={themeLabel}
-                  style={{
-                    background: 'none',
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    width: 34,
-                    height: 34,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: 'var(--text)',
-                  }}
-                >
-                  {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-                </button>
-                <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-                  {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-                </span>
-              </div>
             </div>
           </div>
         </div>

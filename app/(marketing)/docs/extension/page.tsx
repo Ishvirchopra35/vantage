@@ -1,11 +1,13 @@
 import DocsLayout from '@/components/marketing/DocsLayout';
 import Link from 'next/link';
+import ArrowIcon from '@/components/ui/ArrowIcon';
 
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Browser Extension - Vantage Docs',
+  title: 'Browser Extension · Docs',
   description: 'Install the Vantage Chrome extension, connect your account, and troubleshoot issues.',
+  alternates: { canonical: '/docs/extension' },
 };
 
 export default function ExtensionPage() {
@@ -17,18 +19,20 @@ export default function ExtensionPage() {
 
         <section style={section}>
           <h2 style={h2}>What the extension does</h2>
-          <p style={p}>The Vantage Chrome extension reads job application forms in your browser and fills them with answers generated from your profile, resume, and the specific job listing. It uses the nativeSetter pattern to correctly set values in React-based ATS platforms (Greenhouse, Lever, Workday, and others) that silently ignore standard JavaScript value assignments.</p>
+          <p style={p}>The Vantage Chrome extension reads job application forms in your browser and fills them with answers generated from your profile, resume, and the specific job listing. It uses the nativeSetter pattern to correctly set values in React-based ATS platforms (the software companies use to screen applications, such as Greenhouse, Lever, and Workday) that silently ignore standard JavaScript value assignments.</p>
           <p style={p}>The extension never submits forms automatically. It fills the fields and waits for you to review and submit manually.</p>
         </section>
 
         <section style={section}>
           <h2 style={h2}>Installing from the Chrome Web Store</h2>
+          <p style={p}>The Chrome Web Store listing is not live yet. Once it ships, installing will be a one-click process:</p>
           <ol style={ol}>
-            <li style={li}>Search for &quot;Vantage&quot; in the Chrome Web Store, or use the direct link from your Profile page.</li>
+            <li style={li}>Search for &quot;Vantage&quot; in the Chrome Web Store.</li>
             <li style={li}>Click <strong style={strong}>&quot;Add to Chrome.&quot;</strong></li>
             <li style={li}>Confirm the permissions prompt.</li>
             <li style={li}>The Vantage icon appears in your browser toolbar.</li>
           </ol>
+          <p style={p}>Until then, install it in developer mode using the steps below.</p>
         </section>
 
         <section style={section}>
@@ -44,23 +48,23 @@ export default function ExtensionPage() {
         </section>
 
         <section style={section}>
-          <h2 style={h2}>Generating and using the API token</h2>
+          <h2 style={h2}>Generating and using your connection code</h2>
           <ol style={ol}>
-            <li style={li}>Go to <strong style={strong}>Profile → Browser Extension</strong> in your Vantage dashboard.</li>
-            <li style={li}>Click <strong style={strong}>&quot;Generate token.&quot;</strong></li>
-            <li style={li}>Copy the token.</li>
+            <li style={li}>Go to <strong style={strong}>Profile <ArrowIcon /> Browser Extension</strong> in your Vantage dashboard.</li>
+            <li style={li}>Click <strong style={strong}>&quot;Generate connection code.&quot;</strong></li>
+            <li style={li}>Copy the code.</li>
             <li style={li}>Click the Vantage extension icon in your browser toolbar.</li>
-            <li style={li}>Paste the token into the input field and click <strong style={strong}>&quot;Connect.&quot;</strong></li>
+            <li style={li}>Paste the code into the input field and click <strong style={strong}>&quot;Connect.&quot;</strong></li>
             <li style={li}>The extension is now linked to your account.</li>
           </ol>
-          <p style={p}>Tokens are stored securely in the extension&apos;s local storage. They do not expire automatically but can be regenerated from the Profile page at any time, which invalidates the previous token.</p>
+          <p style={p}>Your connection code is stored securely in the extension. It does not expire automatically, but you can regenerate it from the Profile page at any time, which replaces the previous code.</p>
         </section>
 
         <section style={section}>
           <h2 style={h2}>Permissions and why they are needed</h2>
           <ul style={ul}>
             <li style={li}><strong style={strong}>activeTab</strong> - Allows the extension to read the current tab&apos;s page content when you click the Fill button. It cannot read other tabs or browse history.</li>
-            <li style={li}><strong style={strong}>storage</strong> - Stores your API token locally so you do not have to re-enter it every session.</li>
+            <li style={li}><strong style={strong}>storage</strong> - Stores your connection code locally so you do not have to re-enter it every session.</li>
             <li style={li}><strong style={strong}>scripting</strong> - Injects the fill script into the application form page to set field values.</li>
           </ul>
           <p style={p}>The extension does not track your browsing, does not run in the background, and only activates when you explicitly click the Vantage icon and choose to fill a form. See the <Link href="/privacy" style={link}>Privacy Policy</Link> for full details on extension data handling.</p>
@@ -70,11 +74,11 @@ export default function ExtensionPage() {
           <h2 style={h2}>Troubleshooting</h2>
           <div style={faq}>
             <p style={faqQ}>The extension is not filling fields.</p>
-            <p style={p}>Some ATS platforms use non-standard form elements that the extension cannot detect. Try the console snippet as a fallback - go to Apply Prep → Auto-fill → Console tab in your dashboard. The console snippet uses the same fill logic but runs directly in the page context.</p>
+            <p style={p}>Some ATS platforms use non-standard form elements the extension cannot detect. Fill those fields in manually, and use the <strong style={strong}>Application Questions</strong> answerer on the apply workspace to draft answers for any open-ended prompts.</p>
           </div>
           <div style={faq}>
-            <p style={faqQ}>Token expired or connection lost.</p>
-            <p style={p}>Go to Profile → Browser Extension in your dashboard and click &quot;Generate token&quot; to create a new one. Paste the new token into the extension popup. The old token is invalidated immediately.</p>
+            <p style={faqQ}>Connection code expired or connection lost.</p>
+            <p style={p}>Go to Profile <ArrowIcon /> Browser Extension in your dashboard and click &quot;Generate connection code&quot; to create a new one. Paste the new code into the extension popup. The old code stops working immediately.</p>
           </div>
           <div style={faq}>
             <p style={faqQ}>CAPTCHA is blocking the form fill.</p>
@@ -82,9 +86,9 @@ export default function ExtensionPage() {
           </div>
         </section>
 
-        <p style={updated}>Last updated: May 15, 2026</p>
+        <p style={updated}>Last updated: July 8, 2026</p>
         <div style={nav}>
-          <Link href="/docs/billing" style={navLink}>← Billing</Link>
+          <Link href="/docs/billing" style={navLink}><ArrowIcon direction="left" /> Billing</Link>
           <span />
         </div>
       </div>

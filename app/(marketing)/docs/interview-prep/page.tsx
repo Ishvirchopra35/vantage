@@ -1,11 +1,13 @@
 import DocsLayout from '@/components/marketing/DocsLayout';
 import Link from 'next/link';
+import ArrowIcon from '@/components/ui/ArrowIcon';
 
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Interview Prep - Vantage Docs',
+  title: 'Interview Prep · Docs',
   description: 'Practice behavioral, technical, and company-specific interview questions with voice or text mode.',
+  alternates: { canonical: '/docs/interview-prep' },
 };
 
 export default function InterviewPrepPage() {
@@ -20,28 +22,27 @@ export default function InterviewPrepPage() {
           <ol style={ol}>
             <li style={li}>Go to the <strong style={strong}>Interview Prep</strong> page in your dashboard.</li>
             <li style={li}>Select a job from your tracker or enter a role and company manually.</li>
-            <li style={li}>Choose the question type:
+            <li style={li}>Generate the questions, then switch between the three tabs:
               <ul style={{ ...ul, marginTop: '8px' }}>
-                <li style={li}><strong style={strong}>Behavioral</strong> - Situation-based questions in STAR format (Situation, Task, Action, Result).</li>
-                <li style={li}><strong style={strong}>Technical</strong> - Role-specific technical questions based on the job listing and your skills.</li>
-                <li style={li}><strong style={strong}>Company-specific</strong> - Questions about the company&apos;s products, culture, and industry position.</li>
+                <li style={li}><strong style={strong}>Behavioral</strong> - Situation-based questions best answered in STAR format (Situation, Task, Action, Result).</li>
+                <li style={li}><strong style={strong}>Technical</strong> - Technical questions drawn from the job&apos;s requirements and your skills.</li>
+                <li style={li}><strong style={strong}>Role-specific</strong> - Questions targeted at the specific role and its day-to-day responsibilities.</li>
               </ul>
             </li>
-            <li style={li}>Choose <strong style={strong}>voice mode</strong> or <strong style={strong}>text mode</strong> to answer.</li>
-            <li style={li}>Answer the question, then review the AI assessment.</li>
+            <li style={li}>Set how you want to answer with the <strong style={strong}>Answer with</strong> control at the top of the session - <strong style={strong}>Voice</strong> or <strong style={strong}>Type</strong>. It applies to every question in the session.</li>
+            <li style={li}>Answer a question, then review the AI assessment.</li>
           </ol>
         </section>
 
         <section style={section}>
           <h2 style={h2}>What to expect</h2>
-          <p style={p}>In voice mode, you speak your answer and the browser transcribes it using the Web Speech API. The AI then evaluates your response on three dimensions:</p>
+          <p style={p}>In voice mode, you speak your answer and the browser transcribes it using the Web Speech API. In type mode, you type it. Either way, the AI returns a structured assessment:</p>
           <ul style={ul}>
-            <li style={li}><strong style={strong}>Filler words</strong> - Frequency of &quot;um,&quot; &quot;uh,&quot; &quot;like,&quot; and similar verbal fillers.</li>
-            <li style={li}><strong style={strong}>Conciseness</strong> - Whether you answered the question directly without rambling.</li>
-            <li style={li}><strong style={strong}>Content quality</strong> - Whether the substance of your answer addresses what the interviewer is looking for.</li>
+            <li style={li}><strong style={strong}>Content score</strong> - How well the substance of your answer addresses what the interviewer is looking for.</li>
+            <li style={li}><strong style={strong}>Delivery score</strong> - How clearly and concisely the answer is delivered, including any filler words detected (&quot;um,&quot; &quot;uh,&quot; &quot;like&quot;).</li>
+            <li style={li}><strong style={strong}>Strengths and improvements</strong> - What worked, what to fix, and a hint at a stronger answer.</li>
           </ul>
-          <p style={p}>In text mode, you type your answer and receive the same content quality assessment without the voice-specific metrics.</p>
-          <p style={p}>Practice sessions are saved automatically. You can resume a session where you left off or review past sessions to track improvement.</p>
+          <p style={p}>An overall score out of 10 sits on top of the two sub-scores. Practice sessions are saved automatically, so you can come back to a session or review past ones to track improvement.</p>
         </section>
 
         <section style={section}>
@@ -69,10 +70,10 @@ export default function InterviewPrepPage() {
           </div>
         </section>
 
-        <p style={updated}>Last updated: May 15, 2026</p>
+        <p style={updated}>Last updated: July 8, 2026</p>
         <div style={nav}>
-          <Link href="/docs/networking" style={navLink}>← Networking assistant</Link>
-          <Link href="/docs/billing" style={navLink}>Billing →</Link>
+          <Link href="/docs/networking" style={navLink}><ArrowIcon direction="left" /> Networking assistant</Link>
+          <Link href="/docs/billing" style={navLink}>Billing <ArrowIcon /></Link>
         </div>
       </div>
     </DocsLayout>

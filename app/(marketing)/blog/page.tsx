@@ -4,6 +4,13 @@ import Link from 'next/link'
 
 export const dynamic = 'force-static'
 
+export const metadata = {
+  title: 'Blog',
+  description:
+    'Job search strategy for students and new grads - resume tailoring, ATS systems, recruiting season tactics, and what actually gets interviews.',
+  alternates: { canonical: '/blog' },
+}
+
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00')
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -25,11 +32,9 @@ export default async function BlogPage() {
         {featured && (
           <Link
             href={`/blog/${featured.slug}`}
+            className="ds-card"
             style={{
               display: 'block',
-              background: 'var(--card)',
-              border: '1px solid var(--border)',
-              borderRadius: 12,
               padding: 28,
               marginBottom: 32,
               textDecoration: 'none',

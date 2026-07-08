@@ -1,11 +1,13 @@
 import DocsLayout from '@/components/marketing/DocsLayout';
 import Link from 'next/link';
+import ArrowIcon from '@/components/ui/ArrowIcon';
 
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Auto-fill - Vantage Docs',
-  description: 'Fill out job application forms using the browser extension, console snippet, or answers panel.',
+  title: 'Auto-fill · Docs',
+  description: 'Fill job application forms with the Vantage Chrome extension, and generate answers to open-ended application questions.',
+  alternates: { canonical: '/docs/auto-fill' },
 };
 
 export default function AutoFillPage() {
@@ -13,53 +15,50 @@ export default function AutoFillPage() {
     <DocsLayout>
       <div>
         <h1 style={heading}>Auto-fill</h1>
-        <p style={summary}>Fill out job application forms in seconds using the browser extension, console snippet, or copy-paste answers panel.</p>
+        <p style={summary}>Fill job application forms with the Vantage Chrome extension, and generate answers to the open-ended questions applications ask.</p>
 
-        {/* Section 1: Extension */}
         <section style={section}>
-          <h2 style={h2}>Option 1: Using the Chrome extension (recommended)</h2>
-          <p style={p}>The browser extension is the fastest and most reliable way to fill application forms. It works directly in your browser without requiring any technical knowledge.</p>
-          <ol style={ol}>
-            <li style={li}>Go to <strong style={strong}>Profile → Browser Extension → Generate token</strong> in your Vantage dashboard.</li>
-            <li style={li}>Install the Vantage extension from the Chrome Web Store.</li>
-            <li style={li}>Open the extension popup and paste your token to connect your account.</li>
-            <li style={li}>Navigate to any job application form in Chrome.</li>
-            <li style={li}>Click the Vantage extension icon and select <strong style={strong}>&quot;Fill this form.&quot;</strong></li>
-            <li style={li}><strong style={strong}>Review all filled fields.</strong> The extension never submits the form for you - you always review and submit manually.</li>
-          </ol>
-          <p style={p}><strong style={strong}>Limitations:</strong> File upload fields (resume PDF) must be uploaded manually. CAPTCHAs must be solved manually. The extension works on Greenhouse, Lever, Workday, and most other ATS platforms.</p>
+          <h2 style={h2}>Where auto-fill lives</h2>
+          <p style={p}>Open <strong style={strong}>Auto-apply</strong> from the sidebar. The page walks you through setting up the Chrome extension once, then lists every application from your tracker. Pick one to open its apply workspace, where you will find your tailored resume and cover letter, an answer generator for application questions, and the extension fill.</p>
         </section>
 
-        {/* Section 2: Console snippet */}
+        {/* Section 1: Set up the extension */}
         <section style={section}>
-          <h2 style={h2}>Option 2: Using the console snippet</h2>
-          <p style={p}>For users who prefer not to install the extension. This method pastes a generated JavaScript snippet into the browser console.</p>
+          <h2 style={h2}>Set up the extension first</h2>
+          <p style={p}>Form filling runs through the Vantage Chrome extension, so set it up before your first application.</p>
           <ol style={ol}>
-            <li style={li}>Open the job application form in your browser.</li>
-            <li style={li}>In Vantage, go to <strong style={strong}>Apply Prep → Auto-fill → Console tab</strong>.</li>
-            <li style={li}>Click <strong style={strong}>&quot;Generate snippet.&quot;</strong></li>
-            <li style={li}>Copy the generated snippet.</li>
-            <li style={li}>On the application form page, press <strong style={strong}>F12</strong> to open Developer Tools, go to the <strong style={strong}>Console</strong> tab, paste the snippet, and press <strong style={strong}>Enter</strong>.</li>
-            <li style={li}>Review all filled fields and submit manually.</li>
+            <li style={li}>Install the Vantage extension (see the <Link href="/docs/extension" style={link}>browser extension</Link> guide - it is not on the Chrome Web Store yet, so use developer mode for now).</li>
+            <li style={li}>Go to <strong style={strong}>Profile <ArrowIcon /> Browser Extension <ArrowIcon /> Generate connection code</strong> in your Vantage dashboard.</li>
+            <li style={li}>Open the extension popup and paste your connection code to link your account.</li>
           </ol>
-          <p style={p}>The console snippet uses the same fill logic as the extension - including the nativeSetter pattern that works with React-based ATS platforms.</p>
         </section>
 
-        {/* Section 3: Answers panel */}
+        {/* Section 2: Fill a form */}
         <section style={section}>
-          <h2 style={h2}>Option 3: Using the answers panel</h2>
-          <p style={p}>For users who want to copy-paste answers manually without any automated filling.</p>
+          <h2 style={h2}>Fill a form with the extension</h2>
           <ol style={ol}>
-            <li style={li}>Go to <strong style={strong}>Apply Prep → Auto-fill → Copy-paste tab</strong>.</li>
-            <li style={li}>Paste the application form URL.</li>
-            <li style={li}>Vantage analyzes the form and generates answers for every detected field.</li>
-            <li style={li}>Copy each answer and paste it into the corresponding form field manually.</li>
+            <li style={li}>From <strong style={strong}>Auto-apply</strong>, pick a tracked application to open its apply workspace.</li>
+            <li style={li}>Open the job&apos;s application form in Chrome.</li>
+            <li style={li}>Click the <strong style={strong}>Vantage icon</strong> in your toolbar. The extension fills the fields it recognizes using your profile, resume, and the job listing.</li>
+            <li style={li}><strong style={strong}>Review every field, then submit yourself.</strong> The extension never submits the form for you.</li>
+          </ol>
+          <p style={p}><strong style={strong}>Limitations:</strong> File upload fields (resume PDF) must be attached manually. CAPTCHAs must be solved manually. The extension uses the nativeSetter pattern, which correctly sets values in React, Vue, and Angular inputs that silently ignore a standard value assignment, so it works on Greenhouse, Lever, Workday, and most other ATS platforms (the software companies use to screen resumes).</p>
+        </section>
+
+        {/* Section 3: Application questions */}
+        <section style={section}>
+          <h2 style={h2}>Answer open-ended questions</h2>
+          <p style={p}>Applications often include free-text prompts (&quot;Why do you want to work here?&quot;) that no form filler can answer well. The apply workspace has a question answerer for these.</p>
+          <ol style={ol}>
+            <li style={li}>In the application&apos;s apply workspace, find the <strong style={strong}>Application Questions</strong> section.</li>
+            <li style={li}>Paste the question and click <strong style={strong}>Generate answer</strong>.</li>
+            <li style={li}>Edit the draft, then click <strong style={strong}>Copy</strong> and paste it into the form.</li>
           </ol>
         </section>
 
         <section style={section}>
           <h2 style={h2}>What to expect</h2>
-          <p style={p}>All three methods generate answers from your Vantage profile, resume, and the specific job listing. The extension and console snippet fill fields automatically using the nativeSetter pattern, which correctly sets values in React, Vue, and Angular controlled inputs that would silently ignore a standard value assignment.</p>
+          <p style={p}>Both the extension fill and the question answerer draw on your Vantage profile, resume, and the specific job listing, so the more complete your profile, the better the output. Answers are a strong first draft - read and adjust them before you submit.</p>
           <p style={p}>The auto-fill system never clicks submit buttons or submits forms automatically. You always have the opportunity to review every field before submitting.</p>
         </section>
 
@@ -68,7 +67,7 @@ export default function AutoFillPage() {
           <ul style={ul}>
             <li style={li}>Complete your profile and upload your resume before using auto-fill. The quality of generated answers depends on available context.</li>
             <li style={li}>Always review filled fields - AI-generated answers may need minor adjustments for accuracy.</li>
-            <li style={li}>If a field is not filled correctly, you can manually type the correct answer. The auto-fill is a starting point, not a final submission.</li>
+            <li style={li}>If a field is not filled correctly, type the correct answer in yourself. The fill is a starting point, not a final submission.</li>
           </ul>
         </section>
 
@@ -76,7 +75,7 @@ export default function AutoFillPage() {
           <h2 style={h2}>Common issues</h2>
           <div style={faq}>
             <p style={faqQ}>Some fields are not being filled.</p>
-            <p style={p}>Some ATS platforms use non-standard form elements. Try the console snippet if the extension misses fields, or use the answers panel as a fallback.</p>
+            <p style={p}>Some ATS platforms use non-standard form elements the extension cannot detect. Fill those fields manually, and use the Application Questions answerer for any open-ended prompts.</p>
           </div>
           <div style={faq}>
             <p style={faqQ}>The extension is not detecting the form.</p>
@@ -84,14 +83,14 @@ export default function AutoFillPage() {
           </div>
           <div style={faq}>
             <p style={faqQ}>CAPTCHA is blocking the fill.</p>
-            <p style={p}>Solve the CAPTCHA manually first, then run the auto-fill. CAPTCHAs cannot be bypassed automatically.</p>
+            <p style={p}>Solve the CAPTCHA manually first, then click the Vantage icon again. CAPTCHAs cannot be bypassed automatically.</p>
           </div>
         </section>
 
-        <p style={updated}>Last updated: May 15, 2026</p>
+        <p style={updated}>Last updated: July 8, 2026</p>
         <div style={nav}>
-          <Link href="/docs/application-tracking" style={navLink}>← Application tracking</Link>
-          <Link href="/docs/strategy-feedback" style={navLink}>Strategy feedback →</Link>
+          <Link href="/docs/application-tracking" style={navLink}><ArrowIcon direction="left" /> Application tracking</Link>
+          <Link href="/docs/strategy-feedback" style={navLink}>Strategy feedback <ArrowIcon /></Link>
         </div>
       </div>
     </DocsLayout>
@@ -107,6 +106,7 @@ const ol: React.CSSProperties = { paddingLeft: '20px', margin: 0, display: 'flex
 const ul: React.CSSProperties = { listStyle: 'disc', paddingLeft: '20px', margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' };
 const li: React.CSSProperties = { color: 'var(--text)', lineHeight: 1.7, fontSize: '0.95rem', opacity: 0.85 };
 const strong: React.CSSProperties = { fontWeight: 600, color: 'var(--text)' };
+const link: React.CSSProperties = { color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: '3px' };
 const faq: React.CSSProperties = { marginBottom: '24px' };
 const faqQ: React.CSSProperties = { fontWeight: 600, color: 'var(--text)', fontSize: '0.95rem', marginBottom: '6px' };
 const updated: React.CSSProperties = { fontSize: '0.82rem', color: 'var(--muted)', marginTop: '64px', marginBottom: '24px' };

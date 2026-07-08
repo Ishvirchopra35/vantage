@@ -124,7 +124,8 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
       if (onUploadComplete) onUploadComplete(parseJson.text as string)
       setSuccess(true)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Upload failed. Please try again.')
+      console.error('[ResumeUpload] upload failed:', e)
+      setError('We could not upload your resume. Please try again.')
     } finally {
       setLoading(false)
       if (fileRef.current) fileRef.current.value = ''

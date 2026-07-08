@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { requireAuth } from '@/lib/requireAuth'
 import { createClient } from '@/lib/supabase/server'
 import { UpgradeButton, ManageButton } from '@/components/BillingActions'
+import PageHeader from '@/components/ui/PageHeader'
 
 interface Subscription {
   plan: string
@@ -69,14 +70,14 @@ export default async function BillingPage() {
     : { tailoring: 10, cover_letter: 10, auto_apply: 20, strategy: 2, networking: 15, interview: 5 }
 
   return (
-    <div style={{ maxWidth: '640px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ fontSize: '22px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>Billing</div>
-        <div style={{ fontSize: '13px', color: 'var(--muted)' }}>Manage your plan and usage</div>
-      </div>
+    <div className="dashboard-page">
+      <PageHeader
+        title="Billing"
+        subtitle="Manage your plan and usage."
+      />
 
       {/* Current plan card */}
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '24px', marginBottom: '16px' }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px', marginBottom: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -104,7 +105,7 @@ export default async function BillingPage() {
       </div>
 
       {/* Monthly usage card */}
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '24px' }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px' }}>
         <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '20px' }}>Monthly Usage</div>
         <UsageRow label="Resume tailorings" used={s?.tailoring_uses ?? 0} limit={LIMITS.tailoring} />
         <UsageRow label="Cover letters" used={s?.cover_letter_uses ?? 0} limit={LIMITS.cover_letter} />

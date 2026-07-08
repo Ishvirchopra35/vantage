@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import EmptyState from '@/components/ui/EmptyState'
+import PageHeader from '@/components/ui/PageHeader'
 import type { DocumentRow } from '@/app/(dashboard)/documents/page'
 
 // --- Types --------------------------------------------------------------------
@@ -116,12 +117,16 @@ function DocumentRow({ doc }: { doc: DocumentRow }) {
       style={{
         background: 'var(--card)',
         border: '1px solid var(--border)',
-        borderRadius: '12px',
+        borderRadius: 'var(--radius)',
+        boxShadow: 'var(--shadow-md)',
         padding: '16px 20px',
         marginBottom: '8px',
         cursor: 'pointer',
+        transition: 'background 0.15s ease',
       }}
       onClick={() => setExpanded(prev => !prev)}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--card-raised)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'var(--card)' }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
         <div style={{ minWidth: 0 }}>
@@ -199,14 +204,10 @@ export default function DocumentsClient({ documents }: Props) {
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
-          Documents
-        </div>
-        <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
-          All your tailored resumes and cover letters
-        </div>
-      </div>
+      <PageHeader
+        title="Documents"
+        subtitle="All your tailored resumes and cover letters."
+      />
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
         {tabs.map(tab => (

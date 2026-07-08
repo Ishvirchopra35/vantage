@@ -1,8 +1,10 @@
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'About - Vantage',
-  description: 'About Vantage, built by Ishvir Chopra.',
+  title: 'About',
+  description:
+    'Vantage is an AI job application platform built by Ishvir Chopra for CS students and new grads - resume tailoring, ATS scoring, and auto-apply in one workspace.',
+  alternates: { canonical: '/about' },
 };
 
 export default function AboutPage() {

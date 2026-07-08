@@ -1,11 +1,13 @@
 import DocsLayout from '@/components/marketing/DocsLayout';
 import Link from 'next/link';
+import ArrowIcon from '@/components/ui/ArrowIcon';
 
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Strategy Feedback - Vantage Docs',
+  title: 'Strategy Feedback · Docs',
   description: 'Get AI analysis of your application patterns to optimize your job search approach.',
+  alternates: { canonical: '/docs/strategy-feedback' },
 };
 
 export default function StrategyFeedbackPage() {
@@ -27,13 +29,13 @@ export default function StrategyFeedbackPage() {
 
         <section style={section}>
           <h2 style={h2}>What to expect</h2>
-          <p style={p}>Strategy feedback analyzes your full application history and cross-references it with your ATS scores to find patterns. It looks at:</p>
+          <p style={p}>Strategy feedback analyzes your full application history and cross-references it with your ATS scores (ATS is the software companies use to screen resumes). The report is organized into:</p>
           <ul style={ul}>
-            <li style={li}><strong style={strong}>Response rate by role type</strong> - Which types of roles you are getting responses from and which you are not.</li>
-            <li style={li}><strong style={strong}>ATS score correlation</strong> - Whether higher ATS scores are actually leading to more interviews for you.</li>
-            <li style={li}><strong style={strong}>Common missing keywords</strong> - Keywords that appear frequently in your rejected applications but not in your resume.</li>
-            <li style={li}><strong style={strong}>Focus roles</strong> - Roles where your data suggests you have the best chances, based on response rate and ATS performance.</li>
-            <li style={li}><strong style={strong}>Avoid roles</strong> - Roles where you consistently get no response, suggesting a poor fit or a need to build additional skills first.</li>
+            <li style={li}><strong style={strong}>Key insights</strong> - The most important patterns in your data, ranked.</li>
+            <li style={li}><strong style={strong}>Focus here</strong> - Roles where your response rate and ATS scores suggest you have the best chances.</li>
+            <li style={li}><strong style={strong}>Stop applying here</strong> - Roles where you consistently get no response, suggesting a poor fit or a skills gap to close first.</li>
+            <li style={li}><strong style={strong}>Suggestions</strong> - Concrete changes to make to your approach.</li>
+            <li style={li}><strong style={strong}>Skill gaps to fix</strong> - Skills that keep coming up in the jobs you are not landing.</li>
           </ul>
           <p style={p}>The feedback refreshes automatically after every 5 new applications, so it becomes more accurate as your dataset grows.</p>
         </section>
@@ -59,10 +61,10 @@ export default function StrategyFeedbackPage() {
           </div>
         </section>
 
-        <p style={updated}>Last updated: May 15, 2026</p>
+        <p style={updated}>Last updated: July 8, 2026</p>
         <div style={nav}>
-          <Link href="/docs/auto-fill" style={navLink}>← Auto-fill</Link>
-          <Link href="/docs/networking" style={navLink}>Networking assistant →</Link>
+          <Link href="/docs/auto-fill" style={navLink}><ArrowIcon direction="left" /> Auto-fill</Link>
+          <Link href="/docs/networking" style={navLink}>Networking assistant <ArrowIcon /></Link>
         </div>
       </div>
     </DocsLayout>

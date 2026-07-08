@@ -1,11 +1,13 @@
 import DocsLayout from '@/components/marketing/DocsLayout';
 import Link from 'next/link';
+import ArrowIcon from '@/components/ui/ArrowIcon';
 
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Resume Tailoring - Vantage Docs',
+  title: 'Resume Tailoring · Docs',
   description: 'Learn how Vantage rewrites your resume to match ATS keywords without fabricating experience.',
+  alternates: { canonical: '/docs/resume-tailoring' },
 };
 
 export default function ResumeTailoringPage() {
@@ -20,7 +22,7 @@ export default function ResumeTailoringPage() {
         <section style={section}>
           <h2 style={h2}>How it works</h2>
           <p style={p}>
-            When you paste a job URL or description into the Tailor page, Vantage parses the listing and extracts a comprehensive keyword list. This is not just the skills section - it includes all significant terminology the ATS would scan for, including industry jargon, tools, methodologies, certifications, and soft skills mentioned throughout the posting.
+            When you paste a job URL or description into the Tailor page, Vantage reads the listing and pulls out a comprehensive keyword list. This is not just the skills section - it includes all significant terminology the ATS would scan for, including industry jargon, tools, methodologies, certifications, and soft skills mentioned throughout the posting.
           </p>
           <p style={p}>
             The tailoring engine then rewrites your resume against that keyword list. It follows a strict rule: <strong style={strong}>tailoring never fabricates experience</strong>. It reorders bullet points, rewords descriptions to incorporate target keywords naturally, and repositions sections so that the most relevant content appears first. If you do not have experience with something the job requires, it is listed as a skill gap - not invented.
@@ -31,10 +33,10 @@ export default function ResumeTailoringPage() {
           <h2 style={h2}>How to use it</h2>
           <ol style={ol}>
             <li style={li}>Go to the <strong style={strong}>Tailor</strong> page from your dashboard.</li>
-            <li style={li}>Paste the job posting URL or the job description text.</li>
-            <li style={li}>Wait for Vantage to parse the job and extract keywords (usually 5- 10 seconds).</li>
-            <li style={li}>Click <strong style={strong}>Tailor resume</strong> to generate the optimized version.</li>
-            <li style={li}>Review the output. Skill gaps are listed at the bottom.</li>
+            <li style={li}>Paste the job posting URL, or switch to pasting the job description text directly.</li>
+            <li style={li}>Click <strong style={strong}>Analyze job</strong>. Vantage reads the listing and pulls out the keywords (usually 5 to 10 seconds).</li>
+            <li style={li}>Review the parsed job, then click <strong style={strong}>Tailor My Resume</strong> to generate the optimized version.</li>
+            <li style={li}>Read the result in the <strong style={strong}>Tailored Resume</strong> tab; skill gaps are listed alongside it, and the <strong style={strong}>ATS Score</strong> tab shows the before/after.</li>
             <li style={li}>Copy the tailored resume and use it for your application.</li>
           </ol>
         </section>
@@ -86,11 +88,11 @@ export default function ResumeTailoringPage() {
           </div>
         </section>
 
-        <p style={updated}>Last updated: May 15, 2026</p>
+        <p style={updated}>Last updated: July 8, 2026</p>
 
         <div style={nav}>
-          <Link href="/docs/getting-started" style={navLink}>← Getting started</Link>
-          <Link href="/docs/ats-scoring" style={navLink}>ATS scoring →</Link>
+          <Link href="/docs/getting-started" style={navLink}><ArrowIcon direction="left" /> Getting started</Link>
+          <Link href="/docs/ats-scoring" style={navLink}>ATS scoring <ArrowIcon /></Link>
         </div>
       </div>
     </DocsLayout>

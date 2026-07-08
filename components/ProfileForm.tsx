@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { updateProfile } from '@/app/(dashboard)/actions';
 import { track } from '@/lib/analytics';
 import ResumeUpload from '@/components/ResumeUpload';
+import CustomSelect from '@/components/CustomSelect';
 
 export interface WorkExperience {
   company: string;
@@ -110,7 +111,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setError(json.error || 'Failed to auto-parse profile from resume.');
+        setError(json.error || 'We could not read your profile from your resume.');
         return;
       }
       const { profile: p } = await res.json();
@@ -130,7 +131,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
         });
       }
     } catch {
-      setError('Failed to parse profile due to a network error.');
+      setError('We could not read your profile because of a network error.');
     }
   }
 
@@ -219,6 +220,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
     background: 'var(--card)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius)',
+    boxShadow: 'var(--shadow-md)',
     padding: '24px',
   } as const;
 
@@ -233,7 +235,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
   const fieldStyle = {
     width: '100%',
     background: 'var(--bg)',
-    border: '1px solid rgba(255,255,255,0.12)',
+    border: '1px solid var(--border)',
     borderRadius: '10px',
     padding: '10px 12px',
     color: 'var(--text)',
@@ -245,12 +247,12 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
     boxSizing: 'border-box',
   } as const;
 
-  const focusStyle = '0 0 0 3px rgba(255,255,255,0.08)';
+  const focusStyle = '0 0 0 3px var(--focus-ring)';
 
   const tagWrapStyle = {
     width: '100%',
     background: 'var(--bg)',
-    border: '1px solid rgba(255,255,255,0.12)',
+    border: '1px solid var(--border)',
     borderRadius: '10px',
     padding: '10px 12px',
     color: 'var(--text)',
@@ -289,12 +291,13 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
 
   const buttonStyle = {
     width: '100%',
-    background: 'var(--accent)',
-    color: 'var(--bg)',
-    border: 'none',
-    borderRadius: '10px',
+    background: 'var(--gold-dim)',
+    color: 'var(--gold)',
+    border: '1px solid var(--gold-border)',
+    borderRadius: 'var(--radius)',
     padding: '12px',
     fontSize: '14px',
+    fontFamily: 'var(--font-display)',
     fontWeight: 600,
     cursor: 'pointer',
     marginTop: '16px',
@@ -302,15 +305,11 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
 
   return (
     <div style={{ ...cardStyle, width: '100%' }}>
-      <h1 style={{ marginBottom: '20px', color: 'var(--text)', fontSize: '24px', fontWeight: 600 }}>
-        Profile
-      </h1>
-
       {/* Welcome banner - only on first visit */}
       {isNew && (
         <div
           style={{
-            background: 'rgba(255,255,255,0.04)',
+            background: 'var(--card-raised)',
             border: '1px solid var(--border)',
             borderRadius: '10px',
             padding: '14px 18px',
@@ -387,37 +386,21 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
           <label style={labelStyle}>
             Graduation year
           </label>
-          <select
-            value={graduationYear}
-            onChange={(e) => setGraduationYear(parseInt(e.target.value))}
-            style={fieldStyle}
-            onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
-            onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
-          >
-            {graduationYears.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
+          <CustomSelect
+            value={String(graduationYear)}
+            onChange={(v) => setGraduationYear(parseInt(v))}
+            options={graduationYears.map((year) => ({ value: String(year), label: String(year) }))}
+          />
         </div>
         <div>
           <label style={labelStyle}>
             Years of experience
           </label>
-          <select
-            value={yearsExperience}
-            onChange={(e) => setYearsExperience(parseInt(e.target.value))}
-            style={fieldStyle}
-            onFocus={(e) => { e.currentTarget.style.boxShadow = focusStyle; }}
-            onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
-          >
-            {Array.from({ length: 16 }, (_, i) => (
-              <option key={i} value={i}>
-                {i === 0 ? 'None' : i}
-              </option>
-            ))}
-          </select>
+          <CustomSelect
+            value={String(yearsExperience)}
+            onChange={(v) => setYearsExperience(parseInt(v))}
+            options={Array.from({ length: 16 }, (_, i) => ({ value: String(i), label: i === 0 ? 'None' : String(i) }))}
+          />
         </div>
       </div>
 
@@ -639,12 +622,8 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
                       onChange={e => update({ start_date: e.target.value })}
                       style={{
                         ...fieldStyle,
-                        background: '#1a1a1a',
-                        border: '1px solid #2a2a2a',
-                        color: '#f2f2f2',
                         borderRadius: '6px',
                         padding: '8px 12px',
-                        colorScheme: 'dark',
                       }}
                       onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}
                       onBlur={e => { e.currentTarget.style.boxShadow = 'none'; }}
@@ -659,12 +638,8 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
                       onChange={e => update({ end_date: e.target.value || null })}
                       style={{
                         ...fieldStyle,
-                        background: '#1a1a1a',
-                        border: '1px solid #2a2a2a',
-                        color: '#f2f2f2',
                         borderRadius: '6px',
                         padding: '8px 12px',
-                        colorScheme: 'dark',
                         opacity: entry.current ? 0.4 : 1,
                       }}
                       onFocus={e => { e.currentTarget.style.boxShadow = focusStyle; }}

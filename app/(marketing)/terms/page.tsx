@@ -3,8 +3,9 @@ import Link from "next/link";
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Terms of Service - Vantage',
-  description: 'Terms of service for Vantage, a job application platform.',
+  title: 'Terms of Service',
+  description: 'Terms of service for Vantage, the AI job application platform.',
+  alternates: { canonical: '/terms' },
 };
 
 export default function TermsPage() {

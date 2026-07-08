@@ -123,7 +123,7 @@ export async function checkLimit(userId: string, feature: Feature): Promise<{ al
   if (feature === 'applications') {
     // Count total non-deleted applications
     try {
-      const { count } = await svc.from('applications').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('deleted', false);
+      const { count } = await svc.from('applications').select('id', { count: 'exact', head: true }).eq('user_id', userId).is('deleted_at', null);
       const used = typeof count === 'number' ? count : 0;
       const cap = LIMITS.applications;
       const remaining = Math.max(0, cap - used);
@@ -168,7 +168,7 @@ export async function getRemainingLimits(userId: string): Promise<Record<string,
   for (const key of Object.keys(LIMITS) as Feature[]) {
     if (key === 'applications') {
       try {
-        const { count } = await svc.from('applications').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('deleted', false);
+        const { count } = await svc.from('applications').select('id', { count: 'exact', head: true }).eq('user_id', userId).is('deleted_at', null);
         const used = typeof count === 'number' ? count : 0;
         out[key] = Math.max(0, LIMITS.applications - used);
       } catch {

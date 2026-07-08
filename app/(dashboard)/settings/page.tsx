@@ -19,13 +19,11 @@ export default async function SettingsPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
-      <div className="flex w-full flex-col px-4 py-12">
-        <div className="w-full">
-          <SettingsClient
-            userId={user.id}
-            email={user.email ?? ''}
-          />
-        </div>
+      <div className="dashboard-page">
+        <SettingsClient
+          userId={user.id}
+          email={user.email ?? ''}
+        />
       </div>
     </div>
   )

@@ -92,9 +92,9 @@ async function fetchBaseResume(svc: ServiceClient, userId: string) {
 
 async function fetchApplicationHistory(svc: ServiceClient, userId: string) {
   try {
-    const { count: total } = await svc.from('applications').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('deleted', false);
+    const { count: total } = await svc.from('applications').select('id', { count: 'exact', head: true }).eq('user_id', userId).is('deleted_at', null);
 
-    const { data: statusData } = await svc.from('applications').select('status').eq('user_id', userId).eq('deleted', false);
+    const { data: statusData } = await svc.from('applications').select('status').eq('user_id', userId).is('deleted_at', null);
     const statuses = (statusData || []) as Array<{ status: string }>;
     const breakdown = {
       applied: statuses.filter((s) => s.status === 'applied').length,
@@ -106,7 +106,7 @@ async function fetchApplicationHistory(svc: ServiceClient, userId: string) {
     const responseCount = breakdown.interviewing + breakdown.offer;
     const responseRate = total && total > 0 ? Math.round((responseCount / total) * 1000) / 10 : 0;
 
-    const { data: rolesData } = await svc.from('applications').select('role').eq('user_id', userId).eq('deleted', false);
+    const { data: rolesData } = await svc.from('applications').select('role').eq('user_id', userId).is('deleted_at', null);
     const roles = (rolesData || []) as Array<{ role?: string }>;
     const roleCount: Record<string, number> = {};
     roles.forEach((r) => {
@@ -116,7 +116,7 @@ async function fetchApplicationHistory(svc: ServiceClient, userId: string) {
     const sortedRoles = Object.entries(roleCount).sort(([, a], [, b]) => b - a).map(([role]) => role);
     const mostApplied = sortedRoles.slice(0, 3);
 
-    const { data: successData } = await svc.from('applications').select('role').eq('user_id', userId).eq('deleted', false).in('status', ['interviewing', 'offer']);
+    const { data: successData } = await svc.from('applications').select('role').eq('user_id', userId).is('deleted_at', null).in('status', ['interviewing', 'offer']);
     const successRoles = (successData || []) as Array<{ role?: string }>;
     const successCount: Record<string, number> = {};
     successRoles.forEach((r) => {

@@ -44,8 +44,9 @@ function FooterColumn({ title, links }: FooterColumnProps) {
     <div>
       <div
         style={{
+          fontFamily: 'var(--font-display)',
           fontSize: 11,
-          fontWeight: 700,
+          fontWeight: 600,
           textTransform: 'uppercase',
           letterSpacing: '0.07em',
           color: 'var(--muted)',
@@ -69,8 +70,9 @@ export default function MarketingFooter() {
   return (
     <footer
       style={{
-        background: 'var(--card)',
-        borderTop: '1px solid var(--border)',
+        background: 'var(--bg)',
+        borderTop: '1px solid var(--border-subtle)',
+        fontFamily: 'var(--font-body)',
         padding: '48px 0 24px',
       }}
     >
@@ -87,7 +89,7 @@ export default function MarketingFooter() {
         >
           {/* Wordmark + tagline */}
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
               Vantage
             </div>
             <div style={{ fontSize: 13, color: 'var(--muted)', maxWidth: 220, lineHeight: 1.6 }}>
@@ -141,8 +143,8 @@ export default function MarketingFooter() {
             }}
           >
             <div>
-              <div style={{ fontSize: 12, color: 'var(--muted)' }}>© 2026 Vantage, Inc.</div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>© 2026 Vantage, Inc.</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>
                 Made by Ishvir Chopra
               </div>
             </div>
@@ -190,13 +192,13 @@ export default function MarketingFooter() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          color: #9ca3af;
+          color: var(--muted);
           text-decoration: none;
           transition: color 0.15s ease;
         }
 
         .mkt-social-link:hover {
-          color: #ffffff;
+          color: var(--text);
         }
       `}</style>
     </footer>

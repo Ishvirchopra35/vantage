@@ -66,7 +66,8 @@ export async function updateProfile(userId: string, data: Partial<Profile>) {
       });
 
     if (error) {
-      return { success: false, error: error.message };
+      console.error('[updateProfile] upsert failed:', error);
+      return { success: false, error: 'We could not save your profile. Please try again.' };
     }
 
     // Track completion on first save
@@ -76,7 +77,7 @@ export async function updateProfile(userId: string, data: Partial<Profile>) {
 
     return { success: true };
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Unknown error';
-    return { success: false, error: message };
+    console.error('[updateProfile] unexpected error:', e);
+    return { success: false, error: 'We could not save your profile. Please try again.' };
   }
 }

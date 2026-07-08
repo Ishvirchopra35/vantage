@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import type { StrategyFeedback } from '@/app/api/strategy-feedback/route'
+import { asArray } from '@/lib/asArray'
+import ArrowIcon from '@/components/ui/ArrowIcon'
 
 function Spinner() {
   return (
@@ -25,11 +27,12 @@ function Spinner() {
 function SkeletonBlock({ height = 80 }: { height?: number }) {
   return (
     <div
+      aria-hidden="true"
       style={{
         height,
-        background: 'var(--border)',
-        borderRadius: '10px',
-        animation: 'shimmer 1.4s ease infinite',
+        background: 'var(--card-raised)',
+        borderRadius: 'var(--radius)',
+        animation: 'shimmer 1.4s ease-in-out infinite',
       }}
     />
   )
@@ -50,15 +53,17 @@ const card = {
   background: 'var(--card)',
   border: '1px solid var(--border)',
   borderRadius: 'var(--radius)',
+  boxShadow: 'var(--shadow-md)',
   padding: '20px',
 }
 
 const sectionTitle = {
-  fontSize: '13px',
-  fontWeight: 700,
-  color: 'var(--text)',
+  fontFamily: 'var(--font-display)',
+  fontSize: '11px',
+  fontWeight: 600,
+  color: 'var(--muted)',
   textTransform: 'uppercase' as const,
-  letterSpacing: '0.06em',
+  letterSpacing: '0.08em',
   marginBottom: '14px',
 }
 
@@ -152,15 +157,21 @@ export default function StrategyReport() {
 
   if (!feedback) return null
 
+  const topInsights = asArray<string>(feedback.top_insights)
+  const focusRoles = asArray<string>(feedback.focus_roles)
+  const avoidRoles = asArray<string>(feedback.avoid_roles)
+  const topSuggestions = asArray<string>(feedback.top_suggestions)
+  const skillGaps = asArray<string>(feedback.skill_gaps_to_fix)
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Key Insights */}
       <section>
         <div style={sectionTitle}>Key Insights</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
-          {feedback.top_insights.map((insight, i) => (
-            <div key={i} style={card}>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 600, marginBottom: '8px' }}>
+          {topInsights.map((insight, i) => (
+            <div key={i} style={{ ...card, borderTop: '2px solid var(--gold-border)', boxShadow: 'var(--shadow-md), inset 0 14px 28px -20px rgba(212,168,71,0.4)' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', color: 'var(--gold)', fontWeight: 600, marginBottom: '8px' }}>
                 #{i + 1}
               </div>
               <div style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.6 }}>{insight}</div>
@@ -172,12 +183,12 @@ export default function StrategyReport() {
       {/* Focus here + Stop applying here side by side */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
         <section style={card}>
-          <div style={{ ...sectionTitle, color: '#22c55e' }}>Focus here</div>
-          {feedback.focus_roles.length === 0 ? (
+          <div style={sectionTitle}>Focus here</div>
+          {focusRoles.length === 0 ? (
             <div style={{ fontSize: '13px', color: 'var(--muted)' }}>No clear standout roles yet.</div>
           ) : (
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {feedback.focus_roles.map((role, i) => (
+              {focusRoles.map((role, i) => (
                 <span
                   key={i}
                   style={{
@@ -198,12 +209,12 @@ export default function StrategyReport() {
         </section>
 
         <section style={card}>
-          <div style={{ ...sectionTitle, color: '#ef4444' }}>Stop applying here</div>
-          {feedback.avoid_roles.length === 0 ? (
+          <div style={sectionTitle}>Stop applying here</div>
+          {avoidRoles.length === 0 ? (
             <div style={{ fontSize: '13px', color: 'var(--muted)' }}>No roles to avoid identified yet.</div>
           ) : (
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {feedback.avoid_roles.map((role, i) => (
+              {avoidRoles.map((role, i) => (
                 <span
                   key={i}
                   style={{
@@ -237,7 +248,7 @@ export default function StrategyReport() {
           ATS Score Correlation
         </div>
         <div style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.6 }}>
-          {feedback.ats_insight}
+          {feedback.ats_insight ?? ''}
         </div>
       </section>
 
@@ -245,14 +256,14 @@ export default function StrategyReport() {
       <section style={card}>
         <div style={sectionTitle}>Next steps</div>
         <ol style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {feedback.top_suggestions.map((step, i) => (
+          {topSuggestions.map((step, i) => (
             <li
               key={i}
               style={{
                 display: 'flex',
                 gap: '12px',
                 padding: '12px 0',
-                borderBottom: i < feedback.top_suggestions.length - 1 ? '1px solid var(--border)' : 'none',
+                borderBottom: i < topSuggestions.length - 1 ? '1px solid var(--border)' : 'none',
                 alignItems: 'flex-start',
               }}
             >
@@ -288,14 +299,14 @@ export default function StrategyReport() {
             href="/profile"
             style={{ fontSize: '13px', color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}
           >
-            Add to profile →
+            Add to profile <ArrowIcon />
           </Link>
         </div>
-        {feedback.skill_gaps_to_fix.length === 0 ? (
+        {skillGaps.length === 0 ? (
           <div style={{ fontSize: '13px', color: 'var(--muted)' }}>No specific skill gaps identified.</div>
         ) : (
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {feedback.skill_gaps_to_fix.map((skill, i) => (
+            {skillGaps.map((skill, i) => (
               <span
                 key={i}
                 style={{

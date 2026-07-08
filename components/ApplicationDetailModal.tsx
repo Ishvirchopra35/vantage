@@ -58,19 +58,19 @@ const STATUS_LABEL: Record<AppStatus, string> = {
 }
 
 const STATUS_COLOR: Record<AppStatus, string> = {
-  applied: 'rgba(99,102,241,0.15)',
-  interviewing: 'rgba(245,158,11,0.15)',
+  applied: 'var(--gold-dim)',
+  interviewing: 'rgba(34,197,94,0.1)',
   offer: 'rgba(34,197,94,0.15)',
-  rejected: 'rgba(239,68,68,0.15)',
-  ghosted: 'rgba(107,114,128,0.15)',
+  rejected: 'rgba(239,68,68,0.1)',
+  ghosted: 'rgba(239,68,68,0.1)',
 }
 
 const STATUS_TEXT: Record<AppStatus, string> = {
-  applied: '#818cf8',
-  interviewing: '#f59e0b',
-  offer: '#22c55e',
-  rejected: '#ef4444',
-  ghosted: '#9ca3af',
+  applied: 'var(--gold)',
+  interviewing: 'var(--score-green)',
+  offer: 'var(--score-green)',
+  rejected: 'var(--score-red)',
+  ghosted: 'var(--score-red)',
 }
 
 // --- Helpers -----------------------------------------------------------------
@@ -189,7 +189,7 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
     background: 'transparent',
     color: 'var(--muted)',
     border: '1px solid var(--border)',
-    borderRadius: '8px',
+    borderRadius: 'var(--radius-sm)',
     padding: '5px 12px',
     fontSize: '12px',
     cursor: 'pointer',
@@ -222,7 +222,8 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
         style={{
           background: 'var(--card)',
           border: '1px solid var(--border)',
-          borderRadius: '14px',
+          borderRadius: 'var(--radius)',
+          boxShadow: 'var(--shadow-lg)',
           padding: '32px',
           width: '90%',
           maxWidth: '800px',
@@ -233,7 +234,7 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
         {loading && <ModalSkeleton />}
 
         {!loading && fetchError && (
-          <div style={{ color: '#ef4444', fontSize: '14px' }}>{fetchError}</div>
+          <div style={{ color: 'var(--score-red)', fontSize: '14px' }}>{fetchError}</div>
         )}
 
         {!loading && !fetchError && data && (
@@ -241,7 +242,7 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
             {/* -- Header ------------------------------------------------ */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
               <div>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
                   {data.application.company}
                 </div>
                 <div style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '12px' }}>
@@ -251,10 +252,13 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
                   <span style={{
                     background: STATUS_COLOR[data.application.status],
                     color: STATUS_TEXT[data.application.status],
-                    borderRadius: '6px',
-                    padding: '3px 10px',
-                    fontSize: '12px',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '3px 8px',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: '11px',
                     fontWeight: 600,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase' as const,
                   }}>
                     {STATUS_LABEL[data.application.status]}
                   </span>
@@ -287,7 +291,7 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
               <div style={{
                 background: 'var(--bg)',
                 border: '1px solid var(--border)',
-                borderRadius: '10px',
+                borderRadius: 'var(--radius)',
                 padding: '20px',
                 marginBottom: '24px',
               }}>
@@ -414,7 +418,7 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
                       whiteSpace: 'pre-wrap',
                       background: 'var(--bg)',
                       border: '1px solid var(--border)',
-                      borderRadius: '10px',
+                      borderRadius: 'var(--radius)',
                       padding: '16px',
                       maxHeight: '400px',
                       overflowY: 'auto',

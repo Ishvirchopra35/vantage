@@ -1,11 +1,13 @@
 import DocsLayout from '@/components/marketing/DocsLayout';
 import Link from 'next/link';
+import ArrowIcon from '@/components/ui/ArrowIcon';
 
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Cover Letters -Vantage Docs',
+  title: 'Cover Letters · Docs',
   description: 'Generate keyword-driven cover letters that sound like you, not a template.',
+  alternates: { canonical: '/docs/cover-letters' },
 };
 
 export default function CoverLettersPage() {
@@ -24,10 +26,10 @@ export default function CoverLettersPage() {
         <section style={section}>
           <h2 style={h2}>How to use it</h2>
           <ol style={ol}>
-            <li style={li}>Navigate to the job you want to apply to (either from the Tailor page or your tracker).</li>
-            <li style={li}>Click <strong style={strong}>Generate cover letter</strong>.</li>
+            <li style={li}>On the <strong style={strong}>Tailor</strong> page, analyze a job (paste it, then <strong style={strong}>Analyze job</strong>).</li>
+            <li style={li}>Open the <strong style={strong}>Cover Letter</strong> tab and click <strong style={strong}>Generate Cover Letter</strong>.</li>
             <li style={li}>Review the output. Edit anything that does not sound right.</li>
-            <li style={li}>Copy and use it in your application.</li>
+            <li style={li}>Copy and use it in your application. It is also saved to your <strong style={strong}>Documents</strong>.</li>
           </ol>
         </section>
 
@@ -58,10 +60,10 @@ export default function CoverLettersPage() {
           </div>
         </section>
 
-        <p style={updated}>Last updated: May 15, 2026</p>
+        <p style={updated}>Last updated: July 8, 2026</p>
         <div style={nav}>
-          <Link href="/docs/ats-scoring" style={navLink}>← ATS scoring</Link>
-          <Link href="/docs/application-tracking" style={navLink}>Application tracking →</Link>
+          <Link href="/docs/ats-scoring" style={navLink}><ArrowIcon direction="left" /> ATS scoring</Link>
+          <Link href="/docs/application-tracking" style={navLink}>Application tracking <ArrowIcon /></Link>
         </div>
       </div>
     </DocsLayout>

@@ -147,37 +147,122 @@ export async function getBlogPost(
   return { frontmatter, content: parsed.content };
 }
 
+// A frontmatter key line, e.g. `date:`, `  version:`, `title:`. Allows leading
+// whitespace and hyphenated keys, but the first char must be a letter/underscore
+// (so body bullets like `- foo: bar` are never mistaken for frontmatter).
+const FRONTMATTER_KEY_LINE = /^\s*[A-Za-z_][\w-]*\s*:/;
+// Every well-formed entry's frontmatter leads with a `date:` key. This is the
+// invariant used to detect entry boundaries independent of the closing fence.
+const DATE_KEY_LINE = /^date\s*:/;
+
+/**
+ * Returns true when the first non-blank line at or after `startIndex` is a
+ * `date:` frontmatter key — i.e. the preceding `---` opens a new entry rather
+ * than closing the current one's frontmatter.
+ */
+function nextNonBlankIsDateKey(lines: string[], startIndex: number): boolean {
+  for (let j = startIndex; j < lines.length; j++) {
+    const trimmed = lines[j].trim();
+    if (trimmed === '') continue;
+    return DATE_KEY_LINE.test(trimmed);
+  }
+  return false;
+}
+
+/**
+ * Splits a changelog MDX file into raw entry blocks.
+ *
+ * Entry-boundary detection is decoupled from the frontmatter fence: a boundary
+ * is a line equal to `---` whose next non-blank line is a `date:` key. This
+ * tolerates entries that omit their `summary` and/or their closing `---` fence
+ * (body content sitting directly under the frontmatter keys) without letting
+ * body text leak into YAML or letting one malformed entry consume the next.
+ */
 function splitChangelogEntries(source: string): Array<{ frontmatter: string; content: string }> {
   const lines = source.replace(/\r\n/g, '\n').split('\n');
-  const results: Array<{ frontmatter: string; content: string }> = [];
-  let i = 0;
 
-  while (i < lines.length) {
-    if (lines[i].trim() !== '---') { i++; continue; }
-    i++; // skip opening ---
-
-    // Read frontmatter until closing ---
-    const fmLines: string[] = [];
-    while (i < lines.length && lines[i].trim() !== '---') {
-      fmLines.push(lines[i]);
-      i++;
+  // 1 & 2. Locate entry boundaries. The file's leading `---` is the first one.
+  const boundaries: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === '---' && nextNonBlankIsDateKey(lines, i + 1)) {
+      boundaries.push(i);
     }
-    i++; // skip closing ---
+  }
 
-    // Read content until next opening ---
-    const contentLines: string[] = [];
-    while (i < lines.length && lines[i].trim() !== '---') {
-      contentLines.push(lines[i]);
-      i++;
+  const results: Array<{ frontmatter: string; content: string }> = [];
+
+  for (let b = 0; b < boundaries.length; b++) {
+    const start = boundaries[b] + 1; // skip the boundary `---` itself
+    const end = b + 1 < boundaries.length ? boundaries[b + 1] : lines.length;
+    const chunk = lines.slice(start, end);
+
+    // 3. Separate frontmatter from body. The frontmatter is the leading run of
+    // key lines (blank lines allowed between keys). The run ends at the first
+    // closing `---` fence (consumed) OR the first non-blank, non-key line
+    // (not consumed — it begins the body).
+    const frontmatterLines: string[] = [];
+    let k = 0;
+    for (; k < chunk.length; k++) {
+      const line = chunk[k];
+      if (line.trim() === '---') {
+        k++; // consume the closing fence
+        break;
+      }
+      if (line.trim() === '' || FRONTMATTER_KEY_LINE.test(line)) {
+        frontmatterLines.push(line);
+        continue;
+      }
+      break; // first non-blank, non-key line — body starts here, do not consume
     }
 
     results.push({
-      frontmatter: fmLines.join('\n'),
-      content: contentLines.join('\n').trim(),
+      frontmatter: frontmatterLines.join('\n').trim(),
+      content: chunk.slice(k).join('\n').trim(),
     });
   }
 
   return results;
+}
+
+/**
+ * Parses a single changelog MDX source string into changelog entries.
+ *
+ * Pure (filesystem-free) so the parsing logic can be exercised over generated
+ * inputs. `getChangelog()` delegates to this for every on-disk file, so its
+ * behavior is unchanged. Splits the source into entry blocks, reconstructs and
+ * validates each block's frontmatter in isolation (a malformed block is skipped
+ * without affecting siblings), defaults a missing `summary` to `''`, and returns
+ * the entries sorted newest-first.
+ */
+export function parseChangelogSource(source: string): ChangelogEntry[] {
+  const blocks = splitChangelogEntries(source);
+  const entries: ChangelogEntry[] = [];
+
+  for (const block of blocks) {
+    try {
+      const parsed = matter(`---\n${block.frontmatter}\n---`);
+      if (!isRecord(parsed.data)) continue;
+
+      entries.push({
+        date: getStringField(parsed.data, 'date'),
+        version: getOptionalStringField(parsed.data, 'version'),
+        type: getEnumField(parsed.data, 'type', [
+          'Feature',
+          'Update',
+          'Fix',
+          'Improvement',
+          'Major Release',
+        ]),
+        title: getStringField(parsed.data, 'title'),
+        summary: getOptionalStringField(parsed.data, 'summary') ?? '',
+        content: block.content,
+      } satisfies ChangelogEntry);
+    } catch {
+      continue;
+    }
+  }
+
+  return sortByDateDesc(entries);
 }
 
 export async function getChangelog(): Promise<ChangelogEntry[]> {
@@ -187,31 +272,7 @@ export async function getChangelog(): Promise<ChangelogEntry[]> {
   for (const fileName of files) {
     const fullPath = path.join(CHANGELOG_DIR, fileName);
     const source = await fs.readFile(fullPath, 'utf8');
-    const blocks = splitChangelogEntries(source);
-
-    for (const block of blocks) {
-      try {
-        const parsed = matter(`---\n${block.frontmatter}\n---`);
-        if (!isRecord(parsed.data)) continue;
-
-        allEntries.push({
-          date: getStringField(parsed.data, 'date'),
-          version: getOptionalStringField(parsed.data, 'version'),
-          type: getEnumField(parsed.data, 'type', [
-            'Feature',
-            'Update',
-            'Fix',
-            'Improvement',
-            'Major Release',
-          ]),
-          title: getStringField(parsed.data, 'title'),
-          summary: getOptionalStringField(parsed.data, 'summary') ?? '',
-          content: block.content,
-        } satisfies ChangelogEntry);
-      } catch {
-        continue;
-      }
-    }
+    allEntries.push(...parseChangelogSource(source));
   }
 
   return sortByDateDesc(allEntries);

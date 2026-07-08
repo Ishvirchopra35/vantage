@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import ProfileForm from '@/components/ProfileForm';
 import type { Profile as BaseProfile } from '@/components/ProfileForm';
 import ExtensionTokenSection from '@/components/ExtensionTokenSection';
+import PageHeader from '@/components/ui/PageHeader';
 
 export const metadata = {
   title: 'Profile - Vantage',
@@ -46,8 +47,12 @@ export default async function ProfilePage({
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
-      <div className="flex w-full flex-col px-4 py-12">
+      <div className="dashboard-page flex flex-col px-4 py-12">
         <div className="w-full">
+          <PageHeader
+            title="Profile"
+            subtitle="Complete your profile so every AI output sounds like you."
+          />
           <ProfileForm initialData={profile} isNew={isNew} />
           <ExtensionTokenSection
             initialToken={profile?.extension_token ?? null}

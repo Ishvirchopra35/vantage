@@ -142,7 +142,7 @@ function ToastContainer({ toasts, setToasts }: ToastContainerProps) {
               color: colors.textColor,
               fontSize: '0.95rem',
               fontWeight: 500,
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              boxShadow: 'var(--shadow-lg)',
             }}
           >
             {toast.message}

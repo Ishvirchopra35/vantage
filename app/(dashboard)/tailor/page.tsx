@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import ArrowIcon from '@/components/ui/ArrowIcon'
+import PageHeader from '@/components/ui/PageHeader'
 
 // --- Types -------------------------------------------------------------------
 
@@ -105,16 +107,18 @@ const card = {
   background: 'var(--card)',
   border: '1px solid var(--border)',
   borderRadius: 'var(--radius)',
+  boxShadow: 'var(--shadow-md)',
   padding: '24px',
   marginTop: '16px',
 }
 
 const inputStyle = {
-  background: 'var(--bg)',
+  background: 'var(--card-sunken)',
   border: '1px solid var(--border)',
-  borderRadius: '10px',
-  padding: '10px 12px',
+  borderRadius: 'var(--radius)',
+  padding: '12px 16px',
   color: 'var(--text)',
+  fontFamily: 'var(--font-body)',
   fontSize: '14px',
   outline: 'none',
   boxSizing: 'border-box' as const,
@@ -122,11 +126,12 @@ const inputStyle = {
 }
 
 const primaryBtn = {
-  background: 'var(--accent)',
-  color: 'var(--bg)',
-  border: 'none',
-  borderRadius: '10px',
-  padding: '10px 18px',
+  background: 'var(--gold-dim)',
+  color: 'var(--gold)',
+  border: '1px solid var(--gold-border)',
+  borderRadius: 'var(--radius)',
+  padding: '12px 24px',
+  fontFamily: 'var(--font-display)',
   fontSize: '14px',
   fontWeight: 600,
   cursor: 'pointer',
@@ -267,7 +272,7 @@ export default function TailorPage() {
     setLoading(l => ({ ...l, parse: false }))
 
     if (error || !data?.job) {
-      setParseError(error || 'Could not parse this job posting.')
+      setParseError(error || 'We could not read this job posting.')
       return
     }
     setParsedJob(data.job)
@@ -530,7 +535,7 @@ export default function TailorPage() {
     if (!parsedJob) return null
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-        <button onClick={onBack} style={{ ...secondaryBtn, padding: '8px 12px' }}>←</button>
+        <button onClick={onBack} aria-label="Back" style={{ ...secondaryBtn, padding: '8px 12px' }}><ArrowIcon direction="left" /></button>
         <div>
           <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>{parsedJob.title}</div>
           <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{parsedJob.company}</div>
@@ -543,17 +548,15 @@ export default function TailorPage() {
 
   return (
     <div style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
-      <div style={{ maxWidth: '720px', margin: '0 auto', padding: '40px 16px 80px' }}>
+      <div className="dashboard-page">
 
         {/* -- Step 1: Parse job ----------------------------------------------- */}
         {step === 1 && (
           <div>
-            <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text)', marginBottom: '8px' }}>
-              Tailor your resume
-            </h1>
-            <p style={{ color: 'var(--muted)', fontSize: '15px', marginBottom: '28px' }}>
-              Paste a job URL. We'll parse it, tailor your resume to match, score it against ATS systems, and generate a cover letter.
-            </p>
+            <PageHeader
+              title="Tailor your resume"
+              subtitle="Paste a job URL. We'll read it, tailor your resume to match, score it against ATS systems (the software companies use to screen resumes), and generate a cover letter."
+            />
 
             {/* Auto-load banner for jobId flow */}
             {autoLoading && (
@@ -578,6 +581,7 @@ export default function TailorPage() {
               {!useTextarea && (
                 <input
                   type="url"
+                  className="input-gold-focus"
                   placeholder="https://jobs.company.com/senior-engineer"
                   value={jobUrl}
                   onChange={e => setJobUrl(e.target.value)}
@@ -589,12 +593,13 @@ export default function TailorPage() {
               <button
                 onClick={() => void parseJob()}
                 disabled={loading.parse || (useTextarea ? !jobText.trim() : !jobUrl.trim())}
+                className="btn-gold-hover"
                 style={{
                   ...primaryBtn,
                   opacity: loading.parse || (useTextarea ? !jobText.trim() : !jobUrl.trim()) ? 0.5 : 1,
                 }}
               >
-                {loading.parse ? <Spinner /> : 'Parse job'}
+                {loading.parse ? <Spinner /> : 'Analyze job'}
               </button>
             </div>
 
@@ -624,15 +629,15 @@ export default function TailorPage() {
                 cursor: 'pointer',
                 marginTop: '10px',
                 padding: '0',
-                textDecoration: 'underline',
               }}
             >
-              {useTextarea ? '← Use a URL instead' : "URL not working? Paste the description directly"}
+              {useTextarea ? <><ArrowIcon direction="left" /> Use a URL instead</> : "URL not working? Paste the description directly"}
             </button>
 
             {/* Paste textarea */}
             {useTextarea && (
               <textarea
+                className="input-gold-focus"
                 placeholder="Paste the full job description here..."
                 value={jobText}
                 onChange={e => setJobText(e.target.value)}
@@ -662,6 +667,27 @@ export default function TailorPage() {
               </div>
             )}
 
+            {/* Placeholder before a job is parsed */}
+            {!parsedJob && !autoLoading && (
+              <div style={{ textAlign: 'center', padding: '48px 24px 24px' }}>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: '14px', color: 'var(--muted)', marginBottom: '20px' }}>
+                  Paste a job URL above to get started
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                  {['Resume tailored to the JD', 'ATS score before you apply', 'Cover letter in your voice'].map(hint => (
+                    <div key={hint} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)' }}>
+                      <span style={{ color: 'var(--gold)', display: 'inline-flex', flexShrink: 0 }} aria-hidden="true">
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="2 8 6 12 14 3" />
+                        </svg>
+                      </span>
+                      {hint}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Job preview card */}
             {parsedJob && (
               <div style={{ ...card, marginTop: '20px' }}>
@@ -675,7 +701,7 @@ export default function TailorPage() {
                       {parsedJob.employment_type && ` · ${parsedJob.employment_type}`}
                     </div>
                   </div>
-                  <button onClick={() => void goToStep2()} style={primaryBtn}>Continue →</button>
+                  <button onClick={() => void goToStep2()} className="btn-gold-hover" style={primaryBtn}>Continue <ArrowIcon /></button>
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '14px' }}>
                   {parsedJob.required_skills.slice(0, 8).map(s => (
@@ -697,7 +723,7 @@ export default function TailorPage() {
           <div>
             {/* Collapsed job header + remaining uses */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
-              <button onClick={() => setStep(1)} style={{ ...secondaryBtn, padding: '8px 12px' }}>←</button>
+              <button onClick={() => setStep(1)} aria-label="Back" style={{ ...secondaryBtn, padding: '8px 12px' }}><ArrowIcon direction="left" /></button>
               <div>
                 <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>{parsedJob.title}</div>
                 <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{parsedJob.company}</div>
@@ -726,7 +752,7 @@ export default function TailorPage() {
                 color: 'var(--text)',
               }}>
                 <strong style={{ color: 'var(--score-amber)' }}>No resume on file.</strong>{' '}
-                <a href="/profile" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
+                <a href="/profile" style={{ color: 'var(--accent)' }}>
                   Go to Profile
                 </a>{' '}
                 to upload your base resume before tailoring.
@@ -745,6 +771,7 @@ export default function TailorPage() {
               <button
                 onClick={tailorResume}
                 disabled={loading.tailor}
+                className="btn-gold-hover"
                 style={{ ...primaryBtn, opacity: loading.tailor ? 0.6 : 1 }}
               >
                 {loading.tailor ? <Spinner /> : 'Tailor My Resume'}
@@ -848,7 +875,7 @@ export default function TailorPage() {
                         <strong style={{ color: scoreColor(baseAtsScore.overall_score) }}>
                           {baseAtsScore.overall_score}
                         </strong>
-                        {' → '}Tailored:{' '}
+                        {' '}<ArrowIcon />{' '}Tailored:{' '}
                         <strong style={{ color: scoreColor(tailoredAtsScore.overall_score) }}>
                           {tailoredAtsScore.overall_score}
                         </strong>
@@ -1140,6 +1167,7 @@ export default function TailorPage() {
                     <button
                       onClick={generateCoverLetter}
                       disabled={loading.cover}
+                      className="btn-gold-hover"
                       style={{ ...primaryBtn, opacity: loading.cover ? 0.6 : 1 }}
                     >
                       {loading.cover ? <Spinner /> : 'Generate Cover Letter'}
@@ -1173,6 +1201,7 @@ export default function TailorPage() {
                   <button
                     onClick={logApplication}
                     disabled={logLoading || !logCompany?.trim() || !logRole?.trim()}
+                    className="btn-gold-hover"
                     style={{
                       ...primaryBtn,
                       opacity: logLoading || !logCompany?.trim() || !logRole?.trim() ? 0.5 : 1,

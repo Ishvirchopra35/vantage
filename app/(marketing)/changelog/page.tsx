@@ -1,13 +1,68 @@
-import type { ComponentPropsWithoutRef } from 'react'
+import { Children, Fragment, type ComponentPropsWithoutRef, type ReactNode } from 'react'
 import { MDXRemote } from 'next-mdx-remote/rsc'
 import { getChangelog } from '@/lib/mdx'
 import ChangelogExpander from '@/components/ChangelogExpander'
+import ArrowIcon from '@/components/ui/ArrowIcon'
 
 export const dynamic = 'force-static'
+
+export const metadata = {
+  title: 'Changelog',
+  description: 'Every feature, fix, and improvement shipped to Vantage - updated continuously.',
+  alternates: { canonical: '/changelog' },
+}
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00')
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+/**
+ * Escapes MDX-significant characters in changelog body prose so that literal
+ * `{`, `}`, and `<` (e.g. `{ fields: [...] }` or `counts <a tags`) render as
+ * text instead of being compiled as JSX expressions/elements — which otherwise
+ * aborts the static build with an acorn parse error. Inline code spans and
+ * fenced code blocks are left untouched, since MDX already treats their
+ * contents literally. Applied only at render time; the parsed `content` field
+ * itself is preserved verbatim (Property 1 round-trip).
+ */
+function escapeMdxProse(source: string): string {
+  // Split into segments, isolating fenced code blocks and inline code spans so
+  // they pass through unescaped; escape everything else.
+  const parts = source.split(/(```[\s\S]*?```|`[^`]*`)/g)
+  return parts
+    .map((part, index) => {
+      // Odd indices are the captured code segments — leave them verbatim.
+      if (index % 2 === 1) return part
+      return part.replace(/[{}<]/g, (char) => `\\${char}`)
+    })
+    .join('')
+}
+
+/**
+ * Walks rendered MDX children and replaces literal arrow characters in string
+ * nodes with inline <ArrowIcon /> elements. `→` becomes a right-pointing icon
+ * and `←` a left-pointing one; text segments are preserved and interleaved.
+ * Non-string children (e.g. inline <code>) pass through unchanged, so arrows
+ * inside code stay literal (documented exception). The icon's `verticalAlign`
+ * keeps in-sentence arrows baseline-aligned (Req 1.7).
+ */
+function renderArrows(children: ReactNode): ReactNode {
+  return Children.map(children, (child, childIndex) => {
+    if (typeof child !== 'string') return child
+
+    const segments = child.split(/([→←])/).filter((segment) => segment !== '')
+    if (segments.length === 1 && segments[0] !== '→' && segments[0] !== '←') {
+      return child
+    }
+
+    return segments.map((segment, segmentIndex) => {
+      const key = `${childIndex}-${segmentIndex}`
+      if (segment === '→') return <ArrowIcon key={key} />
+      if (segment === '←') return <ArrowIcon key={key} direction="left" />
+      return <Fragment key={key}>{segment}</Fragment>
+    })
+  })
 }
 
 const mdxComponents = {
@@ -28,12 +83,12 @@ const mdxComponents = {
   ),
   h3: ({ children }: ComponentPropsWithoutRef<'h3'>) => (
     <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginTop: 16, marginBottom: 6 }}>
-      {children}
+      {renderArrows(children)}
     </h3>
   ),
   p: ({ children }: ComponentPropsWithoutRef<'p'>) => (
     <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 10 }}>
-      {children}
+      {renderArrows(children)}
     </p>
   ),
   ul: ({ children }: ComponentPropsWithoutRef<'ul'>) => (
@@ -45,7 +100,7 @@ const mdxComponents = {
   li: ({ children }: ComponentPropsWithoutRef<'li'>) => (
     <li style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, marginBottom: 6, paddingLeft: 16, position: 'relative' }}>
       <span style={{ position: 'absolute', left: 0, color: 'var(--muted)' }}>•</span>
-      {children}
+      {renderArrows(children)}
     </li>
   ),
   code: ({ children }: ComponentPropsWithoutRef<'code'>) => (
@@ -97,10 +152,8 @@ async function EntryCard({
 }) {
   return (
     <div
+      className="ds-card"
       style={{
-        background: 'var(--card)',
-        border: '1px solid var(--border)',
-        borderRadius: 14,
         padding: 32,
         marginBottom: 16,
       }}
@@ -137,7 +190,7 @@ async function EntryCard({
       {/* MDX content wrapped in expander */}
       {entry.content.trim() && (
         <ChangelogExpander preview={5}>
-          <MDXRemote source={entry.content} components={mdxComponents} />
+          <MDXRemote source={escapeMdxProse(entry.content)} components={mdxComponents} />
         </ChangelogExpander>
       )}
     </div>

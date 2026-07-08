@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+
 export default function Error({
   error,
   reset,
@@ -7,6 +9,11 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Log the real error; the UI only ever shows a friendly message in production.
+  useEffect(() => {
+    console.error('[app/error]', error);
+  }, [error]);
+
   return (
     <div
       style={{
@@ -57,8 +64,8 @@ export default function Error({
           style={{
             padding: '10px 24px',
             backgroundColor: 'var(--accent)',
-            color: '#000000',
-            border: 'none',
+            color: 'var(--bg)',
+            border: '1px solid var(--border)',
             borderRadius: 'var(--radius)',
             fontSize: '0.95rem',
             fontWeight: 600,
