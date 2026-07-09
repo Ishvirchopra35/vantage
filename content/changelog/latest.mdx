@@ -808,3 +808,12 @@ title: Light mode is now the default theme
 - components/Sidebar.tsx + components/SettingsClient.tsx: theme toggles initialize to "light" as the fallback
 - components/marketing/LandingParticles.tsx: particle color falls back to the light-mode gold before hydration
 - returning users who previously picked a theme keep their choice (localStorage vantage-theme is unchanged)
+
+---
+date: 2026-07-09
+type: Update
+title: Marketing landing page overhaul: split hero, live product mockups, rim-light glass
+- app/(marketing)/page.tsx: rebuilt the hero as a two-column split. Left holds the headline and CTAs; right shows a live JSX mockup of the application tracker (company, role, gold status badge, ATS score) inside a dark app window frame with a title bar, floating with a subtle tilt
+- app/(marketing)/page.tsx: replaced the lead feature-card grid with three full-width alternating rows (resume tailoring before/after diff, application tracking table, auto-apply job list), each with real mini product UI and a subtle top divider. Support features became a compact horizontal strip below (icon, name, one line, no cards)
+- app/globals.css: replaced every outward gold box-shadow glow with a rim-light system: gold catches light on the top edge and diffuses inward like rim lighting on glass. New .glass-rim / .glass-rim-strong classes; the Pro pricing card and closing CTA card get the strongest rim. Feature-card and CTA hovers now brighten the top rim instead of glowing outward
+- app/globals.css: deepened --gold from #d4a847 to #c9a227 (and the matching gold-dim / gold-border / shadow rgba values) across dark and light themes

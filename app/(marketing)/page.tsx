@@ -131,10 +131,25 @@ const PAIN_POINTS = [
   { quote: 'I have no idea why I keep getting rejected or what to fix.', who: 'the group chat, every week' },
 ];
 
-const LEAD_FEATURES = [
-  { name: 'Resume tailoring', description: 'Every bullet rewritten to mirror the job description - keywords woven in, nothing invented.' },
-  { name: 'Application tracking', description: 'Every application in one place - statuses, follow-ups, and response rates as you go.' },
-  { name: 'Auto-apply engine', description: 'The Chrome extension fills application forms for you. You review, you submit.' },
+type MockTone = 'gold' | 'green';
+
+const HERO_ROWS: { co: string; logo: string; role: string; status: string; tone: MockTone; ats: number }[] = [
+  { co: 'Stripe', logo: 'S', role: 'Software Engineer Intern', status: 'Interviewing', tone: 'green', ats: 92 },
+  { co: 'Ramp', logo: 'R', role: 'Product Analyst', status: 'Applied', tone: 'gold', ats: 88 },
+  { co: 'Figma', logo: 'F', role: 'Frontend Engineer', status: 'Applied', tone: 'gold', ats: 85 },
+  { co: 'Notion', logo: 'N', role: 'New Grad SWE', status: 'Offer', tone: 'green', ats: 90 },
+];
+
+const TRACK_ROWS: { co: string; logo: string; role: string; status: string; tone: MockTone }[] = [
+  { co: 'Datadog', logo: 'D', role: 'New Grad Software Engineer', status: 'Interviewing', tone: 'green' },
+  { co: 'Airbnb', logo: 'A', role: 'Frontend Engineer, University', status: 'Applied', tone: 'gold' },
+  { co: 'Shopify', logo: 'S', role: 'Backend Developer Intern', status: 'Applied', tone: 'gold' },
+];
+
+const JOB_ROWS: { co: string; logo: string; role: string; match: string }[] = [
+  { co: 'Vercel', logo: 'V', role: 'Frontend Engineer, New Grad', match: '94%' },
+  { co: 'Linear', logo: 'L', role: 'Product Engineer', match: '91%' },
+  { co: 'Databricks', logo: 'D', role: 'Software Engineer Intern', match: '88%' },
 ];
 
 const SUPPORT_FEATURES = [
@@ -231,6 +246,57 @@ const ICON_TILE = {
   color: 'var(--gold)',
 };
 
+function AppWindow({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="lp-window">
+      <div className="lp-window-bar">
+        <span className="lp-window-dot" />
+        <span className="lp-window-dot" />
+        <span className="lp-window-dot" />
+        <span className="lp-window-title">{title}</span>
+      </div>
+      <div className="lp-window-body">{children}</div>
+    </div>
+  );
+}
+
+function TrackerRow({
+  co,
+  logo,
+  role,
+  status,
+  tone,
+  ats,
+}: {
+  co: string;
+  logo: string;
+  role: string;
+  status: string;
+  tone: MockTone;
+  ats?: number;
+}) {
+  return (
+    <div className="lp-mock-row">
+      <div className="lp-mock-left">
+        <div className="lp-mock-logo">{logo}</div>
+        <div style={{ minWidth: 0 }}>
+          <div className="lp-mock-co">{co}</div>
+          <div className="lp-mock-role">{role}</div>
+        </div>
+      </div>
+      <div className="lp-mock-meta">
+        <span className={tone === 'gold' ? 'lp-badge-gold' : 'lp-badge-green'}>{status}</span>
+        {typeof ats === 'number' && (
+          <div className="lp-ats">
+            <span className="lp-ats-label">ATS</span>
+            <span className="lp-ats-num">{ats}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   return (
     <>
@@ -243,24 +309,38 @@ export default function LandingPage() {
         <LandingParticles />
         <div style={{ position: 'relative', zIndex: 1 }}>
 
-      <section style={{ maxWidth: 1120, margin: '0 auto', padding: '80px 24px 56px' }}>
-        <div style={{ color: 'var(--gold)', fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Built for recruiting season</div>
+      <section className="lp-hero">
+        <div className="lp-hero-grid">
+          <div>
+            <div style={{ color: 'var(--gold)', fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Built for recruiting season</div>
 
-        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'clamp(48px, 8vw, 96px)', lineHeight: 1.02, letterSpacing: '-0.04em', maxWidth: 980, margin: '0 0 24px', color: 'var(--text)' }}>
-          Applied to 100 jobs. <br /> Heard back from 1. <br />
-          <span style={{ color: 'var(--gold)' }}>There&apos;s a better way.</span>
-        </h1>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'clamp(38px, 5.4vw, 62px)', lineHeight: 1.04, letterSpacing: '-0.04em', margin: '0 0 22px', color: 'var(--text)' }}>
+              Applied to 100 jobs.<br />Heard back from 1.<br />
+              <span style={{ color: 'var(--gold)' }}>There&apos;s a better way.</span>
+            </h1>
 
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--muted)', maxWidth: 480, lineHeight: 1.6, margin: 0 }}>
-          Vantage tailors your resume to every job, scores it against ATS systems, and tracks every application in one workspace.
-        </p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--muted)', maxWidth: 460, lineHeight: 1.6, margin: 0 }}>
+              Vantage tailors your resume to every job, scores it against ATS systems, and tracks every application in one workspace.
+            </p>
 
-        <div style={{ marginTop: 32, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <Link href="/signup" className="lp-glow-cta" style={CTA_GOLD}>Get started free</Link>
-          <a href="#how-it-works" style={CTA_OUTLINE}>See how it works</a>
+            <div style={{ marginTop: 30, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <Link href="/signup" className="lp-glow-cta" style={CTA_GOLD}>Get started free</Link>
+              <a href="#features" style={CTA_OUTLINE}>See how it works</a>
+            </div>
+
+            <p style={{ marginTop: 14, fontSize: 12, color: 'var(--muted)' }}>Free during early access · No credit card required</p>
+          </div>
+
+          <Reveal direction="scale">
+            <div className="lp-hero-float">
+              <AppWindow title="Vantage · Applications">
+                {HERO_ROWS.map((r) => (
+                  <TrackerRow key={r.co} co={r.co} logo={r.logo} role={r.role} status={r.status} tone={r.tone} ats={r.ats} />
+                ))}
+              </AppWindow>
+            </div>
+          </Reveal>
         </div>
-
-        <p style={{ marginTop: 14, fontSize: 12, color: 'var(--muted)' }}>Free during early access · No credit card required</p>
       </section>
 
       <Reveal as="section" id="sound-familiar" style={{ maxWidth: 1120, margin: '0 auto', padding: '54px 24px' }} direction="up">
@@ -283,34 +363,101 @@ export default function LandingPage() {
         </div>
       </Reveal>
 
-      <Reveal as="section" id="features" style={{ maxWidth: 1120, margin: '0 auto', padding: '54px 24px' }} direction="up">
-        <div style={EYEBROW}>Your unfair advantage</div>
-        <h2 style={SECTION_H2}>Everything you need to get hired</h2>
-
-        <div className="lp-grid-3">
-          {LEAD_FEATURES.map((feature, i) => (
-            <Reveal key={feature.name} index={i} direction="scale">
-              <div className="lp-feature-card" style={{ padding: 28 }}>
-                <div style={ICON_TILE}>{getFeatureIcon(feature.name)}</div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>{feature.name}</div>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>{feature.description}</div>
-              </div>
-            </Reveal>
-          ))}
+      <section id="features" className="lp-features">
+        <div className="lp-features-head">
+          <div style={EYEBROW}>Your unfair advantage</div>
+          <h2 style={SECTION_H2}>Three things that change your odds</h2>
         </div>
 
-        <div className="lp-grid-5" style={{ marginTop: 12 }}>
+        <Reveal className="lp-feature-row" direction="up">
+          <div className="lp-feature-copy">
+            <div className="lp-feature-num">01 / Resume tailoring</div>
+            <h3 className="lp-feature-title">Every bullet rewritten for the job in front of you</h3>
+            <p className="lp-feature-desc">Paste a job description and Vantage rewrites each line to mirror it. Keywords woven in, nothing invented, and you see exactly what changed before you send it.</p>
+          </div>
+          <div className="lp-feature-visual">
+            <AppWindow title="Vantage · Tailor">
+              <div className="lp-diff-label" style={{ color: 'var(--muted)' }}>Before</div>
+              <div className="lp-diff-before">Worked on the frontend team and helped build some internal web tools.</div>
+              <div className="lp-diff-label" style={{ color: 'var(--gold)', marginTop: 14 }}>After Vantage</div>
+              <div className="lp-diff-after">Built <b>12 React components</b> for a high-traffic internal dashboard, cutting <b>page load time 40%</b>.</div>
+              <div style={{ marginTop: 14 }}>
+                <span className="lp-badge-gold">+4 keywords matched</span>
+              </div>
+            </AppWindow>
+          </div>
+        </Reveal>
+
+        <Reveal className="lp-feature-row reverse" direction="up">
+          <div className="lp-feature-copy">
+            <div className="lp-feature-num">02 / Application tracking</div>
+            <h3 className="lp-feature-title">Every application in one place, not five browser tabs</h3>
+            <p className="lp-feature-desc">Statuses, follow-ups, and response rates update as you go. Know what you have heard back on and what still needs a nudge, without keeping a spreadsheet alive.</p>
+          </div>
+          <div className="lp-feature-visual">
+            <AppWindow title="Vantage · Applications">
+              <div className="lp-mock-statline">
+                <div>
+                  <div className="lp-mock-stat-num">24</div>
+                  <div className="lp-mock-stat-label">Applied</div>
+                </div>
+                <div>
+                  <div className="lp-mock-stat-num">6</div>
+                  <div className="lp-mock-stat-label">Interviews</div>
+                </div>
+                <div>
+                  <div className="lp-mock-stat-num">2</div>
+                  <div className="lp-mock-stat-label">Offers</div>
+                </div>
+              </div>
+              {TRACK_ROWS.map((r) => (
+                <TrackerRow key={r.co} co={r.co} logo={r.logo} role={r.role} status={r.status} tone={r.tone} />
+              ))}
+            </AppWindow>
+          </div>
+        </Reveal>
+
+        <Reveal className="lp-feature-row" direction="up">
+          <div className="lp-feature-copy">
+            <div className="lp-feature-num">03 / Auto-apply</div>
+            <h3 className="lp-feature-title">The form fills itself. You review and submit.</h3>
+            <p className="lp-feature-desc">The Chrome extension reads any application form and fills it from your profile. Vantage never hits submit, so the last look is always yours.</p>
+          </div>
+          <div className="lp-feature-visual">
+            <AppWindow title="Vantage · Auto-apply">
+              {JOB_ROWS.map((r) => (
+                <div className="lp-mock-row" key={r.co}>
+                  <div className="lp-mock-left">
+                    <div className="lp-mock-logo">{r.logo}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="lp-mock-co">{r.co}</div>
+                      <div className="lp-mock-role">{r.role}</div>
+                    </div>
+                  </div>
+                  <div className="lp-mock-meta">
+                    <span className="lp-match">{r.match} match</span>
+                    <span className="lp-autofill-tag">Autofill</span>
+                  </div>
+                </div>
+              ))}
+            </AppWindow>
+          </div>
+        </Reveal>
+      </section>
+
+      <section className="lp-support">
+        <div className="lp-support-strip">
           {SUPPORT_FEATURES.map((feature, i) => (
-            <Reveal key={feature.name} index={i} direction="scale">
-              <div className="lp-feature-card" style={{ padding: 16 }}>
-                <div style={{ ...ICON_TILE, width: 28, height: 28, marginBottom: 10 }}>{getFeatureIcon(feature.name)}</div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600, marginBottom: 4, color: 'var(--text)' }}>{feature.name}</div>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>{feature.description}</div>
+            <Reveal key={feature.name} index={i} direction="up">
+              <div>
+                <span className="lp-support-icon">{getFeatureIcon(feature.name)}</span>
+                <div className="lp-support-name">{feature.name}</div>
+                <div className="lp-support-line">{feature.description}</div>
               </div>
             </Reveal>
           ))}
         </div>
-      </Reveal>
+      </section>
 
       <Reveal as="section" id="how-it-works" style={{ maxWidth: 1120, margin: '0 auto', padding: '54px 24px' }} direction="up">
         <div style={EYEBROW}>How it works</div>
@@ -319,7 +466,7 @@ export default function LandingPage() {
         <div className="lp-grid-3">
           {STEPS.map((step) => (
             <Reveal key={step.n} index={step.n - 1} direction={step.n % 2 === 1 ? 'left' : 'right'}>
-              <div style={{ position: 'relative', overflow: 'hidden', background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md), inset 0 14px 28px -20px rgba(212,168,71,0.4)', borderTop: '2px solid var(--gold-border)', padding: 28 }}>
+              <div style={{ position: 'relative', overflow: 'hidden', background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md), inset 0 14px 28px -20px rgba(201,162,39,0.4)', borderTop: '2px solid var(--gold-border)', padding: 28 }}>
                 <div aria-hidden="true" style={{ position: 'absolute', top: -18, right: 10, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 128, lineHeight: 1, paddingTop: 3, color: 'var(--gold)', opacity: 0.15, pointerEvents: 'none', userSelect: 'none' }}>{step.n}</div>
                 <div style={{ position: 'relative' }}>
                   <div style={ICON_TILE}>{getStepIcon(step.n)}</div>
@@ -356,7 +503,7 @@ export default function LandingPage() {
           </Reveal>
 
           <Reveal index={1} direction="scale">
-          <div style={{ background: 'var(--card-raised)', border: '1px solid var(--gold-border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-glow), 0 12px 48px rgba(212,168,71,0.22), var(--shadow-lg)', padding: 28 }}>
+          <div className="glass-rim-strong" style={{ padding: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 24, marginBottom: 8 }}>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)' }}>Pro</div>
               <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', background: 'var(--gold-dim)', color: 'var(--gold)', borderRadius: 'var(--radius)', padding: '4px 10px' }}>Most popular</span>
@@ -381,15 +528,7 @@ export default function LandingPage() {
       </Reveal>
 
       <Reveal as="section" style={{ maxWidth: 1120, margin: '0 auto', padding: '72px 24px 88px' }} direction="up">
-        <div
-          style={{
-            background: 'var(--card-raised)',
-            border: '1px solid var(--gold-border)',
-            borderRadius: 'var(--radius)',
-            boxShadow: 'var(--shadow-glow), 0 16px 64px rgba(212,168,71,0.16), var(--shadow-lg)',
-            padding: 'clamp(32px, 5vw, 56px)',
-          }}
-        >
+        <div className="glass-rim-strong" style={{ padding: 'clamp(32px, 5vw, 56px)' }}>
           <div className="lp-cta-band-grid">
             <div>
               <div style={EYEBROW}>Your next application</div>
