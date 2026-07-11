@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Billing · Docs',
+  title: 'Billing Â· Docs',
   description: 'Free vs Pro plan comparison, how to upgrade, cancel, and manage your Vantage subscription.',
   alternates: { canonical: '/docs/billing' },
 };
@@ -14,7 +14,7 @@ export default function BillingPage() {
   return (
     <DocsLayout>
       <div>
-        <h1 style={heading}>Billing</h1>
+        <h1 style={heading}><span className="lph-metal">Billing</span></h1>
         <p style={summary}>Free vs Pro plan comparison, how to upgrade, and how to manage your subscription.</p>
 
         <section style={section}>

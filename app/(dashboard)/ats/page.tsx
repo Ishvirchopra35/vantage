@@ -388,7 +388,6 @@ export default function AtsPage() {
       <div
         style={{
           background: 'var(--card)',
-          border: '1px solid var(--border)',
           borderRadius: 'var(--radius)',
           boxShadow: 'var(--shadow-md)',
           padding: '20px 24px',
@@ -408,7 +407,7 @@ export default function AtsPage() {
           <div style={{ color: 'var(--score-red)', fontSize: '13px' }}>{error}</div>
         ) : groupedRows.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 24px' }}>
-            <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)' }}>
+            <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--card-raised)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--muted)' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
               </svg>
@@ -506,7 +505,6 @@ export default function AtsPage() {
       <div
         style={{
           background: 'var(--card)',
-          border: '1px solid var(--border)',
           borderRadius: 'var(--radius)',
           boxShadow: 'var(--shadow-md)',
           padding: '20px 24px',
@@ -564,12 +562,11 @@ export default function AtsPage() {
             type="button"
             onClick={runAtsCheck}
             disabled={running || !selectedJobId || !selectedResumeChoice}
-            className="btn-gold-hover"
             style={{
               borderRadius: 'var(--radius)',
-              border: '1px solid var(--gold-border)',
-              background: 'var(--gold-dim)',
-              color: 'var(--gold)',
+              border: 'none',
+              background: 'var(--btn-primary-bg)',
+              color: 'var(--btn-primary-text)',
               fontFamily: 'var(--font-display)',
               fontWeight: 600,
               fontSize: '13px',
@@ -609,13 +606,12 @@ export default function AtsPage() {
               <div
                 key={item.label}
                 style={{
-                  border: '1px solid var(--border)',
                   borderRadius: '10px',
                   padding: '10px 12px',
-                  background: 'var(--bg)',
+                  background: 'var(--card-raised)',
                 }}
               >
-                <div style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '4px' }}>{item.label}</div>
+                <div style={{ fontSize: '10px', color: 'var(--muted)', marginBottom: '2px' }}>{item.label}</div>
                 <div style={{ fontSize: '18px', fontWeight: 700, ...scoreStyle(item.value) }}>{item.value}</div>
               </div>
             ))}
@@ -627,7 +623,6 @@ export default function AtsPage() {
         <div
           style={{
             background: 'var(--card)',
-            border: '1px solid var(--border)',
             borderRadius: 'var(--radius)',
             boxShadow: 'var(--shadow-md)',
             padding: '20px 24px',

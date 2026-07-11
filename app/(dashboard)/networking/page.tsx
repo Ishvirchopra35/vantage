@@ -7,6 +7,7 @@ import Spinner from '@/components/ui/Spinner'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CustomSelect from '@/components/CustomSelect'
 import PageHeader from '@/components/ui/PageHeader'
+import ExternalLinkIcon from '@/components/ui/ExternalLinkIcon'
 
 // --- Types --------------------------------------------------------------------
 
@@ -62,7 +63,7 @@ function ContactCard({ contact, onUse }: { contact: Contact; onUse: (c: Contact)
   return (
     <div style={{
       background: 'var(--card)',
-      border: '1px solid var(--border)',
+      boxShadow: 'var(--shadow-md)',
       borderRadius: '12px',
       padding: '16px',
       display: 'flex',
@@ -91,24 +92,23 @@ function ContactCard({ contact, onUse }: { contact: Contact; onUse: (c: Contact)
             fontSize: '12px',
             color: 'var(--muted)',
             textDecoration: 'none',
-            border: '1px solid var(--border)',
-            borderRadius: '6px',
+            background: 'var(--card-raised)',
+            borderRadius: '20px',
             padding: '4px 10px',
           }}
         >
-          View Profile ↗
+          View Profile <ExternalLinkIcon size={11} />
         </a>
         <button
           type="button"
           onClick={() => onUse(contact)}
-          className="btn-gold-hover"
           style={{
             fontSize: '12px',
             fontFamily: 'var(--font-display)',
             fontWeight: 600,
-            color: 'var(--gold)',
-            background: 'var(--gold-dim)',
-            border: '1px solid var(--gold-border)',
+            color: 'var(--btn-primary-text)',
+            background: 'var(--btn-primary-bg)',
+            border: 'none',
             borderRadius: 'var(--radius-sm)',
             padding: '4px 10px',
             cursor: 'pointer',
@@ -316,7 +316,6 @@ export default function NetworkingPage() {
 
   const card: React.CSSProperties = {
     background: 'var(--card)',
-    border: '1px solid var(--border)',
     borderRadius: 'var(--radius)',
     boxShadow: 'var(--shadow-md)',
     padding: '24px',
@@ -336,8 +335,8 @@ export default function NetworkingPage() {
   const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: '9px 12px',
-    background: 'var(--bg)',
-    border: '1px solid var(--border)',
+    background: 'var(--card-raised)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: '8px',
     color: 'var(--text)',
     fontSize: '13px',
@@ -354,9 +353,9 @@ export default function NetworkingPage() {
   }
 
   const primaryBtn: React.CSSProperties = {
-    background: 'var(--gold-dim)',
-    color: 'var(--gold)',
-    border: '1px solid var(--gold-border)',
+    background: 'var(--btn-primary-bg)',
+    color: 'var(--btn-primary-text)',
+    border: 'none',
     borderRadius: 'var(--radius)',
     padding: '10px 20px',
     fontFamily: 'var(--font-display)',
@@ -369,9 +368,9 @@ export default function NetworkingPage() {
   }
 
   const ghostBtn: React.CSSProperties = {
-    background: 'transparent',
+    background: 'var(--card-raised)',
     color: 'var(--muted)',
-    border: '1px solid var(--border)',
+    border: 'none',
     borderRadius: '8px',
     padding: '7px 14px',
     fontSize: '12px',
@@ -574,7 +573,7 @@ export default function NetworkingPage() {
           </div>
         ) : messages.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 24px' }}>
-            <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)' }}>
+            <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--card-raised)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--muted)' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                 <line x1="22" y1="2" x2="11" y2="13" />
                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
@@ -610,7 +609,7 @@ export default function NetworkingPage() {
                       <td style={{ padding: '12px 12px 12px 0', color: 'var(--text)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                         {msg.contact_linkedin_url ? (
                           <a href={msg.contact_linkedin_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)', textDecoration: 'none' }}>
-                            {msg.contact_name} ↗
+                            {msg.contact_name} <ExternalLinkIcon size={11} />
                           </a>
                         ) : msg.contact_name}
                       </td>

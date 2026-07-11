@@ -103,9 +103,9 @@ export default function MarketingNav() {
       >
         <div
           style={{
-            maxWidth: 1200,
+            maxWidth: 1400,
             margin: '0 auto',
-            padding: '0 24px',
+            padding: '0 clamp(24px, 4vw, 60px)',
             display: 'flex',
             alignItems: 'center',
             height: '100%',

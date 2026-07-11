@@ -28,9 +28,9 @@ const goldButton: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '6px',
-  background: 'var(--gold-dim)',
-  border: '1px solid var(--gold-border)',
-  color: 'var(--gold)',
+  background: 'var(--btn-primary-bg)',
+  border: 'none',
+  color: 'var(--btn-primary-text)',
   fontFamily: 'var(--font-display)',
   fontWeight: 600,
   fontSize: '13px',
@@ -43,8 +43,8 @@ const ghostButton: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '6px',
-  background: 'transparent',
-  border: '1px solid var(--border)',
+  background: 'var(--card-raised)',
+  border: 'none',
   color: 'var(--text)',
   fontFamily: 'var(--font-display)',
   fontWeight: 600,
@@ -98,9 +98,9 @@ function SetupStep({
           fontFamily: 'var(--font-display)',
           fontSize: '13px',
           fontWeight: 600,
-          background: done ? 'rgba(34,197,94,0.12)' : 'var(--gold-dim)',
-          color: done ? 'var(--score-green)' : 'var(--gold)',
-          border: `1px solid ${done ? 'rgba(34,197,94,0.3)' : 'var(--gold-border)'}`,
+          background: done ? 'rgba(34,197,94,0.12)' : 'var(--card-raised)',
+          color: done ? 'var(--score-green)' : 'var(--muted)',
+          border: 'none',
         }}
       >
         {done ? <CheckIcon /> : step}
@@ -189,7 +189,7 @@ export default async function AutoApplyIndexPage(): Promise<React.ReactElement> 
               </>
             )}
             action={(
-              <Link href={CHROME_EXTENSION_URL} className="btn-gold-hover" style={goldButton}>
+              <Link href={CHROME_EXTENSION_URL} style={goldButton}>
                 Get the extension <ArrowIcon />
               </Link>
             )}
@@ -201,11 +201,11 @@ export default async function AutoApplyIndexPage(): Promise<React.ReactElement> 
             title="Connect it with your connection code"
             description={
               hasConnectionCode
-                ? 'Your account is linked. You can regenerate the code anytime from your profile.'
-                : 'Generate a connection code on your profile, then paste it into the extension popup.'
+                ? 'Your account is linked. You can regenerate the code anytime at the bottom of your Profile page.'
+                : 'Generate a connection code at the bottom of your Profile page, then paste it into the extension popup.'
             }
             action={(
-              <Link href="/profile" style={hasConnectionCode ? ghostButton : goldButton} className={hasConnectionCode ? undefined : 'btn-gold-hover'}>
+              <Link href="/profile#extension-token" style={hasConnectionCode ? ghostButton : goldButton}>
                 {hasConnectionCode ? 'Manage code' : 'Get your code'} <ArrowIcon />
               </Link>
             )}
@@ -236,7 +236,7 @@ export default async function AutoApplyIndexPage(): Promise<React.ReactElement> 
           {applications.map((application) => (
             <Link key={application.id} href={autoApplyHref(application)} className="dash-card-row">
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
-                <div style={{ width: '36px', height: '36px', flexShrink: 0, background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)' }}>
+                <div style={{ width: '36px', height: '36px', flexShrink: 0, background: 'var(--card-raised)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--muted)' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                     <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" />
                   </svg>
@@ -250,7 +250,7 @@ export default async function AutoApplyIndexPage(): Promise<React.ReactElement> 
                   </div>
                 </div>
               </div>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 600, color: 'var(--gold)', flexShrink: 0, whiteSpace: 'nowrap' }}>Start <ArrowIcon /></span>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 600, color: 'var(--text)', flexShrink: 0, whiteSpace: 'nowrap' }}>Start <ArrowIcon /></span>
             </Link>
           ))}
         </div>

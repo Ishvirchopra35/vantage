@@ -108,15 +108,14 @@ function Spinner() {
 
 const card = {
   background: 'var(--card)',
-  border: '1px solid var(--border)',
   borderRadius: 'var(--radius)',
   boxShadow: 'var(--shadow-md)',
   padding: '24px',
 }
 
 const inputStyle = {
-  background: 'var(--bg)',
-  border: '1px solid var(--border)',
+  background: 'var(--card-raised)',
+  border: '1px solid var(--border-subtle)',
   borderRadius: '10px',
   padding: '10px 12px',
   color: 'var(--text)',
@@ -127,9 +126,9 @@ const inputStyle = {
 }
 
 const primaryBtn = {
-  background: 'var(--gold-dim)',
-  color: 'var(--gold)',
-  border: '1px solid var(--gold-border)',
+  background: 'var(--btn-primary-bg)',
+  color: 'var(--btn-primary-text)',
+  border: 'none',
   borderRadius: 'var(--radius)',
   padding: '10px 20px',
   fontFamily: 'var(--font-display)',
@@ -144,9 +143,9 @@ const primaryBtn = {
 }
 
 const secondaryBtn = {
-  background: 'transparent',
+  background: 'var(--card-raised)',
   color: 'var(--text)',
-  border: '1px solid var(--border)',
+  border: 'none',
   borderRadius: '10px',
   padding: '10px 18px',
   fontSize: '14px',
@@ -455,7 +454,7 @@ export default function TrackerPage() {
             ].map(({ label, value }) => (
               <div key={label} style={{ ...card, padding: '16px' }}>
                 <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)' }}>{value}</div>
-                <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px' }}>{label}</div>
+                <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: '2px' }}>{label}</div>
               </div>
             ))}
           </div>
@@ -498,7 +497,7 @@ export default function TrackerPage() {
             textAlign: 'center',
             padding: '64px 24px',
           }}>
-            <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)' }}>
+            <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--card-raised)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--muted)' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                 <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
                 <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
@@ -614,12 +613,12 @@ export default function TrackerPage() {
                         background: STATUS_COLOR[row.status],
                         color: STATUS_TEXT[row.status],
                         border: 'none',
-                        borderRadius: 'var(--radius-sm)',
-                        padding: '3px 8px',
+                        borderRadius: '20px',
+                        padding: '2px 7px',
                         fontFamily: 'var(--font-display)',
-                        fontSize: '11px',
+                        fontSize: '10px',
                         fontWeight: 600,
-                        letterSpacing: '0.06em',
+                        letterSpacing: '0.04em',
                         textTransform: 'uppercase' as const,
                         cursor: isUpdating || isDeleting ? 'default' : 'pointer',
                         display: 'inline-flex',
@@ -644,8 +643,7 @@ export default function TrackerPage() {
                         position: 'absolute',
                         top: dropdownPos.top,
                         left: dropdownPos.left,
-                        background: 'var(--card)',
-                        border: '1px solid var(--border)',
+                        background: 'var(--card-raised)',
                         borderRadius: 'var(--radius)',
                         zIndex: 9999,
                         minWidth: '140px',
@@ -661,7 +659,7 @@ export default function TrackerPage() {
                             display: 'block',
                             width: '100%',
                             textAlign: 'left',
-                            background: s === row.status ? 'var(--border)' : 'transparent',
+                            background: s === row.status ? 'var(--card-sunken)' : 'transparent',
                             border: 'none',
                             padding: '8px 12px',
                             fontSize: '13px',

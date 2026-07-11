@@ -11,7 +11,7 @@ export default function AboutPage() {
   return (
     <div
       style={{
-        maxWidth: '640px',
+        maxWidth: '820px',
         margin: '0 auto',
         padding: '80px 24px',
       }}
@@ -20,12 +20,11 @@ export default function AboutPage() {
         style={{
           fontSize: '2rem',
           fontWeight: 700,
-          color: 'var(--text)',
           marginBottom: '8px',
           lineHeight: 1.2,
         }}
       >
-        About Vantage
+        <span className="lph-metal">About Vantage</span>
       </h1>
 
       <p
@@ -132,7 +131,7 @@ export default function AboutPage() {
             marginBottom: '16px',
           }}
         >
-          If you want to reach out, use the <a href="/contact" style={{ color: 'var(--text)', textDecoration: 'none' }}>contact page</a>. You can also find me on <a href="https://www.linkedin.com/in/ishvir-chopra-23758b2a8/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)', textDecoration: 'none' }}>LinkedIn</a> or <a href="https://www.instagram.com/ishvirchopra/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)', textDecoration: 'none' }}>Instagram</a>.
+          If you want to reach out, use the <a href="/feedback" style={{ color: 'var(--text)', textDecoration: 'none' }}>feedback page</a>. You can also find me on <a href="https://www.linkedin.com/in/ishvir-chopra-23758b2a8/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)', textDecoration: 'none' }}>LinkedIn</a> or <a href="https://www.instagram.com/ishvirchopra/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text)', textDecoration: 'none' }}>Instagram</a>.
         </p>
         <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: 0 }} />
       </section>

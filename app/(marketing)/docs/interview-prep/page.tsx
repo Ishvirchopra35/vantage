@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Interview Prep · Docs',
+  title: 'Interview Prep Â· Docs',
   description: 'Practice behavioral, technical, and company-specific interview questions with voice or text mode.',
   alternates: { canonical: '/docs/interview-prep' },
 };
@@ -14,7 +14,7 @@ export default function InterviewPrepPage() {
   return (
     <DocsLayout>
       <div>
-        <h1 style={heading}>Interview prep</h1>
+        <h1 style={heading}><span className="lph-metal">Interview prep</span></h1>
         <p style={summary}>Practice behavioral, technical, and company-specific interview questions with AI-powered feedback in voice or text mode.</p>
 
         <section style={section}>

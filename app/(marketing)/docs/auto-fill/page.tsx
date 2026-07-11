@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Auto-fill · Docs',
+  title: 'Auto-fill Â· Docs',
   description: 'Fill job application forms with the Vantage Chrome extension, and generate answers to open-ended application questions.',
   alternates: { canonical: '/docs/auto-fill' },
 };
@@ -14,7 +14,7 @@ export default function AutoFillPage() {
   return (
     <DocsLayout>
       <div>
-        <h1 style={heading}>Auto-fill</h1>
+        <h1 style={heading}><span className="lph-metal">Auto-fill</span></h1>
         <p style={summary}>Fill job application forms with the Vantage Chrome extension, and generate answers to the open-ended questions applications ask.</p>
 
         <section style={section}>

@@ -55,17 +55,17 @@ interface TrackerJob {
 const inputStyle: React.CSSProperties = {
   padding: '9px 12px',
   borderRadius: '8px',
-  background: 'var(--bg)',
+  background: 'var(--card-raised)',
   color: 'var(--text)',
-  border: '1px solid var(--border)',
+  border: '1px solid var(--border-subtle)',
   fontSize: '13px',
   outline: 'none',
 }
 
 const primaryBtn: React.CSSProperties = {
-  background: 'var(--gold-dim)',
-  color: 'var(--gold)',
-  border: '1px solid var(--gold-border)',
+  background: 'var(--btn-primary-bg)',
+  color: 'var(--btn-primary-text)',
+  border: 'none',
   borderRadius: 'var(--radius)',
   padding: '10px 20px',
   fontFamily: 'var(--font-display)',
@@ -386,7 +386,7 @@ export default function InterviewPage() {
         />
 
         {/* Start session card */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px', marginBottom: '20px' }}>
+        <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px', marginBottom: '20px' }}>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '14px' }}>Start a new session</div>
 
           {!useManual ? (
@@ -492,8 +492,8 @@ export default function InterviewPage() {
               icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>,
             },
           ].map(tip => (
-            <div key={tip.title} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '16px' }}>
-              <div style={{ width: '28px', height: '28px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)', marginBottom: '10px' }}>
+            <div key={tip.title} style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '16px' }}>
+              <div style={{ width: '28px', height: '28px', background: 'var(--card-raised)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--muted)', marginBottom: '10px' }}>
                 {tip.icon}
               </div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>{tip.title}</div>
@@ -503,12 +503,12 @@ export default function InterviewPage() {
         </div>
 
         {/* Past sessions */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px' }}>
+        <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px' }}>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '16px' }}>Past sessions</div>
 
           {sessions.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 24px' }}>
-              <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)' }}>
+              <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--card-raised)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--muted)' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
@@ -627,7 +627,7 @@ export default function InterviewPage() {
       )}
 
       {!supportsSpeech() && (
-        <div style={{ marginBottom: '16px', padding: '10px 14px', borderRadius: '8px', background: 'var(--card)', border: '1px solid var(--border)', fontSize: '12px', color: 'var(--muted)' }}>
+        <div style={{ marginBottom: '16px', padding: '10px 14px', borderRadius: '8px', background: 'var(--card)', fontSize: '12px', color: 'var(--muted)' }}>
           Speech recognition is not available in this browser. Use "Type" mode to answer questions.
         </div>
       )}
@@ -635,7 +635,7 @@ export default function InterviewPage() {
       {/* Progress bar */}
       <div style={{ marginBottom: '20px' }}>
         <div style={{ height: '4px', background: 'var(--border)', borderRadius: '2px', overflow: 'hidden' }}>
-          <div style={{ width: `${totalQuestions > 0 ? (assessedCount / totalQuestions) * 100 : 0}%`, height: '100%', background: 'var(--gold)', borderRadius: '2px', transition: 'width 0.3s' }} />
+          <div style={{ width: `${totalQuestions > 0 ? (assessedCount / totalQuestions) * 100 : 0}%`, height: '100%', background: 'var(--text)', borderRadius: '2px', transition: 'width 0.3s' }} />
         </div>
       </div>
 
@@ -651,12 +651,12 @@ export default function InterviewPage() {
                 fontSize: '12px',
                 padding: '6px 14px',
                 borderRadius: '20px',
-                border: '1px solid',
+                border: 'none',
                 cursor: 'pointer',
-                fontWeight: tab === t.key ? 600 : 400,
-                background: tab === t.key ? 'var(--accent)' : 'transparent',
-                color: tab === t.key ? 'var(--bg)' : 'var(--muted)',
-                borderColor: tab === t.key ? 'var(--accent)' : 'var(--border)',
+                fontWeight: tab === t.key ? 700 : 400,
+                background: 'var(--card-raised)',
+                color: tab === t.key ? 'var(--text)' : 'var(--muted)',
+                boxShadow: tab === t.key ? 'inset 0 0 0 1px rgba(255,255,255,0.16)' : 'none',
               }}
             >
               {t.label} <span style={{ opacity: 0.7 }}>({t.count})</span>
@@ -669,7 +669,7 @@ export default function InterviewPage() {
           <div
             role="group"
             aria-label="Answer method"
-            style={{ display: 'inline-flex', gap: '2px', padding: '2px', background: 'var(--card-sunken)', border: '1px solid var(--border)', borderRadius: '20px' }}
+            style={{ display: 'inline-flex', gap: '2px', padding: '2px', background: 'var(--card-raised)', border: 'none', borderRadius: '20px' }}
           >
             {(['voice', 'type'] as AnswerMode[]).map(m => {
               const active = answerMode === m
@@ -726,7 +726,7 @@ export default function InterviewPage() {
                 <button
                   type="button"
                   onClick={() => speak(q)}
-                  style={{ fontSize: '12px', color: 'var(--muted)', background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', padding: '5px 12px', cursor: 'pointer' }}
+                  style={{ fontSize: '12px', color: 'var(--muted)', background: 'var(--card-raised)', border: 'none', borderRadius: '8px', padding: '5px 12px', cursor: 'pointer' }}
                 >
                   Hear question
                 </button>
@@ -739,8 +739,7 @@ export default function InterviewPage() {
                         type="button"
                         onClick={() => startRecording(q)}
                         disabled={isThisRecording || isAssessing}
-                        className="btn-gold-hover"
-                        style={{ background: 'var(--gold-dim)', color: 'var(--gold)', border: '1px solid var(--gold-border)', borderRadius: '8px', padding: '8px 14px', fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 600, cursor: isThisRecording || isAssessing ? 'not-allowed' : 'pointer', opacity: isThisRecording || isAssessing ? 0.5 : 1 }}
+                        style={{ background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)', border: 'none', borderRadius: '8px', padding: '8px 14px', fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 600, cursor: isThisRecording || isAssessing ? 'not-allowed' : 'pointer', opacity: isThisRecording || isAssessing ? 0.5 : 1 }}
                       >
                         Start answering
                       </button>
@@ -748,7 +747,7 @@ export default function InterviewPage() {
                         type="button"
                         onClick={() => stopAndAssess(q)}
                         disabled={!isThisRecording || isAssessing}
-                        style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', cursor: !isThisRecording || isAssessing ? 'not-allowed' : 'pointer', opacity: !isThisRecording || isAssessing ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        style={{ background: 'var(--card-raised)', border: 'none', color: 'var(--text)', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', cursor: !isThisRecording || isAssessing ? 'not-allowed' : 'pointer', opacity: !isThisRecording || isAssessing ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                       >
                         {isAssessing && <Spinner size="sm" />}
                         {isAssessing ? 'Assessing…' : 'Stop + Assess'}
@@ -768,8 +767,7 @@ export default function InterviewPage() {
                     type="button"
                     onClick={() => void submitAssessment(activeSession.id, q, typedAnswers[q] ?? '')}
                     disabled={!typedAnswers[q]?.trim() || isAssessing}
-                    className="btn-gold-hover"
-                    style={{ background: 'var(--gold-dim)', color: 'var(--gold)', border: '1px solid var(--gold-border)', borderRadius: '8px', padding: '8px 14px', fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 600, cursor: !typedAnswers[q]?.trim() || isAssessing ? 'not-allowed' : 'pointer', opacity: !typedAnswers[q]?.trim() || isAssessing ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    style={{ background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)', border: 'none', borderRadius: '8px', padding: '8px 14px', fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 600, cursor: !typedAnswers[q]?.trim() || isAssessing ? 'not-allowed' : 'pointer', opacity: !typedAnswers[q]?.trim() || isAssessing ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                   >
                     {isAssessing && <Spinner size="sm" />}
                     {isAssessing ? 'Assessing…' : 'Submit'}
@@ -785,7 +783,7 @@ export default function InterviewPage() {
                 value={typedAnswers[q] ?? ''}
                 onChange={e => setTypedAnswers(prev => ({ ...prev, [q]: e.target.value }))}
                 rows={4}
-                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 12px', color: 'var(--text)', fontSize: '13px', minHeight: '80px', resize: 'vertical', fontFamily: 'var(--font-body)', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none' }}
+                style={{ width: '100%', background: 'var(--card-raised)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '10px 12px', color: 'var(--text)', fontSize: '13px', minHeight: '80px', resize: 'vertical', fontFamily: 'var(--font-body)', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none' }}
               />
             )}
 
@@ -809,9 +807,9 @@ export default function InterviewPage() {
 
             {/* Assessment result */}
             {assessment && (
-              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--gold-border)' }}>
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border-subtle)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 600, color: 'var(--gold)', background: 'var(--gold-dim)', border: '1px solid var(--gold-border)', borderRadius: '20px', padding: '4px 12px' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 600, color: 'var(--text)', background: 'var(--card-raised)', border: 'none', borderRadius: '20px', padding: '4px 12px' }}>
                     Score <span style={{ fontSize: '14px' }}>{assessment.score}/10</span>
                   </div>
                   {assessment.content_score !== undefined && (
@@ -858,13 +856,13 @@ export default function InterviewPage() {
                 {assessment.filler_words_detected?.length > 0 && (
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
                     {assessment.filler_words_detected.map((f, i) => (
-                      <span key={i} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>{f}</span>
+                      <span key={i} style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '20px', background: 'rgba(239,68,68,0.12)', color: '#ef4444', border: 'none' }}>{f}</span>
                     ))}
                   </div>
                 )}
 
                 {assessment.better_answer_hint && (
-                  <div style={{ padding: '10px 14px', borderRadius: 'var(--radius)', background: 'var(--bg)', border: '1px solid var(--border)', fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
+                  <div style={{ padding: '10px 14px', borderRadius: 'var(--radius)', background: 'var(--card-raised)', fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
                     {assessment.better_answer_hint}
                   </div>
                 )}

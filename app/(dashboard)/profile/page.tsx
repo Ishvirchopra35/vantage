@@ -54,10 +54,13 @@ export default async function ProfilePage({
             subtitle="Complete your profile so every AI output sounds like you."
           />
           <ProfileForm initialData={profile} isNew={isNew} />
-          <ExtensionTokenSection
-            initialToken={profile?.extension_token ?? null}
-            initialTokenCreatedAt={profile?.extension_token_created_at ?? null}
-          />
+          {/* Anchor target for "/profile#extension-token" links across the app. */}
+          <div id="extension-token" style={{ scrollMarginTop: 96 }}>
+            <ExtensionTokenSection
+              initialToken={profile?.extension_token ?? null}
+              initialTokenCreatedAt={profile?.extension_token_created_at ?? null}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -32,7 +32,65 @@
   --nav-bg: rgba(10, 10, 10, 0.85);
   --nav-border: rgba(255, 255, 255, 0.05);
   --pro-border: rgba(255, 255, 255, 0.2);
+  /* Dark-glass surfaces: buttons/pills/avatars are one step lighter than
+     the surface they sit on, never a colored border. */
+  --glass-hover: rgba(255, 255, 255, 0.06);
+  --btn-primary-bg: #1e1e1e;
+  --btn-primary-bg-hover: #262626;
+  --btn-primary-text: #ffffff;
+  /* Overlay hero: ink shading over the backdrop mockup, studio-light beam,
+     and metallic gradient stops for the headline. */
+  --hero-ink-strong: rgba(10, 10, 10, 0.94);
+  --hero-ink-soft: rgba(10, 10, 10, 0.68);
+  --hero-veil: rgba(10, 10, 10, 0.55);
+  --hero-beam: rgba(255, 255, 255, 0.13);
+  --hero-beam-core: rgba(255, 255, 255, 0.3);
+  --metal-a: #ffffff;
+  --metal-b: #e2e2e2;
+  --metal-c: #8f8f8f;
+  --metal-d: #cfcfcf;
+  --metal-gold-a: #eed88b;
+  --metal-gold-b: #c9a227;
+  --metal-gold-c: #8a6c1c;
+  --metal-gold-d: #d4b04a;
+  --scrollbar-thumb: #2e2e2e;
+  --scrollbar-thumb-hover: #454545;
   color-scheme: dark;
+}
+
+/* --- Custom scrollbar, app-wide ---
+   Thin rounded thumb on a transparent track; brightens on hover. Firefox
+   gets the closest native equivalent via scrollbar-width/color. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 20px;
+  /* Transparent border inset keeps the thumb slim inside the gutter. */
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 @keyframes spin {
@@ -76,6 +134,25 @@ html[data-theme="light"] {
   --nav-bg: rgba(250, 250, 250, 0.85);
   --nav-border: rgba(0, 0, 0, 0.08);
   --pro-border: #111111;
+  --glass-hover: rgba(0, 0, 0, 0.04);
+  --btn-primary-bg: #111111;
+  --btn-primary-bg-hover: #2a2a2a;
+  --btn-primary-text: #ffffff;
+  --hero-ink-strong: rgba(250, 250, 250, 0.96);
+  --hero-ink-soft: rgba(250, 250, 250, 0.74);
+  --hero-veil: rgba(250, 250, 250, 0.6);
+  --hero-beam: rgba(201, 162, 39, 0.09);
+  --hero-beam-core: rgba(201, 162, 39, 0.18);
+  --metal-a: #050505;
+  --metal-b: #1c1c1c;
+  --metal-c: #555555;
+  --metal-d: #2e2e2e;
+  --metal-gold-a: #a8861f;
+  --metal-gold-b: #8a6c1c;
+  --metal-gold-c: #6d5516;
+  --metal-gold-d: #9a7c1e;
+  --scrollbar-thumb: #d1d5db;
+  --scrollbar-thumb-hover: #b3b9c2;
   color-scheme: light;
 }
 
@@ -328,10 +405,26 @@ html[data-theme="light"] img[src="/logo.png"] {
 }
 
 .dashboard-card {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.014) 36%, rgba(255, 255, 255, 0) 64%),
+    var(--card);
   border-radius: var(--radius);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 12px 34px -14px rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 12px 34px -16px rgba(0, 0, 0, 0.5);
   padding: 18px;
+}
+
+html[data-theme="light"] .dashboard-card {
+  background:
+    linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0) 58%),
+    var(--card);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 12px 34px -16px rgba(0, 0, 0, 0.12);
 }
 
 .dashboard-stat-value {
@@ -342,8 +435,8 @@ html[data-theme="light"] img[src="/logo.png"] {
 }
 
 .dashboard-stat-label {
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: 2px;
+  font-size: 10px;
   color: var(--muted);
 }
 
@@ -359,14 +452,22 @@ html[data-theme="light"] img[src="/logo.png"] {
   align-items: center;
   justify-content: center;
   padding: 10px 16px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--accent);
-  color: var(--bg);
+  border-radius: var(--radius);
+  border: none;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.dashboard-primary-button:hover {
+  background: var(--btn-primary-bg-hover);
 }
 
 .dashboard-secondary-link {
@@ -401,9 +502,8 @@ html[data-theme="light"] img[src="/logo.png"] {
   justify-content: space-between;
   gap: 14px;
   padding: 12px 14px;
-  border: 1px solid var(--border);
   border-radius: 10px;
-  background: transparent;
+  background: var(--card);
   text-decoration: none;
   color: inherit;
 }
@@ -446,14 +546,14 @@ html[data-theme="light"] img[src="/logo.png"] {
 .status-badge {
   display: inline-flex;
   align-items: center;
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
+  padding: 2px 7px;
+  border-radius: 20px;
+  border: none;
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  line-height: 1;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
   text-transform: uppercase;
 }
 
@@ -484,49 +584,79 @@ html[data-theme="light"] img[src="/logo.png"] {
   background: var(--card-raised);
 }
 
-/* Auto-apply rows as raised cards with the gold hover treatment */
+/* Auto-apply rows as raised dark-glass cards - depth from the surface step
+   up on hover, never a colored border. */
 .dash-card-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  background: var(--card);
-  border: 1px solid var(--border);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 60%),
+    var(--card);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 12px 34px -16px rgba(0, 0, 0, 0.5);
   padding: 16px 20px;
   text-decoration: none;
   color: inherit;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+html[data-theme="light"] .dash-card-row {
+  background:
+    linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0) 58%),
+    var(--card);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 12px 34px -16px rgba(0, 0, 0, 0.1);
 }
 
 .dash-card-row:hover {
-  border-color: var(--gold-border);
-  box-shadow: var(--shadow-glow);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 60%),
+    var(--card-raised);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 16px 40px -16px rgba(0, 0, 0, 0.6);
 }
 
-/* Gold focus glow on every input and textarea inside the dashboard */
+html[data-theme="light"] .dash-card-row:hover {
+  background:
+    linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0) 58%),
+    var(--card-raised);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 16px 40px -16px rgba(0, 0, 0, 0.14);
+}
+
+/* Neutral focus ring on every input and textarea inside the dashboard */
 .dashboard-main input:focus,
 .dashboard-main textarea:focus {
   outline: none;
-  border-color: var(--gold-border) !important;
-  box-shadow: 0 0 0 3px var(--gold-dim);
+  border-color: var(--border) !important;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
-/* Gold focus ring for inputs - focus states need CSS; !important beats the inline border */
+/* Neutral focus ring for inputs - focus states need CSS; !important beats the inline border */
 .input-gold-focus:focus {
   outline: none;
-  border-color: var(--gold-border) !important;
-  box-shadow: 0 0 0 3px var(--gold-dim);
+  border-color: var(--border) !important;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
-/* Gold primary button hover glow */
+/* Dark-glass hover lift for primary buttons - a hairline highlight, not a glow */
 .btn-gold-hover {
-  transition: box-shadow 0.2s ease, opacity 0.15s ease;
+  transition: box-shadow 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
 
 .btn-gold-hover:hover:not(:disabled) {
-  box-shadow: 0 0 0 1px var(--gold-border), 0 4px 16px rgba(201, 162, 39, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
 }
 
 .status-applied {
@@ -562,11 +692,12 @@ html[data-theme="light"] img[src="/logo.png"] {
 .dashboard-document-label {
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 20px;
+  border: none;
+  background: var(--card-raised);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -613,6 +744,227 @@ html[data-theme="light"] img[src="/logo.png"] {
   border: none;
   padding: 0;
   border-radius: 0;
+}
+
+/* Jump list: collapsed by default, anchors to each timeline entry. */
+.cl-jump {
+  margin-bottom: 40px;
+}
+
+.cl-jump-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  background: var(--card-raised);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.cl-jump-summary::-webkit-details-marker {
+  display: none;
+}
+
+.cl-jump-summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 0.15s ease;
+}
+
+.cl-jump[open] .cl-jump-summary::after {
+  transform: rotate(-135deg) translateY(-2px);
+}
+
+.cl-jump-list {
+  margin-top: 12px;
+  padding: 8px;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    var(--shadow-md);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 16px;
+}
+
+html[data-theme="light"] .cl-jump-list {
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.03),
+    var(--shadow-md);
+}
+
+.cl-jump-link {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+}
+
+.cl-jump-link:hover {
+  background: var(--card-raised);
+}
+
+.cl-jump-date {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cl-jump-title {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 700px) {
+  .cl-jump-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Changelog timeline ---
+   Date rail on the left, a continuous line with a node per entry, content
+   on the right. The newest entry's node is bright. */
+.cl-timeline {
+  position: relative;
+}
+
+.cl-timeline::before {
+  content: "";
+  position: absolute;
+  left: 170px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--border);
+}
+
+.cl-entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 56px;
+  padding-bottom: 52px;
+  scroll-margin-top: 96px;
+}
+
+.cl-entry:last-child {
+  padding-bottom: 8px;
+}
+
+.cl-node {
+  position: absolute;
+  left: 170px;
+  top: 7px;
+  transform: translateX(-50%);
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--card-raised);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 0 4px var(--bg);
+}
+
+.cl-entry:first-child .cl-node {
+  background: var(--text);
+}
+
+.cl-meta {
+  text-align: right;
+  padding-top: 1px;
+}
+
+.cl-date {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.cl-type {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--card-raised);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.cl-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 0 0 6px;
+  line-height: 1.35;
+}
+
+.cl-summary {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0 0 14px;
+}
+
+@media (max-width: 700px) {
+  .cl-timeline::before {
+    left: 4px;
+    top: 10px;
+  }
+  .cl-entry {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding-left: 24px;
+    padding-bottom: 40px;
+  }
+  .cl-node {
+    left: 4px;
+    top: 5px;
+  }
+  .cl-meta {
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .cl-type {
+    margin-top: 0;
+  }
 }
 
 /* Marketing layout - nav + footer utility classes */
@@ -700,52 +1052,35 @@ html[data-theme="light"] img[src="/logo.png"] {
 }
 
 .lp-feature-card {
-  background: var(--card-raised);
-  border: 1px solid var(--border);
+  background: var(--card);
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
   padding: 22px;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: box-shadow 0.2s ease;
 }
 
-/* Feature-card hover brightens the top border rim - no outward glow */
+/* Feature-card hover lifts to the next shadow depth - no gold, no border */
 .lp-feature-card:hover {
-  border-color: var(--gold-border);
-  box-shadow:
-    inset 0 1px 0 0 rgba(201, 162, 39, 0.35),
-    inset 0 22px 40px -32px rgba(201, 162, 39, 0.3),
-    var(--shadow-md);
+  box-shadow: var(--shadow-lg);
 }
 
-/* Gold CTA - light caught on the top edge, brightening on hover.
-   No outward ambient cloud. */
+/* Primary CTA - restrained dim-gold tint, no bright border. The fill
+   itself (set inline via CTA_GOLD) carries the accent. */
 .lp-glow-cta {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -8px 14px -12px rgba(201, 162, 39, 0.45);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .lp-glow-cta:hover {
-  border-color: var(--gold);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -10px 18px -12px rgba(201, 162, 39, 0.65);
+  box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.3);
 }
 
-/* Closing CTA - the strongest top rim on the page */
+/* Closing CTA - same restrained treatment, slightly stronger on hover */
 .lp-glow-cta-lg {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 -10px 18px -12px rgba(201, 162, 39, 0.6);
-  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease;
 }
 
 .lp-glow-cta-lg:hover {
-  border-color: var(--gold);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -12px 22px -12px rgba(201, 162, 39, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.4);
   transform: translateY(-1px);
 }
 
@@ -756,20 +1091,396 @@ html[data-theme="light"] img[src="/logo.png"] {
   }
 }
 
-/* Pain-point quote cards - gold left rule intensifies on hover */
+/* Pain-point quote cards - dark glass, no border. Depth from shadow only. */
+/* Pain cards use the glass recipe (class added in JSX); hover brightens
+   the inner bloom instead of deepening an outer shadow. */
 .lp-pain-card {
-  background: var(--card-raised);
-  border: 1px solid var(--border);
-  border-left: 2px solid var(--gold-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
   padding: 20px;
-  transition: border-color 0.2s ease;
+  transition: box-shadow 0.25s ease;
 }
 
 .lp-pain-card:hover {
-  border-left-color: var(--gold);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 14px 44px -14px rgba(255, 255, 255, 0.11),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 14px 40px -18px rgba(0, 0, 0, 0.55);
 }
+
+html[data-theme="light"] .lp-pain-card:hover {
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 16px 44px -18px rgba(0, 0, 0, 0.18);
+}
+
+/* --- Feature artifacts: bespoke layered visuals on a glass stage ---
+   Each feature visual is a different artifact (slips, app window, form),
+   floating on a .glass-card stage instead of three identical windows. */
+.lp-stage {
+  display: flex;
+  flex-direction: column;
+  padding: 28px;
+  overflow: hidden;
+}
+
+.lp-slip {
+  position: relative;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 55%),
+    var(--card-raised);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 10px 28px -12px rgba(0, 0, 0, 0.6);
+}
+
+html[data-theme="light"] .lp-slip {
+  background: var(--card);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 10px 28px -12px rgba(0, 0, 0, 0.16);
+}
+
+/* The dim "before" state sits back; the lit "after" state floats. */
+.lp-slip-before {
+  margin-right: 44px;
+  opacity: 0.72;
+}
+
+.lp-slip-after {
+  margin-left: 44px;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.035) 50%, rgba(255, 255, 255, 0) 80%),
+    var(--card-raised);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 12px 30px -14px rgba(255, 255, 255, 0.09),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 18px 40px -14px rgba(0, 0, 0, 0.75);
+}
+
+html[data-theme="light"] .lp-slip-after {
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 16px 36px -14px rgba(0, 0, 0, 0.22);
+}
+
+.lp-swap-chip {
+  align-self: flex-end;
+  position: relative;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  margin: -10px 52px -10px 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: var(--card-raised);
+  border-radius: 9px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 8px 20px -8px rgba(0, 0, 0, 0.7);
+}
+
+html[data-theme="light"] .lp-swap-chip {
+  background: var(--card);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 8px 20px -8px rgba(0, 0, 0, 0.25);
+}
+
+/* Mini application form (auto-apply artifact) */
+.lp-mini-form {
+  margin: 0 48px 30px 0;
+  padding: 4px 0;
+}
+
+.lp-form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+}
+
+.lp-form-row + .lp-form-row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lp-form-label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.lp-form-value {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.lp-form-check {
+  color: var(--score-green);
+  flex-shrink: 0;
+}
+
+.lp-ext-toast {
+  position: absolute;
+  right: 14px;
+  bottom: 20px;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 250px;
+  padding: 12px 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 55%),
+    var(--card-raised);
+  border-radius: var(--radius-sm);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 18px 40px -12px rgba(0, 0, 0, 0.75);
+}
+
+html[data-theme="light"] .lp-ext-toast {
+  background: var(--card);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 18px 40px -12px rgba(0, 0, 0, 0.28);
+}
+
+.lp-ext-toast-logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.lp-ext-toast-title {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.lp-ext-toast-sub {
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* Closing CTA: the one warm-lit card on the page. Faint gold light from
+   the top-left (the CTA is an allowed gold moment), content above it.
+   A brighter top glint and deeper drop set it apart from ordinary cards. */
+.lp-cta-special {
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 20px 52px -18px rgba(255, 255, 255, 0.09),
+    0 26px 64px -24px rgba(0, 0, 0, 0.75);
+}
+
+html[data-theme="light"] .lp-cta-special {
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 26px 64px -24px rgba(0, 0, 0, 0.2);
+}
+
+.lp-cta-special::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.015) 26%, transparent 48%),
+    radial-gradient(ellipse 52% 70% at 10% 0%, rgba(201, 162, 39, 0.1) 0%, transparent 62%),
+    radial-gradient(ellipse 44% 58% at 92% 112%, rgba(255, 255, 255, 0.035) 0%, transparent 65%);
+}
+
+html[data-theme="light"] .lp-cta-special::before {
+  background:
+    radial-gradient(ellipse 52% 70% at 10% 0%, rgba(201, 162, 39, 0.07) 0%, transparent 62%),
+    radial-gradient(ellipse 44% 58% at 92% 112%, rgba(17, 17, 17, 0.02) 0%, transparent 65%);
+}
+
+.lp-cta-special .lp-cta-band-grid {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- Cursor light on cards ---
+   Spotlight writes --mx/--my as the pointer moves; this layer follows it
+   like a lamp over glass. Cards get a quiet version; the closing CTA gets
+   the strong one, where the headline's metal also re-lights toward it. */
+.lp-hover-light {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  background:
+    radial-gradient(200px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.09) 0%, transparent 62%),
+    radial-gradient(560px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.04) 0%, transparent 60%);
+}
+
+.is-lit > .lp-hover-light {
+  opacity: 1;
+}
+
+html[data-theme="light"] .lp-hover-light {
+  background:
+    radial-gradient(200px circle at var(--mx, 50%) var(--my, 50%), rgba(201, 162, 39, 0.07) 0%, transparent 62%),
+    radial-gradient(560px circle at var(--mx, 50%) var(--my, 50%), rgba(201, 162, 39, 0.03) 0%, transparent 60%);
+}
+
+.lp-cta-special .lp-hover-light {
+  z-index: 0;
+  background:
+    radial-gradient(240px circle at var(--mx, 70%) var(--my, 30%), rgba(255, 255, 255, 0.13) 0%, transparent 62%),
+    radial-gradient(760px circle at var(--mx, 70%) var(--my, 30%), rgba(255, 255, 255, 0.05) 0%, transparent 60%);
+}
+
+html[data-theme="light"] .lp-cta-special .lp-hover-light {
+  background:
+    radial-gradient(240px circle at var(--mx, 70%) var(--my, 30%), rgba(201, 162, 39, 0.1) 0%, transparent 62%),
+    radial-gradient(760px circle at var(--mx, 70%) var(--my, 30%), rgba(201, 162, 39, 0.04) 0%, transparent 60%);
+}
+
+/* Ghost wordmark in the closing CTA, echoing the step cards' numerals. */
+.lp-cta-ghost {
+  position: absolute;
+  right: -30px;
+  bottom: -58px;
+  z-index: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(120px, 15vw, 200px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: var(--text);
+  opacity: 0.04;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Angled metal for the CTA headline; its highlight band tracks --mx. */
+.lp-cta-metal-text {
+  background-image: linear-gradient(
+    100deg,
+    var(--metal-c) 0%,
+    var(--metal-a) 32%,
+    var(--metal-b) 50%,
+    var(--metal-c) 74%,
+    var(--metal-d) 100%
+  );
+  background-size: 220% 100%;
+  background-position: var(--mx, 50%) 0;
+  transition: background-position 0.18s ease-out;
+}
+
+/* Periodic glint sweeping the gold button - the one automatic motion,
+   so touch devices get the moment too. */
+.lp-btn-glint {
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-btn-glint::after {
+  content: "";
+  position: absolute;
+  top: -25%;
+  left: 0;
+  width: 34%;
+  height: 150%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.45) 50%, transparent 100%);
+  transform: skewX(-20deg) translateX(-180%);
+  animation: lp-glint 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes lp-glint {
+  0%, 76% { transform: skewX(-20deg) translateX(-180%); }
+  90%, 100% { transform: skewX(-20deg) translateX(500%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-btn-glint::after { animation: none; opacity: 0; }
+  .lp-cta-metal-text { transition: none; }
+  .lp-hover-light { transition: none; }
+}
+
+/* Metallic gold CTA button - the calendar-pill metal from the reference:
+   lighter at the top where light lands, darker at the base, one glint. */
+.lp-metal-btn {
+  display: inline-block;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  color: #171204;
+  padding: 14px 28px;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--metal-gold-a) 0%, var(--metal-gold-b) 52%, var(--metal-gold-c) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 12px 30px -12px rgba(201, 162, 39, 0.45);
+  transition: filter 0.2s ease;
+}
+
+.lp-metal-btn:hover {
+  filter: brightness(1.07);
+}
+
+html[data-theme="light"] .lp-metal-btn {
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+    0 12px 30px -12px rgba(138, 108, 28, 0.4);
+}
+
+/* Pro pricing card: marked by a metallic gold line along the top edge in
+   both themes. Otherwise it keeps the normal glass-rim-strong surface.
+   The doubled class beats the later .glass-rim-strong rules. */
+.glass-rim-strong.lp-pro-card {
+  background:
+    linear-gradient(90deg, #b8922a 0%, #ecd88b 28%, #c9a227 55%, #8a6c1c 100%) top / 100% 3px no-repeat,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 42%, rgba(255, 255, 255, 0) 68%),
+    var(--card-raised);
+}
+
+/* Light mode: same gold top line on a plain white card - no extra
+   gradients or glow, per user request. */
+html[data-theme="light"] .glass-rim-strong.lp-pro-card {
+  background:
+    linear-gradient(90deg, #b8922a 0%, #ecd88b 28%, #c9a227 55%, #8a6c1c 100%) top / 100% 3px no-repeat,
+    var(--card);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 16px 44px -20px rgba(0, 0, 0, 0.16);
+}
+
 
 .lp-grid-5 {
   display: grid;
@@ -817,39 +1528,96 @@ html[data-theme="light"] img[src="/logo.png"] {
    page-layout helpers so pages consume one source of truth.
    ============================================================ */
 
-/* Card token surface - background, border, radius, shadow, padding */
+/* Card token surface - background, radius, shadow, padding. Depth comes
+   from the background step-up + shadow, never a border. */
 .ds-card {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.014) 36%, rgba(255, 255, 255, 0) 64%),
+    var(--card);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 12px 34px -14px rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 12px 34px -16px rgba(0, 0, 0, 0.5);
   padding: 20px;
 }
 
-/* Uppercase section label - Outfit display, 11px, muted */
+html[data-theme="light"] .ds-card {
+  background:
+    linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0) 58%),
+    var(--card);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 12px 34px -16px rgba(0, 0, 0, 0.12);
+}
+
+/* Uppercase section label - Outfit display, 10px, muted. Eyebrows stay
+   quiet so the headline underneath is what commands attention. */
 .ds-section-label {
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
-/* Gold primary-button treatment (static part).
-   Pair with .btn-gold-hover for the hover glow. */
+/* Dark-glass secondary/tertiary button - a surface one step lighter than
+   its background, no colored border. Pair with .ds-btn-primary for the
+   dark-filled white-text primary action. */
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  background: var(--card-raised);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.ds-btn:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.ds-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Dashboard primary action - dark filled, white text, no gold. */
 .ds-btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   padding: 10px 16px;
-  background: var(--gold-dim);
-  border: 1px solid var(--gold-border);
+  background: var(--btn-primary-bg);
+  border: none;
   border-radius: var(--radius);
-  color: var(--gold);
+  color: var(--btn-primary-text);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
   font-family: var(--font-display);
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ds-btn-primary:hover:not(:disabled) {
+  background: var(--btn-primary-bg-hover);
 }
 
 .ds-btn-primary:disabled {
@@ -857,8 +1625,36 @@ html[data-theme="light"] img[src="/logo.png"] {
   opacity: 0.6;
 }
 
+/* Dark-glass avatar / letter tile - no color, white letter, subtle border */
+.ds-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--card-raised);
+  border: 1px solid var(--border-subtle);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* Dark-glass icon tile - decorative feature/empty-state icons, no gold fill */
+.ds-icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--card-raised);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
 /* Shared filter-bar control metrics - inputs and CustomSelect triggers
-   all resolve to the same 40px height, padding, font-size, and radius */
+   all resolve to the same 40px height, padding, font-size, and radius.
+   Background sits one step above the surface it's on to read as
+   interactive; border is a hairline, not a prominent outline. */
 .filter-control {
   box-sizing: border-box;
   height: 40px;
@@ -868,8 +1664,8 @@ html[data-theme="light"] img[src="/logo.png"] {
   font-family: var(--font-body);
   line-height: 1.2;
   border-radius: 8px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: var(--card-raised);
+  border: 1px solid var(--border-subtle);
   color: var(--text);
   outline: none;
   appearance: none;
@@ -877,6 +1673,43 @@ html[data-theme="light"] img[src="/logo.png"] {
   -moz-appearance: none;
   display: inline-flex;
   align-items: center;
+}
+
+/* Filter pill / toggle - dark glass, no gold. Active state is a lighter
+   surface with brighter text, not a color change. */
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: none;
+  background: var(--card-raised);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.filter-pill:hover {
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  color: var(--text);
+}
+
+.filter-pill[data-active="true"] {
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16);
+  color: var(--text);
+  font-weight: 700;
+}
+
+html[data-theme="light"] .filter-pill:hover {
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+}
+
+html[data-theme="light"] .filter-pill[data-active="true"] {
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.16);
 }
 
 /* Uniform dashboard content wrapper - centered, single standard width,
@@ -1018,61 +1851,498 @@ a {
    inward like rim lighting on glass - no outward glow clouds.
    ============================================================ */
 
-/* Rim-light glass. Layer 1: crisp gold hairline on the top edge.
-   Layer 2: soft gold wash diffusing inward from the top only.
-   Layer 3: neutral depth. No outward gold spread anywhere. */
+/* Dark glass surface. Depth from a soft white studio-light slash on the
+   top edge and shadow, never a colored border or outward glow. */
 .glass-rim {
   position: relative;
   background: var(--card);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow:
-    inset 0 1px 0 0 rgba(201, 162, 39, 0.22),
-    inset 0 28px 46px -36px rgba(201, 162, 39, 0.26),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
     var(--shadow-lg);
 }
 
-/* Strongest rim - Pro pricing card and closing CTA card. */
+/* --- Metallic glass cards (landing) ---
+   Light enters at the top edge and diffuses INTO the surface: a blurred
+   inset bloom instead of a crisp 1px line, a faint top-left sheen on the
+   fill (same light direction as the hero beam), a hairline glass edge,
+   and a tight soft drop. Grain comes from the shared ::after below. */
+.glass-card {
+  position: relative;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.018) 36%, rgba(255, 255, 255, 0) 64%),
+    var(--card);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 14px 40px -14px rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+    0 14px 40px -18px rgba(0, 0, 0, 0.55);
+}
+
+html[data-theme="light"] .glass-card {
+  background:
+    linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0) 58%),
+    linear-gradient(315deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0) 45%),
+    var(--card);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.035),
+    0 14px 40px -18px rgba(0, 0, 0, 0.14);
+}
+
+.glass-card::after,
+.glass-rim-strong::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  opacity: 0.4;
+  mix-blend-mode: overlay;
+}
+
+html[data-theme="light"] .glass-card::after,
+html[data-theme="light"] .glass-rim-strong::after {
+  opacity: 0.16;
+}
+
+/* Elevated glass - Pro pricing card and closing CTA card. One step up in
+   surface with a stronger sheen and bloom; hairline for separation, no
+   gold. Gold lives only on the CTA button/badge inside. */
 .glass-rim-strong {
   position: relative;
-  background: var(--card-raised);
-  border: 1px solid var(--gold-border);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 42%, rgba(255, 255, 255, 0) 68%),
+    var(--card-raised);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
   box-shadow:
-    inset 0 1px 0 0 rgba(201, 162, 39, 0.55),
-    inset 0 44px 74px -48px rgba(201, 162, 39, 0.48),
-    var(--shadow-lg);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 16px 44px -16px rgba(255, 255, 255, 0.08),
+    0 16px 44px -20px rgba(0, 0, 0, 0.6);
 }
 
-/* --- Split hero --- */
-.lp-hero {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 88px 24px 60px;
+html[data-theme="light"] .glass-rim-strong {
+  background:
+    linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0) 55%),
+    var(--card-raised);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 16px 44px -20px rgba(0, 0, 0, 0.16);
 }
 
-.lp-hero-grid {
+/* --- Overlay hero: dimmed workspace behind, metallic headline in front ---
+   The backdrop mockup, beam, and shade are one aria-hidden stage; the copy
+   is the only in-flow child so it owns the hero's height. */
+.lph {
+  position: relative;
+  overflow: hidden;
+  min-height: clamp(620px, 88vh, 830px);
+  display: flex;
+  align-items: flex-end;
+}
+
+.lph-stage {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* One app screen: sidebar + page body sharing a single canvas. */
+.lph-mock {
+  position: absolute;
+  inset: 0;
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 56px;
-  align-items: center;
+  grid-template-columns: 210px minmax(0, 1fr);
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 44px clamp(24px, 4vw, 60px) 0;
 }
 
-@media (max-width: 900px) {
-  .lp-hero-grid { grid-template-columns: 1fr; gap: 44px; }
+html[data-theme="light"] .lph-mock { opacity: 0.6; }
+
+.lph-side {
+  padding: 10px 20px 0 0;
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lph-side-brand {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  opacity: 0.8;
+  padding: 0 12px 16px;
+}
+
+.lph-side-item {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  opacity: 0.55;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.lph-side-item.active {
+  background: var(--card-raised);
+  color: var(--text);
+  opacity: 0.85;
+}
+
+.lph-body {
+  padding: 10px 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.lph-pagehead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.lph-pagehead-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.lph-chip {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--card-raised);
+  border-radius: 20px;
+  padding: 5px 12px;
+  white-space: nowrap;
+}
+
+.lph-content {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+/* Cards sit flat in the screen, not floating above it. */
+.lph-card {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0) 58%),
+    var(--card);
+  border-radius: var(--radius);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 12px 34px -14px rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    var(--shadow-sm);
+  padding: 18px;
+}
+
+html[data-theme="light"] .lph-card {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    var(--shadow-sm);
+}
+
+.lph-card-label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lph-score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.lph-score-num {
+  font-family: var(--font-display);
+  font-size: 46px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--score-green);
+}
+
+.lph-score-cap {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.lph-bars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 18px;
+  margin: 18px 0;
+}
+
+.lph-bar-head {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.lph-bar-track {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--card-raised);
+  overflow: hidden;
+}
+
+.lph-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--text);
+  opacity: 0.8;
+}
+
+.lph-kws {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lph-kw {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: var(--card-raised);
+  border-radius: 20px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.lph-diff-row + .lph-diff-row {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.lph-trow {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr 0.7fr;
+  gap: 12px;
+  padding: 9px 4px;
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.lph-trow-head {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-top: none;
+}
+
+.lph-trow .co { color: var(--text); }
+.lph-trow .ok { color: var(--score-green); }
+.lph-trow .miss { color: var(--score-red); }
+
+.lph-diff-label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+
+.lph-diff-before {
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--muted);
+  opacity: 0.65;
+  margin-bottom: 12px;
+}
+
+.lph-diff-after {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* The one element the beam lands on. */
+.lph-diff-after.lph-lit {
+  color: var(--text);
+  text-shadow: 0 0 26px rgba(255, 255, 255, 0.35);
+}
+
+html[data-theme="light"] .lph-lit {
+  text-shadow: none;
+}
+
+/* Light shaft entering at the very top, left of center, falling toward
+   bottom-right; the shade's diagonal corridor follows the same line. */
+.lph-beam {
+  position: absolute;
+  top: -40%;
+  left: 42%;
+  width: clamp(260px, 32vw, 500px);
+  height: 190%;
+  /* Matches the 45deg corridor in .lph-shade; keep the two in sync. */
+  transform: rotate(-45deg);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--hero-beam) 34%,
+    var(--hero-beam-core) 50%,
+    var(--hero-beam) 66%,
+    transparent 100%
+  );
+  filter: blur(30px);
+  /* The shaft dies out along its length before reaching bottom-right. */
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 46%, transparent 86%);
+  mask-image: linear-gradient(to bottom, black 0%, black 46%, transparent 86%);
+  animation: lph-beam-in 1.6s ease-out both;
+}
+
+@keyframes lph-beam-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lph-beam { animation: none; }
+}
+
+.lph-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 72% 86% at 22% 72%, var(--hero-ink-strong) 0%, var(--hero-ink-strong) 36%, transparent 76%),
+    radial-gradient(ellipse 70% 64% at 82% 90%, var(--hero-ink-strong) 0%, var(--hero-ink-strong) 34%, transparent 74%),
+    radial-gradient(circle farthest-side at 28% 0%, transparent 0%, transparent 56%, var(--hero-veil) 84%, var(--hero-ink-soft) 100%),
+    linear-gradient(to right, var(--hero-ink-soft) 0%, transparent 52%),
+    linear-gradient(45deg, var(--hero-veil) 0%, var(--hero-veil) 24%, transparent 42%, transparent 64%, var(--hero-veil) 82%, var(--hero-ink-soft) 100%),
+    linear-gradient(to bottom, var(--bg) 0%, transparent 7%, transparent 62%, var(--bg) 98%);
+}
+
+.lph-copy {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 220px clamp(24px, 4vw, 60px) 84px;
+}
+
+.lph-copy-inner { max-width: 620px; }
+
+.lph-h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(38px, 5.6vw, 68px);
+  line-height: 1.03;
+  letter-spacing: -0.045em;
+  margin: 0 0 22px;
+}
+
+.lph-metal,
+.lph-metal-gold {
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lph-metal {
+  background-image: linear-gradient(
+    180deg,
+    var(--metal-a) 0%,
+    var(--metal-b) 42%,
+    var(--metal-c) 80%,
+    var(--metal-d) 100%
+  );
+}
+
+.lph-metal-gold {
+  background-image: linear-gradient(
+    180deg,
+    var(--metal-gold-a) 0%,
+    var(--metal-gold-b) 55%,
+    var(--metal-gold-c) 86%,
+    var(--metal-gold-d) 100%
+  );
+}
+
+@media (max-width: 1100px) {
+  .lph-mock { grid-template-columns: 190px 1fr; }
+  .lph-content { grid-template-columns: 260px minmax(0, 1fr); }
+  .lph-table { display: none; }
+}
+
+@media (max-width: 860px) {
+  .lph { min-height: 0; }
+  .lph-copy { padding: 200px 24px 80px; }
+  .lph-mock {
+    grid-template-columns: 1fr;
+    padding-top: 24px;
+    opacity: 0.35;
+  }
+  html[data-theme="light"] .lph-mock { opacity: 0.3; }
+  .lph-side { display: none; }
+  .lph-body { padding-left: 16%; }
+  .lph-content { grid-template-columns: 1fr; }
+  .lph-scorecard { display: none; }
+  .lph-shade {
+    background:
+      radial-gradient(ellipse 130% 74% at 24% 62%, var(--hero-ink-strong) 0%, var(--hero-ink-strong) 32%, transparent 82%),
+      linear-gradient(to bottom, var(--bg) 0%, transparent 18%, var(--hero-ink-soft) 52%, var(--bg) 94%);
+  }
 }
 
 /* --- App window frame: dark chrome + title bar --- */
 .lp-window {
   position: relative;
-  background: var(--card);
-  border: 1px solid var(--border);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 60%),
+    var(--card);
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow:
-    inset 0 1px 0 0 rgba(201, 162, 39, 0.20),
-    inset 0 32px 62px -46px rgba(201, 162, 39, 0.24),
-    var(--shadow-lg);
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+    0 16px 44px -18px rgba(0, 0, 0, 0.6);
 }
 
 .lp-window-bar {
@@ -1089,7 +2359,13 @@ a {
   height: 9px;
   border-radius: 999px;
   background: var(--border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
+
+/* macOS traffic lights */
+.lp-window-dot:nth-child(1) { background: #ff5f57; }
+.lp-window-dot:nth-child(2) { background: #febc2e; }
+.lp-window-dot:nth-child(3) { background: #28c840; }
 
 .lp-window-title {
   margin-left: 8px;
@@ -1101,16 +2377,6 @@ a {
 }
 
 .lp-window-body { padding: 14px; }
-
-/* Hero window floats with a subtle tilt; flattens on small screens. */
-.lp-hero-float {
-  transform: perspective(1700px) rotateY(-5deg) rotateX(1.5deg);
-  transform-origin: center left;
-}
-
-@media (max-width: 900px) {
-  .lp-hero-float { transform: none; }
-}
 
 /* --- Mockup building blocks (tracker / job rows) --- */
 .lp-mock-row {
@@ -1152,13 +2418,14 @@ a {
   height: 30px;
   border-radius: var(--radius-sm);
   background: var(--card-raised);
-  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-subtle);
   display: grid;
   place-items: center;
   font-family: var(--font-display);
   font-size: 12px;
   font-weight: 700;
-  color: var(--muted);
+  color: var(--text);
   flex-shrink: 0;
 }
 
@@ -1172,15 +2439,15 @@ a {
 .lp-badge-gold {
   display: inline-flex;
   align-items: center;
-  padding: 3px 9px;
-  border-radius: 999px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  border: none;
   background: var(--gold-dim);
-  border: 1px solid var(--gold-border);
   color: var(--gold);
   font-family: var(--font-display);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -1188,15 +2455,15 @@ a {
 .lp-badge-green {
   display: inline-flex;
   align-items: center;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.25);
+  padding: 2px 7px;
+  border-radius: 20px;
+  border: none;
+  background: rgba(34, 197, 94, 0.12);
   color: var(--score-green);
   font-family: var(--font-display);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -1225,9 +2492,9 @@ a {
 
 /* --- Full-width alternating feature rows --- */
 .lp-features {
-  max-width: 1180px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 8px 24px 24px;
+  padding: 8px clamp(24px, 4vw, 60px) 24px;
 }
 
 .lp-features-head {
@@ -1258,11 +2525,11 @@ a {
 
 .lp-feature-num {
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--muted);
   margin-bottom: 16px;
 }
 
@@ -1287,9 +2554,9 @@ a {
 
 /* --- Support strip: icon, name, one line, no cards --- */
 .lp-support {
-  max-width: 1180px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 8px 24px 24px;
+  padding: 8px clamp(24px, 4vw, 60px) 24px;
 }
 
 .lp-support-strip {
@@ -1386,29 +2653,7 @@ a {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
-.lp-autofill-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--gold-dim);
-  border: 1px solid var(--gold-border);
-  color: var(--gold);
-  font-family: var(--font-display);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
 
-.lp-match {
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--gold);
-  white-space: nowrap;
-}

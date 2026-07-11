@@ -12,7 +12,7 @@ export default function TermsPage() {
   return (
     <div
       style={{
-        maxWidth: '680px',
+        maxWidth: '860px',
         margin: '0 auto',
         padding: '80px 24px',
       }}
@@ -21,12 +21,11 @@ export default function TermsPage() {
         style={{
           fontSize: '2rem',
           fontWeight: 700,
-          color: 'var(--text)',
           marginBottom: '8px',
           lineHeight: 1.2,
         }}
       >
-        Terms of Service
+        <span className="lph-metal">Terms of Service</span>
       </h1>
 
       <p
@@ -664,7 +663,7 @@ export default function TermsPage() {
             fontSize: '0.95rem',
           }}
         >
-          Questions about these terms? Contact us at ishvir.chopra@gmail.com or on the <Link href="/contact" style={{ textDecoration: 'underline', color: 'var(--text)' }}>contact</Link> page.
+          Questions about these terms? Contact us at ishvir.chopra@gmail.com or on the <Link href="/feedback" style={{ textDecoration: 'underline', color: 'var(--text)' }}>feedback</Link> page.
         </p>
       </section>
     </div>

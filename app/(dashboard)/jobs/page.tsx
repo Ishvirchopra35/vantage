@@ -8,6 +8,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CustomSelect from '@/components/CustomSelect'
 import PageHeader from '@/components/ui/PageHeader'
+import ExternalLinkIcon from '@/components/ui/ExternalLinkIcon'
 import { track } from '@/lib/analytics'
 
 // --- Types --------------------------------------------------------------------
@@ -73,8 +74,8 @@ function JobCard({
   const employmentLabel = job.employment_type ? (EMPLOYMENT_LABEL[job.employment_type] ?? job.employment_type) : null
 
   const smallBtn: React.CSSProperties = {
-    background: 'transparent',
-    border: '1px solid var(--border)',
+    background: 'var(--card-raised)',
+    border: 'none',
     borderRadius: '8px',
     padding: '5px 12px',
     fontSize: '12px',
@@ -89,8 +90,7 @@ function JobCard({
 
   return (
     <div style={{
-      background: 'var(--card)',
-      border: `1px solid ${job.is_saved ? 'var(--gold-border)' : 'var(--border)'}`,
+      background: job.is_saved ? 'var(--card-raised)' : 'var(--card)',
       borderRadius: 'var(--radius)',
       boxShadow: 'var(--shadow-md)',
       padding: '18px 20px',
@@ -138,13 +138,13 @@ function JobCard({
         <ScoreBadge score={job.relevance_score} />
         {employmentLabel && (
           <span style={{
-            fontSize: '11px',
+            fontSize: '10px',
             fontWeight: 600,
-            padding: '2px 8px',
-            borderRadius: '6px',
+            padding: '2px 7px',
+            borderRadius: '20px',
             background: 'var(--card-raised)',
             color: 'var(--muted)',
-            border: '1px solid var(--border)',
+            border: 'none',
           }}>
             {employmentLabel}
           </span>
@@ -166,7 +166,7 @@ function JobCard({
           rel="noopener noreferrer"
           style={smallBtn}
         >
-          View job ↗
+          View job <ExternalLinkIcon />
         </a>
         <Link
           href={`/tailor?prefill=${encodeURIComponent(job.url)}`}
@@ -393,11 +393,10 @@ export default function JobsPage() {
             type="button"
             onClick={() => void fetchJobs()}
             disabled={loading}
-            className="btn-gold-hover"
             style={{
-              background: 'var(--gold-dim)',
-              border: '1px solid var(--gold-border)',
-              color: 'var(--gold)',
+              background: 'var(--btn-primary-bg)',
+              border: 'none',
+              color: 'var(--btn-primary-text)',
               fontFamily: 'var(--font-display)',
               fontWeight: 600,
               borderRadius: 'var(--radius)',
@@ -426,7 +425,6 @@ export default function JobsPage() {
         marginBottom: '16px',
         padding: '15px 16px',
         background: 'var(--card)',
-        border: '1px solid var(--border)',
         borderRadius: '10px',
       }}>
         <input
@@ -499,7 +497,7 @@ export default function JobsPage() {
       ) : visible.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '20px' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--gold-dim)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--gold)' }}>
+            <div style={{ width: '36px', height: '36px', margin: '0 auto 14px', background: 'var(--card-raised)', borderRadius: 'var(--radius-sm)', display: 'grid', placeItems: 'center', color: 'var(--muted)' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
@@ -517,16 +515,15 @@ export default function JobsPage() {
               type="button"
               onClick={() => void fetchJobs()}
               disabled={loading}
-              className="btn-gold-hover"
               style={{
-                background: 'var(--gold-dim)',
-                border: '1px solid var(--gold-border)',
+                background: 'var(--btn-primary-bg)',
+                border: 'none',
                 borderRadius: 'var(--radius)',
                 padding: '10px 20px',
                 fontFamily: 'var(--font-display)',
                 fontSize: '14px',
                 fontWeight: 600,
-                color: 'var(--gold)',
+                color: 'var(--btn-primary-text)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',

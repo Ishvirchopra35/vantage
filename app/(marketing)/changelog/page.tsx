@@ -124,75 +124,63 @@ export default async function ChangelogPage() {
   const entries = await getChangelog()
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px' }}>
+    <div style={{ maxWidth: 980, margin: '0 auto', padding: '48px 24px' }}>
       {/* Page header */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 36, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-          Changelog
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: 36, fontWeight: 700, marginBottom: 6 }}>
+          <span className="lph-metal">Changelog</span>
         </h1>
-        <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 32 }}>
+        <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0 }}>
           Latest improvements, features, and fixes.
         </p>
       </div>
 
-      {/* Changelog entries as cards */}
-      <div>
+      {/* Jump list: anchors to every update */}
+      <details className="cl-jump">
+        <summary className="cl-jump-summary">Jump to an update</summary>
+        <div className="cl-jump-list">
+          {entries.map((entry, i) => (
+            <a key={i} href={`#update-${i}`} className="cl-jump-link">
+              <span className="cl-jump-date">{formatDate(entry.date)}</span>
+              <span className="cl-jump-title">{entry.title}</span>
+            </a>
+          ))}
+        </div>
+      </details>
+
+      {/* Timeline: date rail left, entries on a continuous line */}
+      <div className="cl-timeline">
         {entries.map((entry, i) => (
-          <EntryCard key={i} entry={entry} />
+          <TimelineEntry key={i} entry={entry} anchorId={`update-${i}`} />
         ))}
       </div>
     </div>
   )
 }
 
-async function EntryCard({
+async function TimelineEntry({
   entry,
+  anchorId,
 }: {
   entry: Awaited<ReturnType<typeof getChangelog>>[number]
+  anchorId: string
 }) {
   return (
-    <div
-      className="ds-card"
-      style={{
-        padding: 32,
-        marginBottom: 16,
-      }}
-    >
-      {/* Header row: Type badge + Date */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <span
-          style={{
-            background: 'var(--accent)',
-            color: 'var(--bg)',
-            fontSize: 11,
-            fontWeight: 700,
-            padding: '4px 10px',
-            borderRadius: 20,
-          }}
-        >
-          {entry.type}
-        </span>
-        <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-          {formatDate(entry.date)}
-        </span>
+    <div className="cl-entry" id={anchorId}>
+      <span className="cl-node" aria-hidden="true" />
+      <div className="cl-meta">
+        <div className="cl-date">{formatDate(entry.date)}</div>
+        <span className="cl-type">{entry.type}</span>
       </div>
-
-      {/* Title */}
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
-        {entry.title}
-      </h2>
-
-      {/* Description/Summary */}
-      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>
-        {entry.summary}
-      </p>
-
-      {/* MDX content wrapped in expander */}
-      {entry.content.trim() && (
-        <ChangelogExpander preview={5}>
-          <MDXRemote source={escapeMdxProse(entry.content)} components={mdxComponents} />
-        </ChangelogExpander>
-      )}
+      <div style={{ minWidth: 0 }}>
+        <h2 className="cl-title">{entry.title}</h2>
+        <p className="cl-summary">{entry.summary}</p>
+        {entry.content.trim() && (
+          <ChangelogExpander preview={5}>
+            <MDXRemote source={escapeMdxProse(entry.content)} components={mdxComponents} />
+          </ChangelogExpander>
+        )}
+      </div>
     </div>
   )
 }

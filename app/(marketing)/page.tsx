@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import Reveal from '@/components/marketing/Reveal';
 import LandingParticles from '@/components/marketing/LandingParticles';
+import Spotlight from '@/components/marketing/Spotlight';
 
 export const dynamic = 'force-static';
 
@@ -58,7 +59,28 @@ const JSON_LD = {
       founder: {
         '@type': 'Person',
         name: 'Ishvir Chopra',
+        url: 'https://ishvirschopra35.tech/',
+        sameAs: [
+          'https://github.com/Ishvirchopra35',
+          'https://www.linkedin.com/in/ishvir-chopra-23758b2a8/',
+          'https://www.instagram.com/ishvirchopra/',
+          'https://www.youtube.com/@Ishvirchopra35',
+        ],
       },
+      sameAs: [
+        'https://github.com/Ishvirchopra35',
+        'https://www.linkedin.com/in/ishvir-chopra-23758b2a8/',
+        'https://www.instagram.com/ishvirchopra/',
+        'https://www.youtube.com/@Ishvirchopra35',
+      ],
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${siteUrl}/#website`,
+      name: 'Vantage',
+      alternateName: 'Vantage AI job application platform',
+      url: siteUrl,
+      publisher: { '@id': `${siteUrl}/#organization` },
     },
     {
       '@type': 'SoftwareApplication',
@@ -126,18 +148,47 @@ function CheckIcon() {
 }
 
 const PAIN_POINTS = [
-  { quote: 'I applied to 50 jobs with the same resume and heard back from 2.', who: 'every senior in recruiting season' },
-  { quote: 'I spent 45 minutes tailoring one resume and gave up by job 3.', who: 'anyone doing it by hand' },
-  { quote: 'I have no idea why I keep getting rejected or what to fix.', who: 'the group chat, every week' },
+  { quote: 'I applied to 50 jobs with the same resume and heard back from 2.', who: '- every senior in recruiting season' },
+  { quote: 'I spent 45 minutes tailoring one resume and gave up by job 3.', who: '- anyone doing it by hand' },
+  { quote: 'I have no idea why I keep getting rejected or what to fix.', who: '- the group chat, every week' },
 ];
 
 type MockTone = 'gold' | 'green';
 
-const HERO_ROWS: { co: string; logo: string; role: string; status: string; tone: MockTone; ats: number }[] = [
-  { co: 'Stripe', logo: 'S', role: 'Software Engineer Intern', status: 'Interviewing', tone: 'green', ats: 92 },
-  { co: 'Ramp', logo: 'R', role: 'Product Analyst', status: 'Applied', tone: 'gold', ats: 88 },
-  { co: 'Figma', logo: 'F', role: 'Frontend Engineer', status: 'Applied', tone: 'gold', ats: 85 },
-  { co: 'Notion', logo: 'N', role: 'New Grad SWE', status: 'Offer', tone: 'green', ats: 90 },
+const SIDEBAR_ITEMS = ['Dashboard', 'Jobs', 'Tailor + ATS', 'Applications', 'Strategy', 'Networking', 'Interview Prep', 'Auto-apply'];
+
+const SUBSCORES: { name: string; score: number }[] = [
+  { name: 'Keywords', score: 92 },
+  { name: 'Format', score: 84 },
+  { name: 'Experience', score: 81 },
+  { name: 'Skills', score: 88 },
+];
+
+const MISSING_KEYWORDS = ['GraphQL', 'CI/CD', 'Docker'];
+
+const DIFF_ROWS: { before: string; after: React.ReactNode; badge: string; lit?: boolean }[] = [
+  {
+    before: 'Responsible for testing and fixing bugs in the mobile app.',
+    after: <>Cut crash rate <b>31%</b> by adding <b>automated tests</b> across 4 releases of a React Native app.</>,
+    badge: '+3 keywords',
+    lit: true,
+  },
+  {
+    before: 'Worked on the backend team on various services.',
+    after: <>Built <b>REST APIs</b> in <b>Node.js</b> serving 40k daily requests with p95 under 120 ms.</>,
+    badge: '+2 keywords',
+  },
+  {
+    before: 'Helped with database stuff and queries.',
+    after: <>Optimized <b>PostgreSQL</b> queries, cutting dashboard load time <b>38%</b>.</>,
+    badge: '+2 keywords',
+  },
+];
+
+const COVERAGE_ROWS: { kw: string; job: string; resume: string; ok: boolean }[] = [
+  { kw: 'React Native', job: '6 mentions', resume: '4 mentions', ok: true },
+  { kw: 'GraphQL', job: '3 mentions', resume: '0 mentions', ok: false },
+  { kw: 'TypeScript', job: '5 mentions', resume: '5 mentions', ok: true },
 ];
 
 const TRACK_ROWS: { co: string; logo: string; role: string; status: string; tone: MockTone }[] = [
@@ -146,10 +197,11 @@ const TRACK_ROWS: { co: string; logo: string; role: string; status: string; tone
   { co: 'Shopify', logo: 'S', role: 'Backend Developer Intern', status: 'Applied', tone: 'gold' },
 ];
 
-const JOB_ROWS: { co: string; logo: string; role: string; match: string }[] = [
-  { co: 'Vercel', logo: 'V', role: 'Frontend Engineer, New Grad', match: '94%' },
-  { co: 'Linear', logo: 'L', role: 'Product Engineer', match: '91%' },
-  { co: 'Databricks', logo: 'D', role: 'Software Engineer Intern', match: '88%' },
+const FORM_ROWS: { label: string; value: string }[] = [
+  { label: 'Full name', value: 'Ishvir Chopra' },
+  { label: 'Email', value: 'ischopra@uwaterloo.ca' },
+  { label: 'Work authorization', value: 'Authorized to work in Canada' },
+  { label: 'Why do you want to work here?', value: '[Drafted from your resume and this job post]' },
 ];
 
 const SUPPORT_FEATURES = [
@@ -191,7 +243,7 @@ const PRO_FEATURES = [
 const CTA_GOLD = {
   display: 'inline-block',
   background: 'var(--gold-dim)',
-  border: '1px solid var(--gold)',
+  border: '1px solid rgba(201, 162, 39, 0.22)',
   color: 'var(--gold)',
   borderRadius: 'var(--radius)',
   padding: '12px 24px',
@@ -204,8 +256,8 @@ const CTA_GOLD = {
 
 const CTA_OUTLINE = {
   display: 'inline-block',
-  background: 'transparent',
-  border: '1px solid var(--border)',
+  background: 'var(--card-raised)',
+  border: 'none',
   color: 'var(--text)',
   borderRadius: 'var(--radius)',
   padding: '12px 24px',
@@ -214,15 +266,16 @@ const CTA_OUTLINE = {
   fontWeight: 600,
   textDecoration: 'none' as const,
   textAlign: 'center' as const,
+  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.07)',
 };
 
 const EYEBROW = {
   fontFamily: 'var(--font-display)',
   fontWeight: 600,
-  fontSize: 11,
+  fontSize: 10,
   textTransform: 'uppercase' as const,
   letterSpacing: '0.12em',
-  color: 'var(--gold)',
+  color: 'var(--muted)',
   marginBottom: 10,
 };
 
@@ -238,17 +291,18 @@ const SECTION_H2 = {
 const ICON_TILE = {
   width: 36,
   height: 36,
-  background: 'var(--gold-dim)',
+  background: 'var(--card-raised)',
   borderRadius: 'var(--radius-sm)',
   display: 'grid',
   placeItems: 'center' as const,
   marginBottom: 14,
-  color: 'var(--gold)',
+  color: 'var(--muted)',
+  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.08)',
 };
 
 function AppWindow({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="lp-window">
+    <Spotlight className="lp-window">
       <div className="lp-window-bar">
         <span className="lp-window-dot" />
         <span className="lp-window-dot" />
@@ -256,7 +310,7 @@ function AppWindow({ title, children }: { title: string; children: React.ReactNo
         <span className="lp-window-title">{title}</span>
       </div>
       <div className="lp-window-body">{children}</div>
-    </div>
+    </Spotlight>
   );
 }
 
@@ -309,14 +363,94 @@ export default function LandingPage() {
         <LandingParticles />
         <div style={{ position: 'relative', zIndex: 1 }}>
 
-      <section className="lp-hero">
-        <div className="lp-hero-grid">
-          <div>
-            <div style={{ color: 'var(--gold)', fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Built for recruiting season</div>
+      <section className="lph">
+        <div className="lph-stage" aria-hidden="true">
+          <div className="lph-mock">
+            <div className="lph-side">
+              <div className="lph-side-brand">Vantage</div>
+              {SIDEBAR_ITEMS.map((item) => (
+                <div key={item} className={`lph-side-item${item === 'Tailor + ATS' ? ' active' : ''}`}>{item}</div>
+              ))}
+            </div>
 
-            <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'clamp(38px, 5.4vw, 62px)', lineHeight: 1.04, letterSpacing: '-0.04em', margin: '0 0 22px', color: 'var(--text)' }}>
-              Applied to 100 jobs.<br />Heard back from 1.<br />
-              <span style={{ color: 'var(--gold)' }}>There&apos;s a better way.</span>
+            <div className="lph-body">
+              <div className="lph-pagehead">
+                <div className="lph-pagehead-title">Tailor + ATS</div>
+                <span className="lph-chip">Backend Developer Intern · Shopify</span>
+              </div>
+
+              <div className="lph-content">
+                <div className="lph-card lph-scorecard">
+                  <div className="lph-card-label">Overall ATS score</div>
+                  <div className="lph-score-row">
+                    <span className="lph-score-num">87</span>
+                    <span className="lph-score-cap">Strong match</span>
+                  </div>
+                  <div className="lph-bars">
+                    {SUBSCORES.map((s) => (
+                      <div key={s.name}>
+                        <div className="lph-bar-head">
+                          <span>{s.name}</span>
+                          <span>{s.score}</span>
+                        </div>
+                        <div className="lph-bar-track">
+                          <div className="lph-bar-fill" style={{ width: `${s.score}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="lph-card-label" style={{ marginBottom: 0 }}>Missing keywords</div>
+                  <div className="lph-kws" style={{ marginTop: 8, paddingTop: 0, borderTop: 'none' }}>
+                    {MISSING_KEYWORDS.map((kw) => (
+                      <span key={kw} className="lph-kw">{kw}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="lph-card">
+                  <div className="lph-card-label">Bullet-by-bullet changes</div>
+                  {DIFF_ROWS.map((row, i) => (
+                    <div key={i} className="lph-diff-row">
+                      <div className="lph-diff-before">{row.before}</div>
+                      <div className={`lph-diff-after${row.lit ? ' lph-lit' : ''}`}>
+                        {row.after}{' '}
+                        <span className="lp-badge-gold" style={{ marginLeft: 6 }}>{row.badge}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="lph-table">
+                <div className="lph-trow lph-trow-head">
+                  <span>Keyword</span>
+                  <span>In job description</span>
+                  <span>In your resume</span>
+                  <span>Status</span>
+                </div>
+                {COVERAGE_ROWS.map((row) => (
+                  <div key={row.kw} className="lph-trow">
+                    <span className="co">{row.kw}</span>
+                    <span>{row.job}</span>
+                    <span>{row.resume}</span>
+                    <span className={row.ok ? 'ok' : 'miss'}>{row.ok ? 'Covered' : 'Missing'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="lph-beam" />
+          <div className="lph-shade" />
+        </div>
+
+        <div className="lph-copy">
+          <div className="lph-copy-inner">
+            <div style={{ color: 'var(--muted)', fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Built for recruiting season</div>
+
+            <h1 className="lph-h1">
+              <span className="lph-metal">Applied to 100 jobs.<br />Heard back from 1.</span><br />
+              <span className="lph-metal-gold">There&apos;s a better way.</span>
             </h1>
 
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: 'var(--muted)', maxWidth: 460, lineHeight: 1.6, margin: 0 }}>
@@ -330,27 +464,17 @@ export default function LandingPage() {
 
             <p style={{ marginTop: 14, fontSize: 12, color: 'var(--muted)' }}>Free during early access · No credit card required</p>
           </div>
-
-          <Reveal direction="scale">
-            <div className="lp-hero-float">
-              <AppWindow title="Vantage · Applications">
-                {HERO_ROWS.map((r) => (
-                  <TrackerRow key={r.co} co={r.co} logo={r.logo} role={r.role} status={r.status} tone={r.tone} ats={r.ats} />
-                ))}
-              </AppWindow>
-            </div>
-          </Reveal>
         </div>
       </section>
 
-      <Reveal as="section" id="sound-familiar" style={{ maxWidth: 1120, margin: '0 auto', padding: '54px 24px' }} direction="up">
+      <Reveal as="section" id="sound-familiar" style={{ maxWidth: 1400, margin: '0 auto', padding: '54px clamp(24px, 4vw, 60px)' }} direction="up">
         <div style={EYEBROW}>Sound familiar?</div>
         <h2 style={SECTION_H2}>Applying more isn&apos;t working.</h2>
 
         <div className="lp-grid-3">
           {PAIN_POINTS.map((point, i) => (
             <Reveal key={point.who} index={i} direction="up">
-              <figure className="lp-pain-card" style={{ margin: 0 }}>
+              <figure className="glass-card lp-pain-card" style={{ margin: 0 }}>
                 <blockquote style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: 15, lineHeight: 1.6, color: 'var(--text)' }}>
                   &ldquo;{point.quote}&rdquo;
                 </blockquote>
@@ -364,10 +488,10 @@ export default function LandingPage() {
       </Reveal>
 
       <section id="features" className="lp-features">
-        <div className="lp-features-head">
+        <Reveal className="lp-features-head" direction="up">
           <div style={EYEBROW}>Your unfair advantage</div>
           <h2 style={SECTION_H2}>Three things that change your odds</h2>
-        </div>
+        </Reveal>
 
         <Reveal className="lp-feature-row" direction="up">
           <div className="lp-feature-copy">
@@ -376,15 +500,22 @@ export default function LandingPage() {
             <p className="lp-feature-desc">Paste a job description and Vantage rewrites each line to mirror it. Keywords woven in, nothing invented, and you see exactly what changed before you send it.</p>
           </div>
           <div className="lp-feature-visual">
-            <AppWindow title="Vantage · Tailor">
-              <div className="lp-diff-label" style={{ color: 'var(--muted)' }}>Before</div>
-              <div className="lp-diff-before">Worked on the frontend team and helped build some internal web tools.</div>
-              <div className="lp-diff-label" style={{ color: 'var(--gold)', marginTop: 14 }}>After Vantage</div>
-              <div className="lp-diff-after">Built <b>12 React components</b> for a high-traffic internal dashboard, cutting <b>page load time 40%</b>.</div>
-              <div style={{ marginTop: 14 }}>
-                <span className="lp-badge-gold">+4 keywords matched</span>
+            <Spotlight className="glass-card lp-stage" ariaHidden>
+              <div className="lp-slip lp-slip-before">
+                <div className="lp-diff-label" style={{ color: 'var(--muted)' }}>Before</div>
+                <div className="lp-diff-before">Worked on the frontend team and helped build some internal web tools.</div>
               </div>
-            </AppWindow>
+              <div className="lp-swap-chip">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></svg>
+              </div>
+              <div className="lp-slip lp-slip-after">
+                <div className="lp-diff-label" style={{ color: 'var(--gold)' }}>After Vantage</div>
+                <div className="lp-diff-after">Built <b>12 React components</b> for a high-traffic internal dashboard, cutting <b>page load time 40%</b>.</div>
+                <div style={{ marginTop: 12 }}>
+                  <span className="lp-badge-gold">+4 keywords matched</span>
+                </div>
+              </div>
+            </Spotlight>
           </div>
         </Reveal>
 
@@ -424,23 +555,28 @@ export default function LandingPage() {
             <p className="lp-feature-desc">The Chrome extension reads any application form and fills it from your profile. Vantage never hits submit, so the last look is always yours.</p>
           </div>
           <div className="lp-feature-visual">
-            <AppWindow title="Vantage · Auto-apply">
-              {JOB_ROWS.map((r) => (
-                <div className="lp-mock-row" key={r.co}>
-                  <div className="lp-mock-left">
-                    <div className="lp-mock-logo">{r.logo}</div>
+            <Spotlight className="glass-card lp-stage" ariaHidden>
+              <div className="lp-slip lp-mini-form">
+                {FORM_ROWS.map((row) => (
+                  <div key={row.label} className="lp-form-row">
                     <div style={{ minWidth: 0 }}>
-                      <div className="lp-mock-co">{r.co}</div>
-                      <div className="lp-mock-role">{r.role}</div>
+                      <div className="lp-form-label">{row.label}</div>
+                      <div className="lp-form-value">{row.value}</div>
                     </div>
+                    <span className="lp-form-check">
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="2 8 6 12 14 3" /></svg>
+                    </span>
                   </div>
-                  <div className="lp-mock-meta">
-                    <span className="lp-match">{r.match} match</span>
-                    <span className="lp-autofill-tag">Autofill</span>
-                  </div>
+                ))}
+              </div>
+              <div className="lp-ext-toast">
+                <img src="/logo.png" alt="" width={26} height={26} className="lp-ext-toast-logo" />
+                <div>
+                  <div className="lp-ext-toast-title">Form filled from your profile</div>
+                  <div className="lp-ext-toast-sub">Review and submit when ready.</div>
                 </div>
-              ))}
-            </AppWindow>
+              </div>
+            </Spotlight>
           </div>
         </Reveal>
       </section>
@@ -459,33 +595,33 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <Reveal as="section" id="how-it-works" style={{ maxWidth: 1120, margin: '0 auto', padding: '54px 24px' }} direction="up">
+      <Reveal as="section" id="how-it-works" style={{ maxWidth: 1400, margin: '0 auto', padding: '54px clamp(24px, 4vw, 60px)' }} direction="up">
         <div style={EYEBROW}>How it works</div>
         <h2 style={SECTION_H2}>Upload once. Tailor every time.</h2>
 
         <div className="lp-grid-3">
           {STEPS.map((step) => (
             <Reveal key={step.n} index={step.n - 1} direction={step.n % 2 === 1 ? 'left' : 'right'}>
-              <div style={{ position: 'relative', overflow: 'hidden', background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md), inset 0 14px 28px -20px rgba(201,162,39,0.4)', borderTop: '2px solid var(--gold-border)', padding: 28 }}>
-                <div aria-hidden="true" style={{ position: 'absolute', top: -18, right: 10, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 128, lineHeight: 1, paddingTop: 3, color: 'var(--gold)', opacity: 0.15, pointerEvents: 'none', userSelect: 'none' }}>{step.n}</div>
+              <Spotlight className="glass-card" style={{ overflow: 'hidden', padding: 28 }}>
+                <div aria-hidden="true" style={{ position: 'absolute', top: -18, right: 10, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 128, lineHeight: 1, paddingTop: 3, color: 'var(--text)', opacity: 0.06, pointerEvents: 'none', userSelect: 'none' }}>{step.n}</div>
                 <div style={{ position: 'relative' }}>
                   <div style={ICON_TILE}>{getStepIcon(step.n)}</div>
                   <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text)' }}>{step.title}</div>
                   <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>{step.description}</div>
                 </div>
-              </div>
+              </Spotlight>
             </Reveal>
           ))}
         </div>
       </Reveal>
 
-      <Reveal as="section" id="pricing" style={{ maxWidth: 1120, margin: '0 auto', padding: '54px 24px' }} direction="up">
+      <Reveal as="section" id="pricing" style={{ maxWidth: 1400, margin: '0 auto', padding: '54px clamp(24px, 4vw, 60px)' }} direction="up">
         <div style={{ ...EYEBROW, textAlign: 'center' as const }}>Simple pricing</div>
         <h2 style={{ ...SECTION_H2, textAlign: 'center' as const }}>Free to start. Unlimited for $8.</h2>
 
         <div className="lp-pricing-grid">
           <Reveal index={0} direction="scale">
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: 28 }}>
+          <Spotlight className="glass-card" style={{ padding: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', minHeight: 24, fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 8 }}>Free</div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 42, fontWeight: 800, marginBottom: 20, color: 'var(--text)' }}>$0 <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 400, color: 'var(--muted)' }}>/month</span></div>
 
@@ -499,14 +635,14 @@ export default function LandingPage() {
             </ul>
 
             <Link href="/signup" className="lp-glow-cta" style={{ ...CTA_GOLD, display: 'block', marginTop: 24 }}>Get started free</Link>
-          </div>
+          </Spotlight>
           </Reveal>
 
           <Reveal index={1} direction="scale">
-          <div className="glass-rim-strong" style={{ padding: 28 }}>
+          <Spotlight className="glass-rim-strong lp-pro-card" style={{ padding: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 24, marginBottom: 8 }}>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)' }}>Pro</div>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', background: 'var(--gold-dim)', color: 'var(--gold)', borderRadius: 'var(--radius)', padding: '4px 10px' }}>Most popular</span>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', background: 'var(--gold-dim)', color: 'var(--gold)', borderRadius: '20px', padding: '2px 7px' }}>Most popular</span>
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 42, fontWeight: 800, marginBottom: 20, color: 'var(--text)' }}>$8 <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 400, color: 'var(--muted)' }}>/month</span></div>
 
@@ -519,64 +655,64 @@ export default function LandingPage() {
               ))}
             </ul>
 
-            <Link href="/signup" className="lp-glow-cta" style={{ ...CTA_GOLD, display: 'block', marginTop: 24 }}>Get started free</Link>
-          </div>
+            <Link href="/signup" className="lp-metal-btn" style={{ display: 'block', marginTop: 24, fontSize: 14, padding: '12px 24px' }}>Get started free</Link>
+          </Spotlight>
           </Reveal>
         </div>
 
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginTop: 16 }}>Free for the first 50 users during early access</p>
       </Reveal>
 
-      <Reveal as="section" style={{ maxWidth: 1120, margin: '0 auto', padding: '72px 24px 88px' }} direction="up">
-        <div className="glass-rim-strong" style={{ padding: 'clamp(32px, 5vw, 56px)' }}>
+      <Reveal as="section" style={{ maxWidth: 1400, margin: '0 auto', padding: '72px clamp(24px, 4vw, 60px) 88px' }} direction="up">
+        <Spotlight className="glass-rim-strong lp-cta-special" style={{ padding: 'clamp(40px, 5.5vw, 68px)' }}>
+          <div className="lp-cta-ghost" aria-hidden="true">Vantage</div>
           <div className="lp-cta-band-grid">
             <div>
-              <div style={EYEBROW}>Your next application</div>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(26px, 3.5vw, 38px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.15, margin: '0 0 12px', color: 'var(--text)' }}>
-                Stop sending the same resume to every job.
+              <div style={{ ...EYEBROW, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: 2, background: 'var(--gold)', flexShrink: 0 }} />
+                Your next application
+              </div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px, 4vw, 46px)', fontWeight: 800, letterSpacing: '-0.035em', lineHeight: 1.08, margin: '0 0 14px' }}>
+                <span className="lph-metal lp-cta-metal-text">Stop sending the same resume to every job.</span>
               </h2>
-              <p style={{ fontFamily: 'var(--font-body)', color: 'var(--muted)', fontSize: 15, lineHeight: 1.6, margin: '0 0 28px' }}>
+              <p style={{ fontFamily: 'var(--font-body)', color: 'var(--muted)', fontSize: 16, lineHeight: 1.6, margin: '0 0 30px', maxWidth: 420 }}>
                 Join students who are applying smarter.
               </p>
-              <Link href="/signup" className="lp-glow-cta-lg" style={{ ...CTA_GOLD, fontSize: 15, padding: '14px 28px' }}>Get started free</Link>
-
+              <Link href="/signup" className="lp-metal-btn lp-btn-glint">Get started free</Link>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--muted)', margin: '14px 0 0' }}>
+                Free during early access · No credit card required
+              </p>
             </div>
 
-            <div
-              aria-hidden="true"
-              style={{
-                background: 'var(--card-sunken)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius)',
-                boxShadow: 'var(--shadow-md)',
-                padding: 24,
-              }}
-            >
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 8 }}>
-                Before
-              </div>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, lineHeight: 1.6, color: 'var(--muted)', textDecoration: 'line-through', textDecorationColor: 'var(--muted)', marginBottom: 20 }}>
-                Applied to 100 jobs. Heard back from 1.
+            <div aria-hidden="true" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="lp-slip lp-slip-before">
+                <div className="lp-diff-label" style={{ color: 'var(--muted)' }}>Before</div>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, lineHeight: 1.6, color: 'var(--muted)', textDecoration: 'line-through', textDecorationColor: 'var(--muted)' }}>
+                  Applied to 100 jobs. Heard back from 1.
+                </div>
               </div>
 
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--gold)', marginBottom: 8 }}>
-                After Vantage
-              </div>
-              <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, lineHeight: 1.6, color: 'var(--text)', borderLeft: '2px solid var(--gold)', paddingLeft: 12 }}>
-                Applied to 12 jobs. Landed 4 interviews.
+              <div className="lp-swap-chip">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></svg>
               </div>
 
-              <div style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--gold-dim)', color: 'var(--gold)', fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  ATS 84/100
-                </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(34,197,94,0.1)', color: 'var(--score-green)', fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Interviewing
-                </span>
+              <div className="lp-slip lp-slip-after">
+                <div className="lp-diff-label" style={{ color: 'var(--gold)' }}>After Vantage</div>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, lineHeight: 1.6, color: 'var(--text)' }}>
+                  Applied to 12 jobs. Landed 4 interviews.
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 7px', borderRadius: '20px', background: 'var(--gold-dim)', color: 'var(--gold)', fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    ATS 84/100
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 7px', borderRadius: '20px', background: 'rgba(34,197,94,0.12)', color: 'var(--score-green)', fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Interviewing
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </Spotlight>
       </Reveal>
         </div>
       </div>

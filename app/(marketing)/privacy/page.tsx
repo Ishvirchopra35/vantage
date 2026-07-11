@@ -10,7 +10,7 @@ export default function PrivacyPage() {
   return (
     <div
       style={{
-        maxWidth: '680px',
+        maxWidth: '860px',
         margin: '0 auto',
         padding: '80px 24px',
       }}
@@ -19,12 +19,11 @@ export default function PrivacyPage() {
         style={{
           fontSize: '2rem',
           fontWeight: 700,
-          color: 'var(--text)',
           marginBottom: '8px',
           lineHeight: 1.2,
         }}
       >
-        Privacy Policy
+        <span className="lph-metal">Privacy Policy</span>
       </h1>
 
       <p

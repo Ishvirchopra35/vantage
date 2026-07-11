@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Getting Started · Docs',
+  title: 'Getting Started Â· Docs',
   description: 'Set up your Vantage account, upload your resume, and submit your first tailored application.',
   alternates: { canonical: '/docs/getting-started' },
 };
@@ -14,7 +14,7 @@ export default function GettingStartedPage() {
   return (
     <DocsLayout>
       <div>
-        <h1 style={heading}>Getting started</h1>
+        <h1 style={heading}><span className="lph-metal">Getting started</span></h1>
         <p style={summary}>
           Set up your Vantage account and submit your first tailored application in under five minutes.
         </p>

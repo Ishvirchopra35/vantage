@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Browser Extension · Docs',
+  title: 'Browser Extension Â· Docs',
   description: 'Install the Vantage Chrome extension, connect your account, and troubleshoot issues.',
   alternates: { canonical: '/docs/extension' },
 };
@@ -14,7 +14,7 @@ export default function ExtensionPage() {
   return (
     <DocsLayout>
       <div>
-        <h1 style={heading}>Browser extension</h1>
+        <h1 style={heading}><span className="lph-metal">Browser extension</span></h1>
         <p style={summary}>Install the Vantage Chrome extension to auto-fill job application forms directly in your browser.</p>
 
         <section style={section}>

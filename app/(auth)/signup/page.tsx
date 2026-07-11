@@ -35,6 +35,8 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [validationError, setValidationError] = useState('');
@@ -89,6 +91,11 @@ export default function SignupPage() {
       return false;
     }
 
+    if (!agreedToTerms) {
+      setValidationError('You need to agree to the Terms of Service to create an account');
+      return false;
+    }
+
     return true;
   };
 
@@ -102,7 +109,17 @@ export default function SignupPage() {
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName } },
+        options: {
+          data: {
+            full_name: fullName,
+            // Stored on the auth user for later use. Marketing emails are
+            // not sent yet - when that ships, read marketing_opt_in from
+            // user metadata (or migrate it to a profiles column) to build
+            // the mailing list. terms_accepted_at records consent time.
+            marketing_opt_in: marketingOptIn,
+            terms_accepted_at: new Date().toISOString(),
+          },
+        },
       });
 
       if (signUpError) {
@@ -277,6 +294,59 @@ export default function SignupPage() {
             <EyeIcon open={showConfirmPassword} />
           </button>
         </div>
+
+        {/* Agreements */}
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10,
+            fontSize: 13,
+            color: 'var(--muted)',
+            lineHeight: 1.5,
+            cursor: 'pointer',
+            marginTop: 4,
+            marginBottom: 10,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={agreedToTerms}
+            onChange={(e) => setAgreedToTerms(e.target.checked)}
+            style={{ marginTop: 2, accentColor: 'var(--gold)', width: 15, height: 15, flexShrink: 0, cursor: 'pointer' }}
+          />
+          <span>
+            I agree to the{' '}
+            <Link href="/terms" target="_blank" style={{ color: 'var(--text)', textDecoration: 'underline', textUnderlineOffset: 2 }}>
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" target="_blank" style={{ color: 'var(--text)', textDecoration: 'underline', textUnderlineOffset: 2 }}>
+              Privacy Policy
+            </Link>
+          </span>
+        </label>
+
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10,
+            fontSize: 13,
+            color: 'var(--muted)',
+            lineHeight: 1.5,
+            cursor: 'pointer',
+            marginBottom: 14,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={marketingOptIn}
+            onChange={(e) => setMarketingOptIn(e.target.checked)}
+            style={{ marginTop: 2, accentColor: 'var(--gold)', width: 15, height: 15, flexShrink: 0, cursor: 'pointer' }}
+          />
+          <span>Send me occasional emails about new features and job search tips (optional)</span>
+        </label>
 
         {/* Submit */}
         <button

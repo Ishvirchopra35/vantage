@@ -23,7 +23,7 @@ export default async function BlogPage() {
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px' }}>
         {/* Heading */}
-        <h1 style={{ fontSize: 36, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Blog</h1>
+        <h1 style={{ fontSize: 36, fontWeight: 700, marginBottom: 6 }}><span className="lph-metal">Blog</span></h1>
         <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 32 }}>
           Insights on job searching, AI, and career development.
         </p>

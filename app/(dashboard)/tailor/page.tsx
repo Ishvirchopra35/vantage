@@ -105,7 +105,6 @@ function Spinner() {
 
 const card = {
   background: 'var(--card)',
-  border: '1px solid var(--border)',
   borderRadius: 'var(--radius)',
   boxShadow: 'var(--shadow-md)',
   padding: '24px',
@@ -113,8 +112,8 @@ const card = {
 }
 
 const inputStyle = {
-  background: 'var(--card-sunken)',
-  border: '1px solid var(--border)',
+  background: 'var(--card-raised)',
+  border: '1px solid var(--border-subtle)',
   borderRadius: 'var(--radius)',
   padding: '12px 16px',
   color: 'var(--text)',
@@ -126,9 +125,9 @@ const inputStyle = {
 }
 
 const primaryBtn = {
-  background: 'var(--gold-dim)',
-  color: 'var(--gold)',
-  border: '1px solid var(--gold-border)',
+  background: 'var(--btn-primary-bg)',
+  color: 'var(--btn-primary-text)',
+  border: 'none',
   borderRadius: 'var(--radius)',
   padding: '12px 24px',
   fontFamily: 'var(--font-display)',
@@ -144,9 +143,9 @@ const primaryBtn = {
 }
 
 const secondaryBtn = {
-  background: 'transparent',
+  background: 'var(--card-raised)',
   color: 'var(--text)',
-  border: '1px solid var(--border)',
+  border: 'none',
   borderRadius: '10px',
   padding: '10px 18px',
   fontSize: '14px',
@@ -160,38 +159,38 @@ const secondaryBtn = {
 }
 
 const badge = {
-  background: 'var(--border)',
+  background: 'var(--card-raised)',
   color: 'var(--text)',
-  borderRadius: '6px',
-  padding: '2px 8px',
-  fontSize: '12px',
+  borderRadius: '20px',
+  padding: '2px 7px',
+  fontSize: '10px',
   fontWeight: 500,
 }
 
 const missingBadge = {
-  background: 'rgba(239,68,68,0.1)',
+  background: 'rgba(239,68,68,0.12)',
   color: 'var(--score-red)',
-  border: '1px solid rgba(239,68,68,0.2)',
-  borderRadius: '6px',
-  padding: '2px 8px',
-  fontSize: '12px',
+  border: 'none',
+  borderRadius: '20px',
+  padding: '2px 7px',
+  fontSize: '10px',
   fontWeight: 500,
 }
 
 const presentBadge = {
-  background: 'rgba(34,197,94,0.1)',
+  background: 'rgba(34,197,94,0.12)',
   color: 'var(--score-green)',
-  border: '1px solid rgba(34,197,94,0.2)',
-  borderRadius: '6px',
-  padding: '2px 8px',
-  fontSize: '12px',
+  border: 'none',
+  borderRadius: '20px',
+  padding: '2px 7px',
+  fontSize: '10px',
   fontWeight: 500,
 }
 
 const smallSecondaryBtn = {
-  background: 'transparent',
+  background: 'var(--card-raised)',
   color: 'var(--muted)',
-  border: '1px solid var(--border)',
+  border: 'none',
   borderRadius: '8px',
   padding: '5px 12px',
   fontSize: '12px',
@@ -631,7 +630,7 @@ export default function TailorPage() {
                 padding: '0',
               }}
             >
-              {useTextarea ? <><ArrowIcon direction="left" /> Use a URL instead</> : "URL not working? Paste the description directly"}
+              {useTextarea ? <><ArrowIcon direction="left" /> Use a URL instead</> : <>URL not working? Paste the description directly <ArrowIcon /></>}
             </button>
 
             {/* Paste textarea */}
@@ -676,7 +675,7 @@ export default function TailorPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                   {['Resume tailored to the JD', 'ATS score before you apply', 'Cover letter in your voice'].map(hint => (
                     <div key={hint} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--muted)' }}>
-                      <span style={{ color: 'var(--gold)', display: 'inline-flex', flexShrink: 0 }} aria-hidden="true">
+                      <span style={{ color: 'var(--score-green)', display: 'inline-flex', flexShrink: 0 }} aria-hidden="true">
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="2 8 6 12 14 3" />
                         </svg>
@@ -1039,11 +1038,10 @@ export default function TailorPage() {
                                 <div
                                   key={idx}
                                   style={{
-                                    border: '1px solid var(--border)',
                                     borderRadius: '10px',
                                     padding: '14px 8px',
                                     marginBottom: '10px',
-                                    background: 'var(--bg)',
+                                    background: 'var(--card-raised)',
                                   }}
                                 >
                                   <div style={{
@@ -1100,8 +1098,7 @@ export default function TailorPage() {
                           wordBreak: 'break-word',
                           maxHeight: '600px',
                           overflowY: 'auto',
-                          background: 'var(--bg)',
-                          border: '1px solid var(--border)',
+                          background: 'var(--card-raised)',
                           borderRadius: '10px',
                           padding: '16px',
                           margin: 0,

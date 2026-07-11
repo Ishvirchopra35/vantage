@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Application Tracking · Docs',
+  title: 'Application Tracking Â· Docs',
   description: 'Track your job applications, monitor statuses, and measure your response rate.',
   alternates: { canonical: '/docs/application-tracking' },
 };
@@ -14,7 +14,7 @@ export default function ApplicationTrackingPage() {
   return (
     <DocsLayout>
       <div>
-        <h1 style={heading}>Application tracking</h1>
+        <h1 style={heading}><span className="lph-metal">Application tracking</span></h1>
         <p style={summary}>Log every application, track statuses, and measure your response rate over time.</p>
 
         <section style={section}>

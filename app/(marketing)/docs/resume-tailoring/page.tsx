@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Resume Tailoring · Docs',
+  title: 'Resume Tailoring Â· Docs',
   description: 'Learn how Vantage rewrites your resume to match ATS keywords without fabricating experience.',
   alternates: { canonical: '/docs/resume-tailoring' },
 };
@@ -14,7 +14,7 @@ export default function ResumeTailoringPage() {
   return (
     <DocsLayout>
       <div>
-        <h1 style={heading}>Resume tailoring</h1>
+        <h1 style={heading}><span className="lph-metal">Resume tailoring</span></h1>
         <p style={summary}>
           Reword and reposition your existing experience to match the ATS keywords extracted from each job listing.
         </p>

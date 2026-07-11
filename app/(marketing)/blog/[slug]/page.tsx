@@ -79,8 +79,29 @@ export default async function BlogPostPage({
     .filter(p => p.category === frontmatter.category && p.slug !== slug)
     .slice(0, 3)
 
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const articleJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: frontmatter.title,
+    description: frontmatter.excerpt,
+    datePublished: `${frontmatter.date}T00:00:00Z`,
+    author: { '@type': 'Person', name: frontmatter.author },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Vantage',
+      logo: { '@type': 'ImageObject', url: `${siteUrl}/logo.png` },
+    },
+    mainEntityOfPage: `${siteUrl}/blog/${slug}`,
+    url: `${siteUrl}/blog/${slug}`,
+  }
+
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '48px 24px' }}>
+    <div style={{ maxWidth: 860, margin: '0 auto', padding: '48px 24px' }}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+        />
         {/* Back link */}
         <Link
           href="/blog"

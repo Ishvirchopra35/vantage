@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Networking Assistant · Docs',
+  title: 'Networking Assistant Â· Docs',
   description: 'Find contacts at target companies and generate personalized outreach messages.',
   alternates: { canonical: '/docs/networking' },
 };
@@ -14,7 +14,7 @@ export default function NetworkingPage() {
   return (
     <DocsLayout>
       <div>
-        <h1 style={heading}>Networking assistant</h1>
+        <h1 style={heading}><span className="lph-metal">Networking assistant</span></h1>
         <p style={summary}>Find contacts at target companies and generate personalized outreach messages for connection requests, cold emails, and follow-ups.</p>
 
         <section style={section}>

@@ -77,7 +77,7 @@ export default async function BillingPage() {
       />
 
       {/* Current plan card */}
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px', marginBottom: '16px' }}>
+      <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px', marginBottom: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -86,8 +86,8 @@ export default async function BillingPage() {
               </span>
               <span style={{
                 fontSize: '10px',
-                padding: '2px 8px',
-                border: '1px solid var(--border)',
+                padding: '2px 7px',
+                background: 'var(--card-raised)',
                 borderRadius: '20px',
                 color: 'var(--muted)',
               }}>
@@ -105,7 +105,7 @@ export default async function BillingPage() {
       </div>
 
       {/* Monthly usage card */}
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px' }}>
+      <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px' }}>
         <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '20px' }}>Monthly Usage</div>
         <UsageRow label="Resume tailorings" used={s?.tailoring_uses ?? 0} limit={LIMITS.tailoring} />
         <UsageRow label="Cover letters" used={s?.cover_letter_uses ?? 0} limit={LIMITS.cover_letter} />

@@ -73,8 +73,8 @@ export default function CustomSelect({
             : {
                 width: '100%',
                 textAlign: 'left',
-                background: 'var(--card-sunken)',
-                border: '1px solid var(--border)',
+                background: 'var(--card-raised)',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius)',
                 color: selected ? 'var(--text)' : 'var(--muted)',
                 fontFamily: 'var(--font-body)',
@@ -119,7 +119,7 @@ export default function CustomSelect({
             right: 0,
             marginTop: 4,
             background: 'var(--card-raised)',
-            border: '1px solid var(--gold-border)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius)',
             boxShadow: 'var(--shadow-lg)',
             overflowX: 'hidden',
@@ -136,18 +136,16 @@ export default function CustomSelect({
                 aria-selected={isSelected}
                 onClick={() => { onChange(option.value); setOpen(false); }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--gold-dim)';
-                  e.currentTarget.style.color = 'var(--gold)';
+                  e.currentTarget.style.background = 'var(--card-sunken)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = isSelected ? 'var(--gold)' : 'var(--text)';
                 }}
                 style={{
                   padding: '10px 14px',
                   fontSize: 14,
                   fontFamily: 'var(--font-body)',
-                  color: isSelected ? 'var(--gold)' : 'var(--text)',
+                  color: isSelected ? 'var(--text)' : 'var(--muted)',
                   fontWeight: isSelected ? 600 : 400,
                   cursor: 'pointer',
                 }}

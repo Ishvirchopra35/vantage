@@ -51,7 +51,6 @@ function relativeDate(iso: string): string {
 
 const card = {
   background: 'var(--card)',
-  border: '1px solid var(--border)',
   borderRadius: 'var(--radius)',
   boxShadow: 'var(--shadow-md)',
   padding: '20px',
@@ -170,8 +169,8 @@ export default function StrategyReport() {
         <div style={sectionTitle}>Key Insights</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
           {topInsights.map((insight, i) => (
-            <div key={i} style={{ ...card, borderTop: '2px solid var(--gold-border)', boxShadow: 'var(--shadow-md), inset 0 14px 28px -20px rgba(212,168,71,0.4)' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', color: 'var(--gold)', fontWeight: 600, marginBottom: '8px' }}>
+            <div key={i} style={{ ...card, background: 'var(--card-raised)' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', color: 'var(--muted)', fontWeight: 600, marginBottom: '8px' }}>
                 #{i + 1}
               </div>
               <div style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.6 }}>{insight}</div>

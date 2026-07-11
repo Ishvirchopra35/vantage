@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Cover Letters · Docs',
+  title: 'Cover Letters Â· Docs',
   description: 'Generate keyword-driven cover letters that sound like you, not a template.',
   alternates: { canonical: '/docs/cover-letters' },
 };
@@ -14,7 +14,7 @@ export default function CoverLettersPage() {
   return (
     <DocsLayout>
       <div>
-        <h1 style={heading}>Cover letters</h1>
+        <h1 style={heading}><span className="lph-metal">Cover letters</span></h1>
         <p style={summary}>Generate keyword-driven cover letters that sound like you, not a template.</p>
 
         <section style={section}>

@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'ATS Scoring · Docs',
+  title: 'ATS Scoring Â· Docs',
   description: 'Understand how ATS systems evaluate resumes and how Vantage scores yours.',
   alternates: { canonical: '/docs/ats-scoring' },
 };
@@ -14,7 +14,7 @@ export default function AtsScoringPage() {
   return (
     <DocsLayout>
       <div>
-        <h1 style={heading}>ATS scoring</h1>
+        <h1 style={heading}><span className="lph-metal">ATS scoring</span></h1>
         <p style={summary}>Understand how automated screening systems evaluate your resume and how to improve your score.</p>
 
         <section style={section}>

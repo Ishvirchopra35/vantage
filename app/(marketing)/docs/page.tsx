@@ -80,12 +80,11 @@ export default function DocsHomePage() {
         style={{
           fontSize: '2rem',
           fontWeight: 700,
-          color: 'var(--text)',
           marginBottom: '8px',
           lineHeight: 1.2,
         }}
       >
-        Documentation
+        <span className="lph-metal">Documentation</span>
       </h1>
       <p
         style={{
@@ -116,7 +115,6 @@ export default function DocsHomePage() {
               gap: '16px',
               padding: '20px 24px',
               textDecoration: 'none',
-              transition: 'border-color 0.15s',
             }}
             className="ds-card docs-home-card"
           >

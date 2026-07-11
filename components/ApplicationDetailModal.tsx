@@ -186,9 +186,9 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
   }
 
   const smallBtn: React.CSSProperties = {
-    background: 'transparent',
-    color: 'var(--muted)',
-    border: '1px solid var(--border)',
+    background: 'var(--card-raised)',
+    color: 'var(--text)',
+    border: 'none',
     borderRadius: 'var(--radius-sm)',
     padding: '5px 12px',
     fontSize: '12px',
@@ -221,7 +221,6 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
         onClick={e => e.stopPropagation()}
         style={{
           background: 'var(--card)',
-          border: '1px solid var(--border)',
           borderRadius: 'var(--radius)',
           boxShadow: 'var(--shadow-lg)',
           padding: '32px',
@@ -252,12 +251,12 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
                   <span style={{
                     background: STATUS_COLOR[data.application.status],
                     color: STATUS_TEXT[data.application.status],
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '3px 8px',
+                    borderRadius: '20px',
+                    padding: '2px 7px',
                     fontFamily: 'var(--font-display)',
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fontWeight: 600,
-                    letterSpacing: '0.06em',
+                    letterSpacing: '0.04em',
                     textTransform: 'uppercase' as const,
                   }}>
                     {STATUS_LABEL[data.application.status]}
@@ -289,8 +288,7 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
             {/* -- ATS Score --------------------------------------------- */}
             {data.atsScore && (
               <div style={{
-                background: 'var(--bg)',
-                border: '1px solid var(--border)',
+                background: 'var(--card-raised)',
                 borderRadius: 'var(--radius)',
                 padding: '20px',
                 marginBottom: '24px',
@@ -318,11 +316,12 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                       {data.atsScore.missing_keywords.map(kw => (
                         <span key={kw} style={{
-                          background: 'rgba(239,68,68,0.1)',
+                          background: 'rgba(239,68,68,0.12)',
                           color: '#ef4444',
-                          borderRadius: '6px',
-                          padding: '3px 10px',
-                          fontSize: '12px',
+                          borderRadius: '20px',
+                          padding: '2px 7px',
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-display)',
                         }}>
                           {kw}
                         </span>
@@ -416,8 +415,7 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
                       fontFamily: 'monospace',
                       fontSize: '12px',
                       whiteSpace: 'pre-wrap',
-                      background: 'var(--bg)',
-                      border: '1px solid var(--border)',
+                      background: 'var(--card-raised)',
                       borderRadius: 'var(--radius)',
                       padding: '16px',
                       maxHeight: '400px',

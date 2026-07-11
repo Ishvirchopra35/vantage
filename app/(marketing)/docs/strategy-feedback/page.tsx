@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Strategy Feedback · Docs',
+  title: 'Strategy Feedback Â· Docs',
   description: 'Get AI analysis of your application patterns to optimize your job search approach.',
   alternates: { canonical: '/docs/strategy-feedback' },
 };
@@ -14,7 +14,7 @@ export default function StrategyFeedbackPage() {
   return (
     <DocsLayout>
       <div>
-        <h1 style={heading}>Strategy feedback</h1>
+        <h1 style={heading}><span className="lph-metal">Strategy feedback</span></h1>
         <p style={summary}>Get AI analysis of your application patterns after 15 applications to identify what is working and what to change.</p>
 
         <section style={section}>

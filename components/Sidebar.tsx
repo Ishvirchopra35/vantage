@@ -206,7 +206,14 @@ export default function Sidebar({
       padding: '0 12px',
       borderLeft: active ? '2px solid var(--gold)' : '2px solid transparent',
       borderRadius: 'var(--radius-sm)',
-      background: active ? 'var(--gold-dim)' : hovered ? 'var(--card-raised)' : 'transparent',
+      // Gold tint + left bar as before; the fill itself reads as glass
+      // (top-left sheen, top glint, themed hairline).
+      background: active
+        ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 60%), var(--gold-dim)'
+        : hovered ? 'var(--card-raised)' : 'transparent',
+      boxShadow: active
+        ? 'inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px var(--glass-hover)'
+        : 'none',
       transition: 'all 0.15s ease',
       textDecoration: 'none' as const,
       fontSize: '13px',
@@ -228,9 +235,9 @@ export default function Sidebar({
             style={{
               fontSize: '10px',
               color: 'var(--muted)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '1px 6px',
+              background: 'var(--card-raised)',
+              borderRadius: '20px',
+              padding: '2px 7px',
               marginLeft: '8px',
               whiteSpace: 'nowrap',
             }}
@@ -313,18 +320,11 @@ export default function Sidebar({
       <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', fontSize: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div
+            className="ds-avatar"
             style={{
               width: '28px',
               height: '28px',
-              borderRadius: '50%',
-              border: '2px solid var(--gold-border)',
-              background: 'var(--border)',
-              color: 'var(--text)',
-              display: 'grid',
-              placeItems: 'center',
               fontSize: '11px',
-              fontWeight: 600,
-              flexShrink: 0,
             }}
           >
             {initials}
@@ -335,9 +335,9 @@ export default function Sidebar({
                 {profile?.full_name || 'Your profile'}
               </span>
               {enableFreemium && (plan === 'pro' ? (
-                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'var(--accent)', color: 'var(--bg)', flexShrink: 0 }}>Pro</span>
+                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '20px', background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)', flexShrink: 0 }}>Pro</span>
               ) : (
-                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', flexShrink: 0 }}>Free</span>
+                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '20px', background: 'var(--card-raised)', color: 'var(--muted)', flexShrink: 0 }}>Free</span>
               ))}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -353,21 +353,7 @@ export default function Sidebar({
         )}
 
         {enableFreemium && plan === 'free' && (
-          <button
-            type="button"
-            style={{
-              marginTop: '12px',
-              width: '100%',
-              padding: '6px 10px',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border)',
-              background: 'transparent',
-              color: 'var(--text)',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
+          <button type="button" className="ds-btn" style={{ marginTop: '12px', width: '100%', fontSize: '12px' }}>
             Upgrade to Pro
           </button>
         )}
@@ -404,7 +390,7 @@ export default function Sidebar({
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '0 0 4px' }}>
             <Link href="/about" className="sidebar-footer-link">About</Link>
-            <Link href="/contact" className="sidebar-footer-link">Contact</Link>
+            <Link href="/feedback" className="sidebar-footer-link">Feedback</Link>
             <Link href="/privacy" className="sidebar-footer-link">Privacy</Link>
             <Link href="/terms" className="sidebar-footer-link">Terms</Link>
           </div>
@@ -508,18 +494,11 @@ export default function Sidebar({
         <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', fontSize: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div
+              className="ds-avatar"
               style={{
                 width: '28px',
                 height: '28px',
-                borderRadius: '50%',
-                border: '2px solid var(--gold-border)',
-                background: 'var(--border)',
-                color: 'var(--text)',
-                display: 'grid',
-                placeItems: 'center',
                 fontSize: '11px',
-                fontWeight: 600,
-                flexShrink: 0,
               }}
             >
               {initials}
@@ -530,9 +509,9 @@ export default function Sidebar({
                   {profile?.full_name || 'Your profile'}
                 </span>
                 {enableFreemium && (plan === 'pro' ? (
-                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'var(--accent)', color: 'var(--bg)', flexShrink: 0 }}>Pro</span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '20px', background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)', flexShrink: 0 }}>Pro</span>
                 ) : (
-                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', flexShrink: 0 }}>Free</span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '20px', background: 'var(--card-raised)', color: 'var(--muted)', flexShrink: 0 }}>Free</span>
                 ))}
               </div>
               <div style={{ fontSize: '11px', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -548,21 +527,7 @@ export default function Sidebar({
           )}
 
           {enableFreemium && plan === 'free' && (
-            <button
-              type="button"
-              style={{
-                marginTop: '12px',
-                width: '100%',
-                padding: '6px 10px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
-                background: 'transparent',
-                color: 'var(--text)',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
+            <button type="button" className="ds-btn" style={{ marginTop: '12px', width: '100%', fontSize: '12px' }}>
               Upgrade to Pro
             </button>
           )}
@@ -599,7 +564,7 @@ export default function Sidebar({
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '0 0 4px' }}>
               <Link href="/about" className="sidebar-footer-link">About</Link>
-              <Link href="/contact" className="sidebar-footer-link">Contact</Link>
+              <Link href="/feedback" className="sidebar-footer-link">Feedback</Link>
               <Link href="/privacy" className="sidebar-footer-link">Privacy</Link>
               <Link href="/terms" className="sidebar-footer-link">Terms</Link>
             </div>

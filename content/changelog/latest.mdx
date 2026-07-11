@@ -817,3 +817,197 @@ title: Marketing landing page overhaul: split hero, live product mockups, rim-li
 - app/(marketing)/page.tsx: replaced the lead feature-card grid with three full-width alternating rows (resume tailoring before/after diff, application tracking table, auto-apply job list), each with real mini product UI and a subtle top divider. Support features became a compact horizontal strip below (icon, name, one line, no cards)
 - app/globals.css: replaced every outward gold box-shadow glow with a rim-light system: gold catches light on the top edge and diffuses inward like rim lighting on glass. New .glass-rim / .glass-rim-strong classes; the Pro pricing card and closing CTA card get the strongest rim. Feature-card and CTA hovers now brighten the top rim instead of glowing outward
 - app/globals.css: deepened --gold from #d4a847 to #c9a227 (and the matching gold-dim / gold-border / shadow rgba values) across dark and light themes
+
+---
+date: 2026-07-10
+type: Update
+title: Dark-glass visual overhaul - gold removed from buttons/cards/badges/inputs, kept only as a restrained accent
+- app/globals.css: new tokens --btn-primary-bg/--btn-primary-bg-hover/--btn-primary-text/--glass-hover for dark-filled white-text primary buttons. Rewrote .ds-card/.dashboard-card/.dash-card-row/.lp-feature-card/.lp-pain-card/.glass-rim/.glass-rim-strong/.lp-window to drop borders and gold box-shadow glows, relying on background step-up (--card to --card-raised) plus shadow for depth. Added .ds-btn (dark-glass secondary button), .ds-avatar, .ds-icon-tile, .filter-pill (dark-glass toggle/filter pill with a neutral inset-highlight active state) helper classes. .status-badge, .dashboard-document-label, .lp-badge-gold/.lp-badge-green, .lp-autofill-tag recompacted to the pill spec (padding 2px 7px, font-size 10px, border-radius 20px, no border). .dashboard-stat-label/.lp-mock-stat-label gap tightened to 2px. .filter-control and CustomSelect's default input path now sit on --card-raised with a --border-subtle hairline instead of --border. Input focus rings (.dashboard-main input:focus, .input-gold-focus) switched from gold to neutral --focus-ring. Landing eyebrows (.ds-section-label, .lp-feature-num, EYEBROW/CTA_OUTLINE consts) shrunk to 10px muted instead of gold
+- components/Sidebar.tsx, components/ui/ScoreBadge.tsx, components/CustomSelect.tsx, components/ApplicationDetailModal.tsx: avatars/badges/inputs/dropdowns updated to the same dark-glass + compact-pill treatment (no gold borders, no colored card borders)
+- app/(marketing)/page.tsx: CTA_GOLD border dimmed from a solid gold line to a low-opacity tint (fill still carries the restrained gold accent); CTA_OUTLINE, ICON_TILE, pricing/step cards, and the closing-CTA badges converted to dark glass / compact pills; the marketing headline gold accent is unchanged (the one deliberate gold moment on the page)
+- app/(dashboard)/{apply,ats,billing,interview,jobs,networking,tailor,tracker}/page.tsx, apply/[jobId]/page.tsx, strategy/StrategyReport.tsx: removed gold-filled/gold-bordered primary buttons, icon tiles, filter tabs, and card borders in favor of the dark-filled-white-text primary button and borderless card system; the "applied" status badge is the one place gold remains, as the existing semantic status color
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Landing hero rebuilt as an overlay composition - metallic headline in front of a dimmed workspace with a studio-light beam
+- app/(marketing)/page.tsx: replaced the split-grid hero (headline left, tilted app window right) with a full-bleed aria-hidden backdrop stage of the actual product: ghosted sidebar with the real nav labels, a Tailor + ATS panel (overall score 87, keyword/format/experience/skills subscore bars matching the ats_scores columns, and a per-bullet before/after diff with a lit "After Vantage" line), and an Applications panel reusing TrackerRow with 7 rows (added Anthropic/Snowflake/Duolingo). Headline/CTAs now float in front with metallic gradient text (.lph-metal silver, .lph-metal-gold for "There's a better way.")
+- app/globals.css: removed .lp-hero/.lp-hero-grid/.lp-hero-float; added the .lph-* hero system (stage, mock grid, panels, subscore bars, diff, beam, shade, metallic text). New :root/light tokens: --hero-ink-strong/--hero-ink-soft (radial ink shade that darkens the mockup behind the copy), --hero-beam/--hero-beam-core (diagonal blurred studio-light beam, fades in once, disabled under prefers-reduced-motion), --metal-a..d and --metal-gold-a..d gradient stops for background-clip headline text in both themes
+- responsive: right panel hides under 1100px; under 860px the sidebar hides, the mock drops to a faint single-panel backdrop, and the shade strengthens so copy stays readable at 375px
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Hero mockup unified into one app screen with the headline bottom-left
+- app/(marketing)/page.tsx: the hero backdrop is now a single Tailor + ATS screen instead of separate floating panels: sidebar with wordmark and real nav labels, page header row with a job-context chip, ATS score card (87, subscore bars, missing-keyword pills), a bullet-by-bullet changes card with three before/after diff rows (first row lit), and a cropped keyword-coverage table (keyword / mentions in job / mentions in resume / covered-missing status) spanning the bottom. Removed the HERO_ROWS applications panel; added DIFF_ROWS, MISSING_KEYWORDS, COVERAGE_ROWS mock data
+- app/globals.css: hero copy now anchors bottom-left (align-items flex-end) matching the reference layout; .lph-panel/.lph-main/.lph-rightcol replaced by .lph-body/.lph-pagehead/.lph-chip/.lph-content/.lph-card/.lph-kws/.lph-diff-row/.lph-trow; cards flattened (shadow-sm, sit in the screen instead of floating); sidebar gains a hairline right border so the mock reads as one canvas; new --hero-veil token adds a uniform dim layer over the whole mockup so only the lit diff bullet stays bright (non-lit diff lines dropped to muted); shade/beam repositioned for the bottom-left copy
+- responsive: coverage table hides under 1100px; under 860px the sidebar and score card hide and the diff card ghosts behind strengthened shading
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Hero lighting reworked to match the reference - diagonal shaft from the header, dark corners
+- app/globals.css: the hero shade now models one light source entering at the top (left of center, appearing to come from under the header) and falling at 45 degrees toward bottom-right: a diagonal transparent corridor in the veil reveals the app example along the light path, a distance-falloff radial dims it before bottom-right, a bottom-right radial pool makes that corner almost black so nothing competes with the hero text, and the top-right end of the corridor gradient keeps that corner dim; the top fade shrank (14% to 7%) so the light touches the header edge
+- app/globals.css: .lph-beam realigned to the corridor (left 41%, rotate -45deg, wider, brighter core via --hero-beam/--hero-beam-core) with a mask-image fade so the visible shaft dies out along its length; a comment notes the beam and the 45deg corridor in .lph-shade must stay in sync
+- verified by pixel sampling: shaft path reads ~3x brighter than the dark zones; coverage-table right, bottom-right, and text zones sit at near-background black in dark mode
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Landing cards get a metallic-glass treatment - light diffuses inward from the border
+- app/globals.css: new .glass-card class (landing only for now): the top edge light diffuses INTO the surface as a blurred inset bloom instead of a crisp 1px line, the fill carries a faint top-left sheen (same light direction as the hero beam), a hairline glass edge wraps the card, the outer drop shadow is tight and soft, and a shared ::after adds subtle SVG fractal-noise grain (mix-blend overlay, dimmer in light mode). Light-mode variant uses a white sheen, ink hairline, and soft drop
+- app/globals.css: .glass-rim-strong (Pro pricing card, closing CTA band) upgraded to the same recipe with a stronger sheen and bloom on --card-raised; .lp-window (feature mockup frames) and .lph-card (hero mockup cards) get the sheen + inner bloom + hairline; .lp-pain-card now composes with .glass-card and its hover brightens the inner bloom instead of deepening an outer shadow
+- app/(marketing)/page.tsx: pain cards, how-it-works step cards, and the Free pricing card now use the glass-card class instead of inline background/box-shadow styles
+- pending user review: if approved, this treatment rolls out to every other page in the app
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Bespoke feature artifacts and a premium closing CTA
+- app/(marketing)/page.tsx: the three feature visuals are no longer three identical app windows. 01 Resume tailoring is now a layered "slips" artifact on a glass stage: a dim struck-through Before slip, a small swap chip, and a floating lit After slip with the keyword badge. 03 Auto-apply is a mini application form (name, email, work authorization, drafted answer) with green checks and an overlapping extension toast reading "Form filled from your profile / Review and submit when ready." 02 Application tracking keeps the app window as the one true app screen. Removed JOB_ROWS and the unused .lp-match/.lp-autofill-tag styles; added FORM_ROWS
+- app/(marketing)/page.tsx: closing CTA band upgraded: headline set in the metallic gradient (.lph-metal), the before/after box replaced with the same floating slips, and a new lp-cta-special class adds a faint warm gold glow from the top-left plus a white counter-glow (the closing CTA is one of the allowed gold moments)
+- app/globals.css: new .lp-stage, .lp-slip/.lp-slip-before/.lp-slip-after, .lp-swap-chip, .lp-mini-form/.lp-form-row/.lp-form-label/.lp-form-value/.lp-form-check, .lp-ext-toast*, .lp-cta-special classes, all with light-mode variants, following the metallic-glass recipe (inset bloom, top-left sheen, hairline edge, soft drop)
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Landing page containers widened to the hero mockup's line
+- all left-aligned landing containers now share the hero mockup's edge (max-width 1400px, padding clamp(24px, 4vw, 60px)): hero copy (.lph-copy), sound-familiar / how-it-works / pricing / closing-CTA sections (app/(marketing)/page.tsx inline styles), .lp-features, and .lp-support in globals.css
+- components/marketing/MarketingNav.tsx and MarketingFooter.tsx widened to the same frame so the wordmark, page content, and footer sit on one line
+- centered content (the 780px pricing card pair, centered section headings) left as is
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Hero lighting tuned, metallic gold CTA button, Pro card elevated
+- app/globals.css: hero ink pool behind the headline enlarged and strengthened (the mockup text no longer ghosts through the headline), the light corridor widened toward the upper right (transparent band 42-64 percent), the distance falloff relaxed, and the beam made wider (clamp 260px-500px), re-centered (left 42 percent), and extended further down its path (mask fade 46-86 percent)
+- app/globals.css: new .lp-metal-btn - metallic gold pill button built from the --metal-gold-* gradient stops (lighter top, darker base, top glint, soft gold-tinted drop); dark text in dark mode, white text on the deeper light-mode golds. Used on the closing CTA and the Pro pricing card CTA; Free card keeps the dim gold link
+- app/globals.css: .lp-slip-after brightened to frosted glass (stronger sheen and bloom) and .lp-cta-special::before gains a diagonal brushed-metal sheen plus a stronger gold ambient glow
+- app/globals.css: new .lp-pro-card - the Pro pricing card lifts 8px, takes a brighter sheen, stronger inner bloom, and a deeper drop shadow than the Free card (lift disabled on mobile single-column)
+- app/(marketing)/page.tsx: closing CTA and Pro card buttons switched to lp-metal-btn; Pro card gets the lp-pro-card class
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Landing polish - features header animation, macOS window dots, real autofill data, level pricing cards, CTA details
+- app/(marketing)/page.tsx: "Your unfair advantage / Three things that change your odds" header now wrapped in Reveal so it fades in like the rest of the page; auto-apply mock uses Ishvir Chopra / ischopra@uwaterloo.ca and the drafted answer is wrapped in square brackets to read as a placeholder; closing CTA eyebrow gets a small gold kicker tick; CTA_OUTLINE and ICON_TILE gain a subtle top glint
+- app/globals.css: .lp-window-dot colored as macOS traffic lights (red/amber/green) with a tiny glint; .lp-pro-card no longer lifts upward (stays level with the Free card, still brighter with the metal button); .lp-cta-special gains a brighter top glint and deeper drop shadow; .lp-mock-logo tiles get an inset glint
+- per user instruction, no new background gradients were added - all premium detail comes from inset glints, rims, and shadows
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Feature
+title: Closing CTA becomes live metal - cursor-tracked lighting
+- components/marketing/CtaSpotlight.tsx (new, client component): wraps the closing CTA card, tracks the pointer, and writes --mx/--my CSS variables directly on the element (no React state, cheap mousemove). Touch devices never set the variables and keep the static lighting
+- app/globals.css: .lp-cta-light spotlight layer (tight specular + wide halo) follows the cursor and fades in via .is-lit; .lp-cta-metal-text re-angles the headline's metal gradient and slides its highlight band with --mx so the lettering re-lights toward the pointer like engraved metal; .lp-btn-glint sweeps a skewed specular stripe across the gold button every 5.5s (the one automatic motion, so mobile gets the moment). All of it is disabled under prefers-reduced-motion; light mode uses a warm gold spotlight
+- app/(marketing)/page.tsx: CTA card wrapped in CtaSpotlight; headline span gains lp-cta-metal-text; button gains lp-btn-glint
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Cursor light on all cards and mockups; closing CTA composition upgraded
+- components/marketing/Spotlight.tsx (new, replaces CtaSpotlight.tsx): generic cursor-tracked light wrapper with an optional ariaHidden prop for decorative mockups; renders the .lp-hover-light layer and writes --mx/--my directly on the element
+- app/(marketing)/page.tsx: Spotlight now wraps the feature mockup stages (tailoring slips, auto-apply form), the AppWindow frames, the how-it-works step cards, and both pricing cards. The pain-quote cards are deliberately excluded per user instruction; the hero backdrop is untouched (pointer-events none)
+- app/globals.css: .lp-cta-light generalized to .lp-hover-light (quiet version for ordinary cards, stronger override on .lp-cta-special; gold-tinted in light mode)
+- closing CTA composition: padding up to clamp(40px, 5.5vw, 68px), headline up to clamp(30px, 4vw, 46px) at weight 800, microcopy ("Free during early access - No credit card required") under the metal button, the before/after slips now bridged by the swap chip like the feature-01 artifact, and a giant ghost "Vantage" wordmark (.lp-cta-ghost, opacity 0.04) anchored bottom-right behind the content, echoing the step cards' ghost numerals
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Metallic-glass rollout across the dashboard, resources, company, and legal pages
+- app/globals.css: the shared dashboard surfaces (.ds-card, .dashboard-card, .dash-card-row and its hover) upgraded to the metallic-glass recipe - top-left sheen, inset top bloom, hairline glass edge, tight soft drop - with light-mode variants. Paint-only changes (no position or pseudo-element additions) so no dashboard layout can shift. Blog and changelog cards inherit automatically via .ds-card
+- app/globals.css: .ds-btn gains a top glint (hover keeps it), .ds-btn-primary and .dashboard-primary-button get a machined top-glint plus bottom-shade pair, .ds-icon-tile gets a glint
+- app/(marketing)/docs/page.tsx: topic cards wrapped in Spotlight (cursor light) with the link filling the card; all 11 docs subpage titles set in the metallic gradient via a scripted h1 wrap
+- app/(marketing)/{blog,changelog,about,contact,privacy,terms}/page.tsx: page titles set in the metallic gradient (.lph-metal); blog featured post card wrapped in Spotlight
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Light-mode hero slash goes gold; Pro pricing card differentiated in light mode
+- app/globals.css: light-theme --hero-beam/--hero-beam-core switched from a dark glare to subtle gold (rgba(201,162,39) at 0.09/0.18) so the hero light shaft reads as warm sunlight in light mode; dark mode beam unchanged
+- app/globals.css: light-theme .lp-pro-card now sits on bright white (--card, was the grayer --card-raised) with a faint warm sheen, a low-opacity gold inset hairline (CTA_GOLD-style), and a warm-tinted deep drop shadow; dark-mode Pro card untouched
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Dark mode is the default; Pro card becomes a dark island in light mode; docs/blog cursor light removed
+- app/layout.tsx: default theme is now dark - both the SSR data-theme attribute and the theme script fallback (localStorage "vantage-theme" still wins for users who chose a theme)
+- app/globals.css: in light mode the Pro pricing card is now a dark-glass island embedded in the light page - theme tokens (--text/--muted/--gold-dim/--metal-gold-*) are re-scoped locally on .glass-rim-strong.lp-pro-card so all content inverts, on a #131313 glass surface with full-strength grain and the dark-mode metal button face; the extra class in the selector beats the later .glass-rim-strong light rule that was silently overriding the background. Dark-mode Pro card untouched
+- app/(marketing)/docs/page.tsx and blog/page.tsx: cursor Spotlight removed per user request - docs topic cards and the blog featured card are plain glass link cards again
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Feature
+title: Feedback page, changelog timeline, custom scrollbars, external-link icon, wider reading pages, gilded Pro card
+- app/(marketing)/feedback/page.tsx + FeedbackForm.tsx (new): public "Help make Vantage better" page - bug report / feature request toggle, summary, details, optional email; controlled inputs with onClick submit (no form tag), disabled button with Spinner while sending, inline success and error states. Linked from the footer Resources column
+- app/api/feedback/route.ts (new): public POST endpoint that validates the submission and forwards it as a JSON row to FEEDBACK_SHEET_WEBHOOK_URL (point it at a Power Automate "HTTP request received - Add a row into an Excel table" flow or any sheet-webhook service); returns a clear 503 message if the env var is not set
+- new env var: FEEDBACK_SHEET_WEBHOOK_URL (server only)
+- app/(marketing)/changelog/page.tsx + app/globals.css: changelog rebuilt as a timeline (.cl-*) - date and type pill on a left rail, a continuous line with a node per entry (newest node bright), entries as clean content blocks instead of stacked cards; single-column collapse under 700px; page widened to 980px
+- components/ui/ExternalLinkIcon.tsx (new): square-with-arrow external-link icon; replaced the literal arrow character in jobs (View job) and networking (View Profile, contact-name links)
+- app/globals.css: custom scrollbars app-wide - thin rounded thumb on a transparent track via new --scrollbar-thumb/--scrollbar-thumb-hover tokens (both themes), webkit + Firefox
+- reading pages widened: terms and privacy 680 to 860, about 640 to 820, contact 560 to 760, blog posts 680 to 860
+- app/globals.css: light-mode Pro pricing card is no longer a dark island - it is gilded: warm ivory surface, metallic gold edge along the top, warm gold hairline and warm deep shadow; stays light, still clearly featured. Dark mode unchanged
+- no new DB columns, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Contact merged into feedback, signup agreements, changelog jump list, Pro card gold line, footer links
+- app/(auth)/signup/page.tsx: signup now requires agreeing to the Terms of Service and Privacy Policy (checkbox, validated before submit) and offers an optional marketing-emails opt-in. Both are stored in auth user metadata (marketing_opt_in, terms_accepted_at) as boilerplate for the future mailing-list feature - no emails are sent yet
+- contact page merged into /feedback: app/(marketing)/contact/page.tsx now redirects to /feedback; components/marketing/ContactForm.tsx and app/api/contact deleted. The feedback form subject is a CustomSelect with Bug report / Feature request / General question / Partnership / Press / Other (placeholders adapt per subject); /api/feedback accepts the new types and forwards the label to the sheet webhook. Feedback page gains a "Prefer email?" fallback line
+- links updated: footer Company column now About + Feedback (Contact removed, Feedback out of Resources); dashboard sidebar footer Contact links point to /feedback; terms and about pages reference the feedback page
+- components/marketing/MarketingFooter.tsx: GitHub (github.com/Ishvirchopra35) and portfolio (ishvirschopra35.tech) icon links added to the social row
+- app/globals.css: Pro pricing card simplified to a single 3px metallic gold line along the top edge in BOTH themes - light mode drops the ivory wash, sheen, gold hairline, and warm glow; dark mode otherwise unchanged
+- app/(marketing)/changelog/page.tsx + app/globals.css: "Jump to an update" disclosure under the header - a two-column anchor list (date + title) linking to #update-N ids on each timeline entry, with scroll-margin so anchors land clear of the nav
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Glass sidebar highlight, connection-code copy cleanup, tailor toggle arrow
+- components/Sidebar.tsx: the active nav item is no longer a gold-tinted bar - it is glass (raised surface, top glint, themed hairline via --glass-hover), consistent with the dark-glass system
+- app/(dashboard)/apply/[jobId]/page.tsx: removed the "Manage connection code" link from the per-application auto-fill card (the main auto-apply setup page keeps its code management); the "Already installed?" link now says the code lives at the bottom of the Profile page
+- app/(dashboard)/apply/page.tsx: setup step 2 copy points to the bottom of the Profile page and the button links to /profile#extension-token
+- app/(dashboard)/profile/page.tsx: added the extension-token anchor (with scroll margin) around ExtensionTokenSection so those links actually scroll to it
+- app/(dashboard)/tailor/page.tsx: "URL not working? Paste the description directly" now ends with the right ArrowIcon
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Fix
+title: Sidebar highlight keeps its gold bar and tint with a glass fill; extension toast uses the real logo
+- components/Sidebar.tsx: active nav item restored to the gold left bar + gold-dim tint, with the fill itself now glass (top-left sheen layer over the tint, top glint, themed hairline)
+- app/(marketing)/page.tsx + app/globals.css: the auto-apply mockup extension toast shows the Vantage logo image instead of a "V" letter tile
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Extension popup restyled to the dark-glass system; SEO hardening
+- extension/popup.html: popup stylesheet rewritten to the current design system - gold updated to #c9a227 and confined to the status badge (compact pill, no border); primary button is dark-filled white text with the machined glint; secondary/icon buttons are dark glass with inset highlights; cards are borderless glass with sheen, glint, hairline, and soft drop; inputs sit on card-raised with the neutral focus ring; result boxes use tinted inset hairlines for success/error; thin custom scrollbar; hint links are white with underline instead of gold
+- app/layout.tsx: title template ("%s - Vantage" on every child page), keywords, publisher/category, explicit robots directives (index/follow, large image preview), author URL
+- app/(marketing)/page.tsx: JSON-LD graph gains a WebSite node and sameAs profiles (GitHub, LinkedIn, Instagram, YouTube, portfolio) on the Organization and founder for entity recognition
+- app/(marketing)/blog/[slug]/page.tsx: BlogPosting JSON-LD on every post
+- app/sitemap.ts: /contact replaced with /feedback
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-10
+type: Update
+title: Google Search Console verification tag wired to an env var
+- app/layout.tsx: metadata.verification.google reads NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION; the meta tag is omitted when the variable is unset
+- new env var: NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION (optional)

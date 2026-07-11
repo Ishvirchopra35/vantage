@@ -395,7 +395,6 @@ export default function ApplyPrepPage() {
 
   const card: React.CSSProperties = {
     background: 'var(--card)',
-    border: '1px solid var(--border)',
     borderRadius: 'var(--radius)',
     boxShadow: 'var(--shadow-md)',
     padding: '20px 24px',
@@ -403,7 +402,7 @@ export default function ApplyPrepPage() {
   }
 
   const sectionLabel: React.CSSProperties = {
-    fontSize: '11px',
+    fontSize: '10px',
     fontWeight: 600,
     color: 'var(--muted)',
     textTransform: 'uppercase',
@@ -412,9 +411,9 @@ export default function ApplyPrepPage() {
   }
 
   const smallBtn: React.CSSProperties = {
-    background: 'transparent',
+    background: 'var(--card-raised)',
     color: 'var(--muted)',
-    border: '1px solid var(--border)',
+    border: 'none',
     borderRadius: '8px',
     padding: '5px 12px',
     fontSize: '12px',
@@ -427,9 +426,9 @@ export default function ApplyPrepPage() {
 
   const primaryBtn: React.CSSProperties = {
     padding: '9px 20px',
-    background: 'var(--gold-dim)',
-    color: 'var(--gold)',
-    border: '1px solid var(--gold-border)',
+    background: 'var(--btn-primary-bg)',
+    color: 'var(--btn-primary-text)',
+    border: 'none',
     borderRadius: 'var(--radius)',
     fontSize: '13px',
     fontFamily: 'var(--font-display)',
@@ -443,8 +442,8 @@ export default function ApplyPrepPage() {
   const textareaStyle: React.CSSProperties = {
     width: '100%',
     padding: '10px 12px',
-    background: 'var(--bg)',
-    border: '1px solid var(--border)',
+    background: 'var(--card-raised)',
+    border: '1px solid var(--border-subtle)',
     borderRadius: '8px',
     color: 'var(--text)',
     fontSize: '13px',
@@ -456,8 +455,7 @@ export default function ApplyPrepPage() {
   }
 
   const kitCard: React.CSSProperties = {
-    background: 'var(--bg)',
-    border: '1px solid var(--border)',
+    background: 'var(--card-raised)',
     borderRadius: '10px',
     padding: '16px',
     display: 'flex',
@@ -510,12 +508,12 @@ export default function ApplyPrepPage() {
             <span style={{
               background: STATUS_COLOR[application.status],
               color: STATUS_TEXT[application.status],
-              borderRadius: 'var(--radius-sm)',
-              padding: '3px 8px',
+              borderRadius: '20px',
+              padding: '2px 7px',
               fontFamily: 'var(--font-display)',
-              fontSize: '11px',
+              fontSize: '10px',
               fontWeight: 600,
-              letterSpacing: '0.06em',
+              letterSpacing: '0.04em',
               textTransform: 'uppercase' as const,
               flexShrink: 0,
             }}>
@@ -683,10 +681,7 @@ export default function ApplyPrepPage() {
 
         {extensionInstalled ? (
           <div style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.7 }}>
-            Click the <strong>Vantage icon</strong> in your toolbar while you have the application form open.{' '}
-            <Link href="/profile#extension-token" style={{ color: 'var(--accent)', textDecoration: 'none', fontSize: '13px' }}>
-              Manage connection code <ArrowIcon />
-            </Link>
+            Click the <strong>Vantage icon</strong> in your toolbar while you have the application form open.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -703,7 +698,7 @@ export default function ApplyPrepPage() {
                 Install extension - 30 seconds
               </a>
               <Link href="/profile#extension-token" style={{ ...smallBtn, fontSize: '13px' }}>
-                Already installed? Get your connection code <ArrowIcon />
+                Already installed? Get your connection code at the bottom of your Profile page <ArrowIcon />
               </Link>
             </div>
           </div>
