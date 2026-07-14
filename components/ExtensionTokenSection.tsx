@@ -1,5 +1,6 @@
 'use client';
 
+// Profile section that issues and displays the extension connection code.
 import { useState } from 'react';
 
 interface ExtensionTokenSectionProps {

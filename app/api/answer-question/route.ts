@@ -1,10 +1,12 @@
+// Generates an answer to one application question using the user's full
+// context; saved to application_questions. GET lists saved answers.
 import { requireAuth } from '@/lib/requireAuth'
 import { validateBody } from '@/lib/validateRequest'
 import { ok, err, notFound, rateLimited, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkLimit, LIMITS } from '@/lib/rateLimit'
+import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
-import { generateText } from '@/lib/ai'
+import { generateText, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
 import { createClient } from '@/lib/supabase/server'
 
@@ -18,12 +20,12 @@ export async function POST(request: Request): Promise<Response> {
   const { user } = auth
 
   const body = await request.json().catch(() => null)
-  const validation = validateBody<{ jobId: string; applicationId: string; question: string }>(
+  const validation = validateBody<{ applicationId: string; question: string; jobId?: string | null }>(
     body,
-    ['jobId', 'applicationId', 'question']
+    ['applicationId', 'question']
   )
   if (!validation.valid) return err(validation.error, 400)
-  const { jobId, applicationId, question } = validation.data
+  const { applicationId, question, jobId } = validation.data
 
   const limitCheck = await checkLimit(user.id, 'tailoring')
   if (!limitCheck.allowed) {
@@ -31,19 +33,52 @@ export async function POST(request: Request): Promise<Response> {
     return rateLimited('question answering', LIMITS.tailoring, 30)
   }
 
+  const rateLimit = await checkRateLimit({
+    key: 'answer-question',
+    userId: user.id,
+    devLimit: 5,
+    freeLimit: 15,
+    proLimit: 20,
+    devWindowMinutes: 1440,
+    freeWindowMinutes: 43200,
+    proWindowMinutes: 1440,
+  })
+  if (!rateLimit.allowed) {
+    await logRoute(ROUTE, user.id, Date.now() - start, 429)
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
+  }
+
   const supabase = await createClient()
 
-  const { data: job, error: jobError } = await supabase
-    .from('jobs')
-    .select('id, user_id, title, company, required_skills, keywords')
-    .eq('id', jobId)
+  // The application is the source of truth (manual applications have no jobs
+  // row at all). The jobs lookup below is an optional enrichment.
+  const { data: application, error: appError } = await supabase
+    .from('applications')
+    .select('id, company, role, job_id')
+    .eq('id', applicationId)
     .eq('user_id', user.id)
     .single()
 
-  if (jobError || !job) {
+  if (appError || !application) {
     await logRoute(ROUTE, user.id, Date.now() - start, 404)
-    return notFound('Job')
+    return notFound('Application')
   }
+
+  const effectiveJobId = application.job_id ?? jobId ?? null
+
+  let job: { id: string; title: string; company: string; required_skills: string[] | null; keywords: string[] | null } | null = null
+  if (effectiveJobId) {
+    const { data: jobRow } = await supabase
+      .from('jobs')
+      .select('id, title, company, required_skills, keywords')
+      .eq('id', effectiveJobId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    job = jobRow ?? null
+  }
+
+  const jobTitle = job?.title ?? application.role
+  const jobCompany = job?.company ?? application.company
 
   const ctx = await buildUserContext(user.id)
 
@@ -63,9 +98,15 @@ APPLICATION QUESTION: ${question}
 
 ${formatContextForPrompt(ctx)}
 
-JOB: ${job.title} at ${job.company}
-Key requirements: ${(job.required_skills ?? []).slice(0, 6).join(', ')}
-ATS keywords relevant to this question: ${(job.keywords ?? []).slice(0, 15).join(', ')}
+JOB: ${jobTitle} at ${jobCompany}${
+    job && (job.required_skills ?? []).length > 0
+      ? `\nKey requirements: ${(job.required_skills ?? []).slice(0, 6).join(', ')}`
+      : ''
+  }${
+    job && (job.keywords ?? []).length > 0
+      ? `\nATS keywords relevant to this question: ${(job.keywords ?? []).slice(0, 15).join(', ')}`
+      : ''
+  }
 
 Instructions: Draw from their specific resume content. Reference real work, projects, and technologies they've actually listed.`
 
@@ -77,6 +118,10 @@ Instructions: Draw from their specific resume content. Reference real work, proj
       'answer-question'
     )
   } catch (e) {
+    if (isAiQuotaError(e)) {
+      await logRoute(ROUTE, user.id, Date.now() - start, 429)
+      return err(AI_BUSY_MESSAGE, 429)
+    }
     await logRoute(ROUTE, user.id, Date.now() - start, 500)
     return serverError(new Error('Failed to generate answer'))
   }
@@ -85,7 +130,7 @@ Instructions: Draw from their specific resume content. Reference real work, proj
     .from('application_questions')
     .insert({
       user_id: user.id,
-      job_id: jobId,
+      job_id: job?.id ?? null,
       application_id: applicationId,
       question,
       generated_answer: generatedAnswer,
@@ -102,7 +147,7 @@ Instructions: Draw from their specific resume content. Reference real work, proj
     supabase.from('events').insert({
       user_id: user.id,
       event_name: 'application_question_answered',
-      properties: { job_title: job.title },
+      properties: { job_title: jobTitle },
     })
   ).catch(() => {})
 

@@ -1011,3 +1011,239 @@ type: Update
 title: Google Search Console verification tag wired to an env var
 - app/layout.tsx: metadata.verification.google reads NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION; the meta tag is omitted when the variable is unset
 - new env var: NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION (optional)
+
+---
+date: 2026-07-11
+type: Improvement
+title: Daily tier-aware rate limiting across every AI and external endpoint; Groq references retired
+- lib/rateLimit.ts: checkRateLimit reworked to a tier-aware daily limiter - RateLimitConfig now takes { key, userId, freeLimit, proLimit, windowMinutes }; resolves the user's plan from subscriptions (pro+active only) when ENABLE_FREEMIUM=true, otherwise always applies freeLimit; returns { allowed, remaining, resetAt, showUpgrade }; rateLimitResponse now emits retryAfter (seconds) and freemium-aware copy ("Daily limit reached. Try again tomorrow." vs "...Upgrade to Pro for higher limits."); added checkSharedQuota/incrementSharedQuota for platform-wide caps plus checkJinaQuota/incrementJinaQuota wrappers
+- lib/rateLimitMessage.ts created: client-safe rateLimitMessage(retryAfter) helper for consistent 429 copy across the app
+- app/api routes migrated to the tier-aware limiter (freeLimit/proLimit, windowMinutes 1440): tailor-resume (1/5), ats-score (2/7), generate-cover-letter (1/4), parse-job (5/12), parse-resume (1/1), parse-profile (1/1), interview-prep/generate (1/5), interview-prep/assess (5/15), generate-outreach (2/7), discover-jobs (1/1), extension/ai-fill (2/10), and newly-limited answer-question (5/20), analyze-form (2/10), example (5/10), strategy-feedback (1/3 at generation)
+- app/api/find-contacts/route.ts: homegrown route_logs day counter replaced with checkRateLimit (1/1) + shared SerpApi budget checkSharedQuota('serpapi_monthly', 250, 30); incrementSharedQuota fires only after a successful SerpApi response
+- app/api/parse-job + analyze-form: shared Jina budget checkSharedQuota('jina_lifetime', 150, 36500) guards URL scraping (pasted text never charged); incrementSharedQuota after a successful scrape
+- frontend 429 handling wired into tailor (via apiFetch), ats, interview, networking, jobs pages plus ProfileForm, ResumeUpload, apply page, and extension/popup.js - 429s now render friendly "try again in X" copy, not raw JSON
+- app/(marketing)/privacy/page.tsx: AI inference vendor section updated from Groq to Google (Gemini)
+- new DB table: platform_limits (key, count, window_start) with RLS deny-all + increment_platform_limit(p_key) SQL function - see supabase/migrations/20260711_platform_limits.sql (run it if the table is missing; rate_limit_logs already exists)
+- no new env vars, no new npm packages
+
+---
+date: 2026-07-11
+type: Improvement
+title: Three-tier rate limiting (dev/free-monthly/pro-daily), free-tier 150 application cap
+- lib/rateLimit.ts: RateLimitConfig now carries devLimit/freeLimit/proLimit plus devWindowMinutes/freeWindowMinutes/proWindowMinutes; checkRateLimit resolves a dev|free|pro tier and applies the matching limit+window (dev 1440, free 43200, pro 1440); result returns tier instead of showUpgrade; added exported resolveUserTier(userId)
+- lib/rateLimit.ts rateLimitResponse(resetAt, remaining, tier): free tier -> "Monthly limit reached. Upgrade to Pro for higher limits or try again next month."; dev/pro -> "Daily limit reached. Try again tomorrow."
+- every AI/external route migrated to the three-tier config (dev/free-month/pro-day): tailor-resume 1/10/5, ats-score 2/10/7, cover-letter 1/10/4, parse-job 5/20/12, parse-resume 1/3/1, parse-profile 1/3/1, interview generate 1/5/5, interview assess 5/15/15, networking outreach 2/15/7, find-contacts 1/3/1, discover-jobs 1/3/1, extension/ai-fill 2/20/10, plus answer-question 5/15/20, analyze-form 2/10/10, example 5/10/10
+- app/api/strategy-feedback/route.ts: dev 2/day, free 2/month, pro skipped entirely via resolveUserTier gate
+- app/api/applications/route.ts POST: free tier capped at 150 tracked applications (count of non-deleted rows) returning 403 with an upgrade message; dev mode and pro users skip the check; removed the old checkLimit('applications') 429 path (GET still reports atLimit)
+- frontend 429 handlers (jobs, ats, interview, networking, tailor apiFetch, apply, ProfileForm, ResumeUpload, extension/popup.js) now surface the server's tier-aware message (json.error) instead of a locally computed hours string, so monthly limits read correctly
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-11
+type: Update
+title: Admin account bypasses all per-user rate limits for testing
+- lib/rateLimit.ts: new isAdminUser(userId) helper comparing against ADMIN_USER_ID; checkLimit and getRemainingLimits return unlimited for the admin, and checkRateLimit returns allowed immediately (tier 'dev', no rate_limit_logs row written)
+- shared platform quotas (SerpApi monthly, Jina lifetime) are NOT bypassed - those protect real external API allowances
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-12
+type: Fix
+title: Auto-apply question answering, account-switch stale data, ATS average skew, trial-status webhook
+- app/(dashboard)/apply/[jobId]/page.tsx + app/api/answer-question/route.ts: question generation no longer sends the route param (an application id) as a job id; the API resolves the application first and treats the jobs lookup as optional, so manual applications (no jobs row) can generate answers instead of erroring "Job not found"
+- app/(auth)/login/page.tsx + components/Sidebar.tsx: router.refresh() on sign-in and sign-out so the Router Cache never serves the previous account's name/email/data; sign-out also clears per-user localStorage caches
+- app/(dashboard)/jobs/page.tsx: job feed localStorage cache is now keyed by user id (jobFeedCache:<userId>); the legacy shared key is dropped on load
+- lib/userContext.ts: average ATS scores now ignore rows with null scores instead of counting them as 0 (this was dragging the average shown in strategy feedback)
+- app/api/stripe/webhook/route.ts: customer.subscription.updated treats status 'trialing' as plan 'pro'; both handlers store trial_end
+
+---
+date: 2026-07-12
+type: Fix
+title: Job pickers source from the application tracker (networking, ATS)
+- app/(dashboard)/networking/page.tsx + app/(dashboard)/ats/page.tsx: job dropdowns now list tracked applications (applications table first, enriched from jobs), matching the interview page pattern - manual tracker entries appear instead of only tailored jobs
+- ATS page: manual applications without job details show "(needs job details)" and prompt to add the posting from the tracker before scoring
+- networking generate-outreach accepts jobTitle/jobCompany as plain-text context for manual applications (app/api/generate-outreach/route.ts)
+
+---
+date: 2026-07-12
+type: Improvement
+title: Substantive resume tailoring, personalized strategy feedback, identity-first outreach, strict contact role filter
+- app/api/tailor-resume/route.ts: rewritten prompt bans pure-conciseness and verb-swap-only edits, requires each change to add job terminology / mirror a responsibility / re-frame toward the job's domain, and a server-side filter drops trivial edits the model still returns; per-bullet changes are persisted to documents.changes (new jsonb column)
+- app/api/strategy-feedback/route.ts: output now addresses the user as "you" instead of "the candidate"
+- app/api/generate-outreach/route.ts: messages lead with the sender's identity (university/program), cite concrete current work and a flagship project with real technologies, and end with a direct ask; company-flattery openers are banned
+- app/api/find-contacts/route.ts: an optional target role is now a hard filter (query built around the role + title/snippet post-filter); zero matches return a suggestion to remove the role or try a different one, surfaced on the networking page
+- new DB column: documents.changes jsonb (supabase/migrations/20260712_batch_fixes.sql)
+
+---
+date: 2026-07-12
+type: Feature
+title: Full tailored resume hidden everywhere - users see only the per-bullet diff
+- components/TailorDiff.tsx created: shared per-bullet diff view + formatTailoredBullets() (grouped tailored-bullets copy text)
+- app/(dashboard)/tailor/page.tsx: "Copy all tailored bullets" now copies only the tailored bullets; the full-resume fallback <pre> is gone
+- app/(dashboard)/apply/[jobId]/page.tsx: kit card shows the change count + copy-bullets button instead of a raw resume preview
+- components/ApplicationDetailModal.tsx + app/api/applications/[id]/details/route.ts: the API strips tailored-resume content server-side and returns changes; the modal renders the diff (cover letters unchanged, PDF removed for tailored resumes)
+- app/(dashboard)/documents/page.tsx + components/DocumentsClient.tsx: tailored resumes render the diff and copy bullets only; content is nulled before reaching the client
+- documents.content is still saved for internal use (ATS scoring, extension auto-fill) but never rendered
+
+---
+date: 2026-07-12
+type: Feature
+title: Manual outreach logging, full application editing, tailor from the tracker
+- app/api/outreach-messages/route.ts created: POST logs a user-written message (is_manual=true, new DB column) - no AI, no usage limits
+- app/(dashboard)/networking/page.tsx: "Log a message" panel in the outreach tracker for messages sent outside Vantage
+- app/api/applications/[id]/route.ts: PATCH now accepts company, role, job_url, and job_id (job ownership verified)
+- components/ApplicationDetailModal.tsx: edit mode for company/role/URL/date/status/notes, plus a Tailor resume action - job-linked applications jump to /tailor?jobId=..., manual ones paste the posting once (parse-job), get linked, then tailor; tracker rows sync via a new onUpdated callback
+- app/(dashboard)/tracker/page.tsx: passes onUpdated to keep the table in sync with modal edits
+
+---
+date: 2026-07-12
+type: Feature
+title: Job finder - saved named filters, km-radius search, salary/date filters wired to Adzuna
+- app/api/discover-jobs/route.ts: refresh now forwards where + distance (km), salary_min, max_days_old, and employment-type flags to Adzuna (salaryMin/datePosted were previously collected but unused)
+- app/(dashboard)/jobs/page.tsx: radius row (city/postal input, 10/25/50/100 km select, "Use my location" via browser geolocation reverse-geocoded to a city) and a presets row (save current filters under a name, apply, delete)
+- app/api/job-filter-presets/route.ts + [id]/route.ts created: GET/POST/DELETE, capped at 20 presets per user
+- new DB table: job_filter_presets (RLS per-user) in supabase/migrations/20260712_batch_fixes.sql
+
+---
+date: 2026-07-12
+type: Feature
+title: 7-day free trial and 7-day self-serve refund on Pro
+- app/api/stripe/checkout/route.ts: subscription checkout starts with trial_period_days 7 (card upfront, billing after the trial, cancellable any time)
+- app/api/stripe/refund/route.ts created: refunds the latest paid invoice if it is within 7 days, cancels the subscription, downgrades to free; clear error with the cutoff date otherwise
+- app/(dashboard)/billing/page.tsx + components/BillingActions.tsx: trial badge with "Trial ends <date>", money-back note, and a confirm-step Request refund button
+- app/(marketing)/page.tsx pricing: Pro card CTA is "Start 7-day free trial" with trial + money-back copy
+- new DB column: subscriptions.trial_end (supabase/migrations/20260712_batch_fixes.sql)
+
+---
+date: 2026-07-12
+type: Improvement
+title: Mobile and tablet responsiveness pass across the app
+- app/globals.css: new .rsp-grid-2/.rsp-grid-3 helpers (fixed multi-column grids collapse to one column under 640px) and .tracker-table-row (drops the hidden "Since" track on phones instead of reserving empty space)
+- converted fixed-column grids to the helpers: ProfileForm (profile fields, experience, projects), networking (search/generate forms + skeletons), interview (manual job form, strengths/improvements), apply page kit + skeleton
+- app/(dashboard)/jobs/page.tsx: filter bar controls use flexible widths (flex + max-width) instead of hardcoded pixel widths
+- no visual redesign - layout only responds below existing breakpoints; tables keep their overflow-x scroll wrappers
+
+---
+date: 2026-07-12
+type: Fix
+title: Second-round fixes - tracker-only listings, mobile sidebar, AI capacity errors, job feed persistence
+- app/(dashboard)/ats/page.tsx: score history only shows jobs that are tracked applications (no more "Untitled job" rows from tailoring runs that were never logged)
+- app/(dashboard)/documents/page.tsx: the documents list is likewise filtered to tracked applications
+- components/Sidebar.tsx: the desktop sidebar is now actually hidden under 768px (it previously stayed fixed over the page, breaking every mobile view); the drawer + topbar take over as designed
+- app/(dashboard)/networking/page.tsx: manual-log inputs use the page background + border so they are visually separated from the raised panel
+- app/(dashboard)/jobs/page.tsx: filter bar redesigned into labelled controls with the saved-filters group on the right; distance/radius search removed entirely per feedback (app/api/discover-jobs no longer forwards where/distance)
+- app/api/discover-jobs/route.ts: job relevance scoring is ONE batched Gemini call instead of one call per job (a single refresh used to burn the free tier's whole daily quota and break every other AI feature); scoring failures degrade to a neutral score instead of failing the feed
+- app/api/discover-jobs/route.ts: each job's link is resolved server-side through Adzuna's redirect (following the details page's apply link when needed) so "View job" opens the employer's actual posting
+- app/(dashboard)/jobs/page.tsx: on load the feed restores from the database when the per-user cache is empty, so signing out and back in no longer empties the page
+- app/(dashboard)/apply/[jobId]/page.tsx: back links go to /apply (not the tracker); the saved per-bullet diff is viewable inline via "View changes" without re-running tailoring
+- lib/ai.ts: Gemini 503 "high demand" responses are retried like 429s; new isAiQuotaError()/AI_BUSY_MESSAGE map capacity failures to a friendly 429 in tailor-resume, ats-score, generate-cover-letter, generate-outreach, answer-question, interview-prep generate/assess, and strategy-feedback (previously these surfaced as generic 500s)
+- app/api/generate-outreach/route.ts: identity line in the prompt is a placeholder pattern so blank profiles can never echo the example school
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-12
+type: Fix
+title: Third-round fixes - scored_at bug, desktop-only gate, working salary/date filters, usage limits page
+- app/(dashboard)/apply/[jobId]/page.tsx + app/api/applications/[id]/details/route.ts: ATS score lookups ordered by created_at, a column ats_scores does not have (it has scored_at) - the whole query errored silently, which is why a freshly generated ATS score never appeared in auto-apply or the tracker modal
+- app/dashboard/page.tsx: the Avg ATS Score stat now only counts scores belonging to tracked applications (same rule as /ats)
+- app/(dashboard)/jobs/page.tsx + app/api/discover-jobs/route.ts: Min salary and Posted filters now actually filter - Adzuna's salary bounds and posted date are stored in raw_data on refresh and applied client-side (jobs fetched before the change are kept until a refresh backfills them)
+- app/api/discover-jobs/route.ts: removed the job-URL resolver - Adzuna serves 403 to server-side requests and its API deliberately omits the employer URL, so redirect_url (which forwards real browsers to the source) is the only supported link
+- components/Sidebar.tsx: reverted the sidebar to inline flex layout, fixing the footer floating mid-rail
+- app/(dashboard)/layout.tsx + app/dashboard/layout.tsx + globals.css: the dashboard is now desktop-only - under 768px the shell is hidden and a "Vantage is built for desktop" notice renders instead
+- app/api/generate-outreach/route.ts: prompt rebuilt around a style exemplar (flowing prose, purpose-driven work descriptions, one bold ask); connection requests compress to a single work clause to stay under LinkedIn's 280 characters
+- app/(dashboard)/networking/page.tsx: autoComplete="off" on all inputs so browsers stop offering to save contact fields as an address/ID card
+- lib/rateLimit.ts: resolvePlan treats status 'trialing' as pro (consistent with the webhook); new RATE_LIMIT_SPECS + getRateLimitOverview() compute per-feature usage from rate_limit_logs
+- app/(dashboard)/limits/page.tsx created + "Usage Limits" sidebar item: shows used/limit and when each slot frees up for every rate-limited feature
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-12
+type: Fix
+title: Mobile notice leak, filter cleanup, honest Adzuna label, connection requests rewritten
+- app/(dashboard)/layout.tsx + app/dashboard/layout.tsx + globals.css: the desktop-only notice is now hidden inline (style="display:none") and only forced visible by the phone media query with !important - it can never render on desktop again, even with a stale stylesheet
+- app/(dashboard)/jobs/page.tsx: Min salary and Posted filters removed entirely (they depended on data most stored jobs did not have); the filter bar is Location + Job type + saved presets; applying an old preset ignores the removed fields
+- app/(dashboard)/jobs/page.tsx: job card link relabelled "View on Adzuna" - Adzuna does not expose the employer URL in its API and blocks server-side resolution, so the Adzuna page is the supported destination
+- app/api/generate-outreach/route.ts: connection requests are now genuine "asking to connect" messages - identity, one conversational line about current work (numbers/percentages and resume phrasing banned), and a connect-only ask; job/referral asks are reserved for cold emails, which keep the pitch structure
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-13
+type: Feature
+title: Rewrite generated outreach messages with a custom instruction
+- app/(dashboard)/networking/page.tsx: after a message is generated, a new "Want changes? Describe them" input lets you type an instruction (e.g. "make it shorter", "mention my co-op") and rewrite the message in place; Enter or the Rewrite button submits, capped at 300 characters
+- app/api/generate-outreach/route.ts: refine mode (refineMessageId + refineInstruction) was already in place - rewrites the saved message per the instruction and counts toward the same networking limits and rate limits as generating
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-13
+type: Major Release
+title: Google sign-in, help chat, product emails, data reset, Resume Studio, and a full audit pass
+- app/auth/callback/route.ts created + login/signup pages: "Continue with Google" via Supabase OAuth; first-time Google users get their name backfilled and land on profile onboarding (requires Google provider setup in Supabase + Google Cloud)
+- components/HelpChatWidget.tsx + app/api/app-chat/route.ts + lib/appKnowledge.ts: floating help chat on every dashboard page that answers questions about how Vantage works from a built-in knowledge base; it refuses to generate documents and points to the right feature page instead (rate limited: dev 5/day, free 50/month, pro 10/day)
+- lib/ai.ts: new generateChat() for multi-turn conversations; retry logic factored into one shared Gemini call path
+- lib/email.ts + app/api/admin/send-campaign/route.ts + components/AdminCampaignForm.tsx: product-update emails via Resend, composed and sent from /admin with a mandatory "send test to me" flow; every email carries one-click unsubscribe headers and a footer link
+- app/api/unsubscribe/route.ts + app/(marketing)/unsubscribed/page.tsx: tokenized one-click unsubscribe, no login needed; components/SettingsClient.tsx gains a "Product updates" toggle
+- app/api/account/reset/route.ts + Settings danger zone: "Reset my data" wipes all app data and uploaded files but keeps the account and subscription (type RESET to confirm); sql/one_time_wipe_2026-07.sql added for the owner-run global fresh start
+- app/api/admin/reset-analytics/route.ts + components/AdminResetAnalytics.tsx: admin Maintenance section clears events and route logs (type RESET ANALYTICS)
+- components/FeedbackNudge.tsx on the dashboard home + a "Send feedback" link in the help chat header: the /feedback page is now discoverable in-app (one-time dismissible)
+- app/(dashboard)/resume-studio/ (unlisted URL /resume-studio) + app/api/resume-studio/: experimental "edit your resume by chatting" - upload a PDF/Word file, give instructions like "cut the summary to two lines", watch the live preview update, download the PDF; nothing is stored server-side (lib/extractResumeText.ts + lib/resumeCss.ts refactored out for reuse)
+- Security pass: print-PDF iframe now strips executable content; extension token and resume-parse debug logging removed; Stripe webhook/checkout/parse-job logs no longer dump payloads; Resume Studio preview renders in a scriptless sandboxed iframe; audit confirmed webhook signature checks, storage policies, admin guards, and per-user scoping across all routes
+- Scalability pass: buildUserContext now fetches its six sources in parallel; rate-limit service client is reused across calls; subscriptions query selects explicit columns; admin dashboard caps events/route_logs reads at the newest 50k rows; new indexes on rate_limit_logs, events, route_logs, applications
+- Comment pass across lib/, components/, and every API route: file headers + JSDoc on exports; CLAUDE.md corrected (AI provider is Gemini via lib/ai.ts, not Groq)
+- docs/legal-dossier.md created: full data inventory, processor list, and the owner questions needed to generate ToS/privacy/compliance docs with a legal AI tool
+- new DB columns: profiles.marketing_emails_enabled, profiles.unsubscribe_token + 4 indexes (supabase/migrations/20260713_batch3.sql - run in SQL editor)
+- new env vars: RESEND_API_KEY, RESEND_FROM_EMAIL
+- packages installed: resend
+
+---
+date: 2026-07-13
+type: Update
+title: Legal pages rewritten to match the current product, plus a Data Compliance page
+- app/(marketing)/terms/page.tsx: updated for Google sign-in consent, the 7-day self-serve refund window (the old "no refunds" line contradicted the billing page), trials, opt-in email rules, an experimental-features clause covering Resume Studio, and a changes-to-terms section
+- app/(marketing)/privacy/page.tsx: removed the stale Cerebras section (all AI runs on Gemini), added Google sign-in, Resend, Adzuna, SerpApi, and the feedback webhook to the third-party list, and documented networking contact data, voice input for interview practice, help chat handling, cookies/browser storage, Word resume uploads, and the new Reset my data control
+- app/(marketing)/data-compliance/page.tsx created: plain-language PIPEDA posture page with safeguards, the full subprocessor list, AI processing commitments, user controls, and breach notification; linked from the marketing footer Legal column and cross-linked from terms + privacy
+- docs/legal-dossier.md: rewritten as a single self-contained prompt to paste into a legal chatbot (instructions + facts + [FILL IN] markers), prefilled with the facts already stated on the site (Ontario law, age 16+, PIPEDA, contact email)
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-14
+type: Update
+title: Resume Studio in the sidebar, tighter dev limit, louder feedback prompt
+- components/Sidebar.tsx: Resume Studio now appears in the sidebar with a gold "Experimental" tag; the isNew flag was generalized to a badge string so Auto-apply's "New" and this share one style
+- app/api/resume-studio/route.ts + lib/rateLimit.ts: dev-tier limit lowered from 30 to 10 edits/day (free 20/month and pro 60/day unchanged)
+- components/FeedbackNudge.tsx + app/dashboard/page.tsx: the feedback prompt moved from the bottom of the dashboard to directly under the page header, with a bolder "Found a bug? Missing a feature?" headline and a filled Share feedback button (still one-time dismissible)
+- app/(dashboard)/resume-studio/page.tsx: stale "unlisted" comment updated
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-14
+type: Fix
+title: Feedback prompt resurfaces weekly; sidebar footer pinned to the bottom
+- components/FeedbackNudge.tsx: dismissing now stores a timestamp instead of a permanent flag - the prompt comes back after 7 days (users who dismissed under the old permanent flag see it again once, then the weekly cycle applies)
+- components/Sidebar.tsx: on short viewports the nav list overflowed and pushed the footer's link rows past the screen edge, leaving a stranded divider line; the nav now scrolls within the rail (flex minHeight 0 + overflow-y auto), the footer never shrinks, and trailing padding was trimmed so the link rows sit flush at the bottom
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-14
+type: Feature
+title: Tailor + ATS full-resume mode, tailoring-focused Resume Studio, hyperlink-preserving PDFs, rate-limit hardening
+- lib/extractResumeText.ts: new extractResumeLinks() pulls hyperlink destinations out of uploaded resumes (PDF link annotations via pdf.js, DOCX via mammoth HTML) - plain-text extraction was silently dropping every link
+- lib/resumeHtml.ts created: shared resume-HTML helpers - prompt rules, sanitizer, linkifyResumeHtml() (deterministically re-attaches known links and anchors bare URLs/emails), and applyChangesToHtml() (swaps tailored bullets into profiles.resume_html without AI)
+- app/api/resume-studio/route.ts: upload extraction now returns the file's links; the generate prompt re-attaches them and every generate/edit response passes through the linkify safety net, so downloaded PDFs keep the hyperlinks the original resume had
+- app/api/tailor-resume/render/route.ts created: renders a tailored_resume document as full resume HTML - surgical bullet-swap into the stored base-resume HTML when possible (fast, free, link-preserving), one rate-limited AI formatting call as fallback
+- app/(dashboard)/tailor/page.tsx: the Tailored Resume tab now has two views - "Bullet changes" (the existing diff/copy flow) and "Full resume" (rendered preview + Download PDF named after the company/role)
+- components/ResumeStudio.tsx + app/(dashboard)/resume-studio/page.tsx: the studio is now tailoring-focused - start from a resume tailored on Tailor + ATS (with skill-gap/keyword suggestion chips that prefill edit instructions) or your base resume, alongside the existing file upload; tailoring itself stays on Tailor + ATS
+- Rate-limit audit across every AI/external API route (all 17 Gemini routes verified limited, limiter always before the AI call):
+  - app/api/extension/ai-fill/route.ts, app/api/analyze-form/route.ts, app/api/generate-fill-snippet/route.ts: all three auto-apply tiers now charge the monthly auto_apply feature quota (previously only per-route sliding windows, and tier 2 had no limits at all)
+  - app/api/discover-jobs/route.ts: platform-wide Adzuna budget (900 calls/30 days via platform_limits) so multi-user refresh traffic cannot blow the 1000/month free tier
+  - app/api/resume-studio/pdf/route.ts: per-user rate limit on PDF rendering (headless Chromium is expensive even without AI)
+  - lib/rateLimit.ts: RATE_LIMIT_SPECS gains render-resume (5/day dev, 10/mo free, 10/day pro) and resume-pdf (20/40/60) so the /limits page stays accurate
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-14
+type: Fix
+title: Tailor + ATS results tabs no longer send you backwards to run the next action
+- app/(dashboard)/tailor/page.tsx: the ATS Score tab's empty state now runs "Check ATS Score" in place (the tailored resume and cover letter stay put) instead of "Go back to check score", which stranded users on step 2 with no way to return to their results; the Tailored Resume tab's empty state got the same in-place "Tailor My Resume" treatment, and both show action errors inline
+- app/(dashboard)/tailor/page.tsx: step 2 now shows a "You already have results for this job - View results" banner whenever a tailored resume, ATS score, or cover letter exists, so stepping back is never a one-way door
+- no new DB columns, no new env vars, no new npm packages

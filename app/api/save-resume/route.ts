@@ -1,3 +1,5 @@
+// Persists an uploaded resume row (file path + extracted text); demotes the
+// previous base resume so exactly one is_base resume exists.
 import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
 import { ok, err, serverError } from '@/lib/apiResponse';

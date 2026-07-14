@@ -1,5 +1,6 @@
 'use client';
 
+// Shimmering placeholder block shown while data-heavy sections load.
 interface SkeletonLoaderProps {
   width?: string | number;
   height?: string | number;

@@ -8,9 +8,9 @@ import { ok, err, serverError } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
 import { withTimeout } from '@/lib/withTimeout';
 import { generateText } from '@/lib/ai';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 import { createClient } from '@/lib/supabase/server';
-
-type PdfResult = { text: string; numpages: number };
+import { extractResumeText, isDocxFile } from '@/lib/extractResumeText';
 
 type ProfileLinks = {
   linkedin_url: string | null;
@@ -29,12 +29,26 @@ function extractBodyContent(html: string): string {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  console.log('[parse-resume] route hit')
   const start = Date.now();
 
   const auth = await requireAuth();
   if ('error' in auth) return auth.error;
   const { user } = auth;
+
+  const rateLimit = await checkRateLimit({
+    key: 'parse-resume',
+    userId: user.id,
+    devLimit: 1,
+    freeLimit: 3,
+    proLimit: 1,
+    devWindowMinutes: 1440,
+    freeWindowMinutes: 43200,
+    proWindowMinutes: 1440,
+  });
+  if (!rateLimit.allowed) {
+    await logRoute('/api/parse-resume', user.id, Date.now() - start, 429);
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier);
+  }
 
   const body = await request.json().catch(() => null);
   const validation = validateBody<{ fileUrl: string; fileName?: string }>(body, ['fileUrl']);
@@ -55,22 +69,11 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const buffer = Buffer.from(arrayBuffer);
-  const isDocx =
-    /\.docx?$/i.test(fileName) ||
-    contentType.includes('officedocument') ||
-    contentType.includes('msword');
+  const isDocx = isDocxFile(fileName, contentType);
 
   let text: string;
   try {
-    if (isDocx) {
-      const mammoth = require('mammoth') as { extractRawText: (opts: { buffer: Buffer }) => Promise<{ value: string }> };
-      const result = await mammoth.extractRawText({ buffer });
-      text = result.value;
-    } else {
-      const pdfParse = require('pdf-parse/lib/pdf-parse.js') as (buffer: Buffer) => Promise<PdfResult>;
-      const pdfData = await pdfParse(buffer);
-      text = pdfData.text;
-    }
+    text = await extractResumeText(buffer, isDocx);
   } catch (e) {
     await logRoute('/api/parse-resume', user.id, Date.now() - start, 500);
     return serverError(e);
@@ -141,7 +144,6 @@ ${text}`,
       'resume-to-html'
     );
     resumeHtml = extractBodyContent(rawHtml);
-    console.log('[parse-resume] generated html:', resumeHtml?.slice(0, 500));
 
     // If the AI dropped all hyperlinks, retry with an explicit link-injection prompt
     const linkCount = (resumeHtml.match(/<a\s/gi) ?? []).length;
@@ -178,7 +180,6 @@ ${text}`,
         'resume-to-html-retry'
       );
       resumeHtml = extractBodyContent(retryHtml);
-      console.log('[parse-resume] retry html links:', (resumeHtml.match(/<a\s/gi) ?? []).length);
     }
 
     await supabase

@@ -1,3 +1,5 @@
+// Stripe -> subscriptions sync. Signature-verified; the ONLY writer of
+// plan/status besides the self-serve refund route.
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
@@ -31,7 +33,7 @@ export async function POST(request: Request): Promise<Response> {
     return new Response(`Signature verification failed: ${String(e)}`, { status: 400 })
   }
 
-  console.log('[stripe/webhook] event:', event.type, JSON.stringify(event.data.object, null, 2))
+  console.log('[stripe/webhook] event:', event.type)
 
   switch (event.type) {
     case 'checkout.session.completed': {
@@ -57,14 +59,17 @@ export async function POST(request: Request): Promise<Response> {
 
       const periodEnd = sub.items.data[0]?.current_period_end
 
+      // Trialing subscriptions get pro access immediately; billing starts
+      // when the trial ends.
       const { error } = await supabaseAdmin.from('subscriptions').upsert(
         {
           user_id: userId,
           plan: 'pro',
-          status: 'active',
+          status: sub.status === 'trialing' ? 'trialing' : 'active',
           stripe_subscription_id: subscriptionId,
           stripe_customer_id: customerId,
           current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+          trial_end: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
         },
         { onConflict: 'user_id' }
       )
@@ -78,7 +83,10 @@ export async function POST(request: Request): Promise<Response> {
       const sub = event.data.object as Stripe.Subscription
       const userId = sub.metadata?.supabase_user_id
       const periodEnd = sub.items.data[0]?.current_period_end
-      const plan = sub.status === 'active' ? 'pro' : 'free'
+      // 'trialing' must map to pro - trial users have full access until the
+      // trial ends (Stripe then flips the status to active or past_due).
+      const plan = sub.status === 'active' || sub.status === 'trialing' ? 'pro' : 'free'
+      const trialEnd = sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null
 
       console.log('[stripe/webhook] subscription.updated - userId:', userId, 'customer:', sub.customer, 'status:', sub.status)
 
@@ -91,6 +99,7 @@ export async function POST(request: Request): Promise<Response> {
             stripe_subscription_id: sub.id,
             stripe_customer_id: String(sub.customer),
             current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+            trial_end: trialEnd,
           },
           { onConflict: 'user_id' }
         )
@@ -104,6 +113,7 @@ export async function POST(request: Request): Promise<Response> {
             status: sub.status,
             stripe_subscription_id: sub.id,
             current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+            trial_end: trialEnd,
           })
           .eq('stripe_customer_id', String(sub.customer))
         if (error) console.error('[stripe/webhook] update error (updated, customer fallback):', error)

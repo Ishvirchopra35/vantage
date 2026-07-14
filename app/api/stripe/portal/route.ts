@@ -1,3 +1,4 @@
+// Opens the Stripe billing portal for the caller's subscription.
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, err, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'

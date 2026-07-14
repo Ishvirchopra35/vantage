@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { filterTrackedJobs } from '@/lib/jobFilters';
 import ArrowIcon from '@/components/ui/ArrowIcon';
 import PageHeader from '@/components/ui/PageHeader';
+import FeedbackNudge from '@/components/FeedbackNudge';
 
 export const metadata = {
   title: 'Dashboard - Vantage',
@@ -47,6 +48,7 @@ type AtsScoreRow = {
 
 type ScoreRow = {
   overall_score: number | null;
+  job_id: string | null;
 };
 
 type SubscriptionRow = {
@@ -193,7 +195,7 @@ export default async function DashboardPage() {
       .gt('created_at', new Date(Date.now() - 7 * 86_400_000).toISOString()),
     supabase
       .from('ats_scores')
-      .select('overall_score')
+      .select('overall_score, job_id')
       .eq('user_id', user.id),
   ]);
 
@@ -217,11 +219,6 @@ export default async function DashboardPage() {
   const responseRate =
     totalApplications > 0 ? `${((responseCount / totalApplications) * 100).toFixed(1)}%` : '-';
   const tailoringsThisWeek = weeklyTailoringsResult.count ?? 0;
-  const avgAtsScoreValues = allAtsScores.map((row) => row.overall_score).filter((score): score is number => score !== null);
-  const avgAtsScore =
-    avgAtsScoreValues.length > 0
-      ? Math.round(avgAtsScoreValues.reduce((sum, score) => sum + score, 0) / avgAtsScoreValues.length)
-      : null;
 
   // Source of truth for "jobs the user has tracked": job_ids from the user's
   // non-deleted applications rows (applications query already filters deleted_at null).
@@ -230,6 +227,17 @@ export default async function DashboardPage() {
       .map((application) => application.job_id)
       .filter((jobId): jobId is string => jobId != null)
   );
+
+  // Avg ATS only counts scores for tracked applications (same rule as the
+  // /ats page) - tailoring runs that were never logged don't skew the stat.
+  const avgAtsScoreValues = allAtsScores
+    .filter((row) => row.job_id !== null && trackedJobIds.has(row.job_id))
+    .map((row) => row.overall_score)
+    .filter((score): score is number => score !== null);
+  const avgAtsScore =
+    avgAtsScoreValues.length > 0
+      ? Math.round(avgAtsScoreValues.reduce((sum, score) => sum + score, 0) / avgAtsScoreValues.length)
+      : null;
 
   // ATS Score History and Recent Documents join `jobs` independently, so restrict
   // them to entries whose job is a tracked application with a real title. Rows that
@@ -362,6 +370,8 @@ export default async function DashboardPage() {
           </span>
         ) : undefined}
       />
+
+      <FeedbackNudge />
 
       <div className="stats-grid">
         <div style={statCardStyle}>

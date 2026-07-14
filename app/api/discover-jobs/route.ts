@@ -1,10 +1,12 @@
+// Job feed: pulls matching postings from Adzuna into job_feed_items and
+// serves the stored feed. Refreshes are rate-limited per user.
 import { requireAuth } from '@/lib/requireAuth'
 import { logRoute } from '@/lib/logger'
 import { buildUserContext } from '@/lib/userContext'
 import { generateJSON } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
 import { createClient } from '@/lib/supabase/server'
-import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
+import { checkRateLimit, rateLimitResponse, checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit'
 
 export const maxDuration = 60
 
@@ -20,6 +22,9 @@ interface AdzunaJob {
   contract_type?: string
   redirect_url: string
   description?: string
+  created?: string
+  salary_min?: number | null
+  salary_max?: number | null
 }
 
 interface AdzunaResponse {
@@ -51,7 +56,15 @@ function matchesSeniority(jobTitle: string, targetRoles: string[]): boolean {
   })
 }
 
-async function fetchAdzunaWithRetry(role: string): Promise<AdzunaJob[]> {
+// Server-side filters forwarded to Adzuna. These cannot be applied client-side
+// because they change which jobs Adzuna returns in the first place.
+interface AdzunaFilters {
+  salaryMin?: number
+  maxDaysOld?: number
+  jobType?: string
+}
+
+async function fetchAdzunaWithRetry(role: string, filters: AdzunaFilters): Promise<AdzunaJob[]> {
   const appId = process.env.ADZUNA_APP_ID
   const apiKey = process.env.ADZUNA_API_KEY
   if (!appId || !apiKey) {
@@ -64,6 +77,17 @@ async function fetchAdzunaWithRetry(role: string): Promise<AdzunaJob[]> {
   url.searchParams.set('app_key', apiKey)
   url.searchParams.set('results_per_page', '10')
   url.searchParams.set('what', role)
+
+  if (filters.salaryMin && filters.salaryMin > 0) {
+    url.searchParams.set('salary_min', String(filters.salaryMin))
+  }
+  if (filters.maxDaysOld && filters.maxDaysOld > 0) {
+    url.searchParams.set('max_days_old', String(filters.maxDaysOld))
+  }
+  // Adzuna has no internship flag - internships stay a client-side title filter.
+  if (filters.jobType === 'full-time') url.searchParams.set('full_time', '1')
+  if (filters.jobType === 'part-time') url.searchParams.set('part_time', '1')
+  if (filters.jobType === 'contract') url.searchParams.set('contract', '1')
 
   const BACKOFF = [2000, 4000]
 
@@ -100,6 +124,11 @@ async function fetchAdzunaWithRetry(role: string): Promise<AdzunaJob[]> {
   return []
 }
 
+// Note on job links: Adzuna's API only exposes redirect_url (their tracked
+// land page); the employer's direct URL is not in the API and Adzuna's site
+// serves 403 to server-side fetches, so it cannot be resolved from here.
+// redirect_url forwards real browsers to the source posting when possible.
+
 // --- Route --------------------------------------------------------------------
 
 export async function GET(request: Request): Promise<Response> {
@@ -112,17 +141,32 @@ export async function GET(request: Request): Promise<Response> {
   const { searchParams } = new URL(request.url)
   const refresh = searchParams.get('refresh') === 'true'
 
+  // Optional server-side filters (only meaningful on refresh)
+  const parseNum = (v: string | null): number | undefined => {
+    const n = v ? Number(v) : NaN
+    return Number.isFinite(n) && n > 0 ? n : undefined
+  }
+  const filters: AdzunaFilters = {
+    salaryMin: parseNum(searchParams.get('salaryMin')),
+    maxDaysOld: parseNum(searchParams.get('maxDaysOld')),
+    jobType: searchParams.get('jobType')?.trim() || undefined,
+  }
+
   // Only rate-limit the expensive refresh path (AI calls happen there)
   if (refresh) {
     const rateLimit = await checkRateLimit({
       key: 'discover-jobs-refresh',
       userId: user.id,
-      maxRequests: 10,
-      windowMinutes: 60,
+      devLimit: 1,
+      freeLimit: 3,
+      proLimit: 1,
+      devWindowMinutes: 1440,
+      freeWindowMinutes: 43200,
+      proWindowMinutes: 1440,
     })
     if (!rateLimit.allowed) {
       await logRoute(ROUTE, user.id, Date.now() - start, 429)
-      return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining)
+      return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
     }
   }
 
@@ -152,6 +196,17 @@ export async function GET(request: Request): Promise<Response> {
     })
   }
 
+  // Platform-wide Adzuna budget: the free tier allows 1000 calls/month and
+  // each refresh burns up to 3 (one per target role). 900 leaves headroom.
+  const adzunaQuota = await checkSharedQuota('adzuna_monthly', 900, 30)
+  if (!adzunaQuota.allowed) {
+    await logRoute(ROUTE, user.id, Date.now() - start, 429)
+    return new Response(
+      JSON.stringify({ error: 'The job feed is temporarily at capacity. Your saved feed still works - try refreshing again in a few days.' }),
+      { status: 429, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
   const ctx = await buildUserContext(user.id)
   const targetRoles = (ctx.targetRoles ?? []).filter(Boolean).slice(0, 3)
 
@@ -167,7 +222,10 @@ export async function GET(request: Request): Promise<Response> {
   const allJobs: AdzunaJob[] = []
 
   for (let i = 0; i < targetRoles.length; i++) {
-    const jobs = await fetchAdzunaWithRetry(targetRoles[i])
+    const jobs = await fetchAdzunaWithRetry(targetRoles[i], filters)
+    // Charge the shared Adzuna budget per role fetched (counting failed
+    // attempts too keeps the estimate conservative).
+    void incrementSharedQuota('adzuna_monthly').catch(() => {})
     for (const job of jobs) {
       if (!seen.has(job.id)) {
         seen.add(job.id)
@@ -177,7 +235,6 @@ export async function GET(request: Request): Promise<Response> {
     if (i < targetRoles.length - 1) await sleep(1500)
   }
 
-  if (allJobs[0]) console.log('[job-feed] sample job:', JSON.stringify(allJobs[0], null, 2))
 
   const filtered = allJobs.filter(job => matchesSeniority(job.title, targetRoles))
   console.log(`[discover-jobs] ${allJobs.length} unique → ${filtered.length} after seniority filter`)
@@ -189,49 +246,73 @@ export async function GET(request: Request): Promise<Response> {
     })
   }
 
-  // -- Score all jobs ---------------------------------------------------------
+  // -- Score all jobs in ONE model call ----------------------------------------
+  // One batched request instead of one per job: a feed refresh used to fire
+  // 20-30 parallel Gemini calls, which alone exhausted the free tier's daily
+  // quota and 500'd every other AI feature. Scoring failures degrade to a
+  // neutral 50 - the feed must never break because scoring did.
   const skillsStr = (ctx.skills ?? []).join(', ') || 'Not specified'
   const rolesStr = targetRoles.join(', ')
-  const systemPrompt =
-    'Score job-candidate fit 0-100. Return only JSON: { "relevance_score": number, "reason": string } where reason is under 15 words.'
 
-  const scoredJobs = await Promise.all(
-    filtered.map(async job => {
-      const descSnippet = (job.description ?? '').slice(0, 300)
-      const userPrompt =
-        `Candidate skills: ${skillsStr}. Target roles: ${rolesStr}. ` +
-        `Job title: ${job.title}. Description: ${descSnippet}. Return the score.`
+  const scoreMap = new Map<string, { relevance_score: number; reason: string }>()
+  try {
+    const systemPrompt =
+      'You score job-candidate fit. Return ONLY a JSON array, one entry per job: ' +
+      '[{ "id": string, "relevance_score": number 0-100, "reason": string under 15 words }]. ' +
+      'Every job id from the input must appear exactly once.'
+    const jobsForPrompt = filtered.map(job => ({
+      id: String(job.id),
+      title: job.title,
+      description: (job.description ?? '').slice(0, 250),
+    }))
+    const userPrompt =
+      `Candidate skills: ${skillsStr}. Target roles: ${rolesStr}.\n\n` +
+      `Jobs to score:\n${JSON.stringify(jobsForPrompt)}`
 
-      let relevance_score = 50
-      let reason = 'Score unavailable'
+    const scored = await withTimeout(
+      generateJSON<Array<{ id: string; relevance_score: number; reason: string }>>(
+        systemPrompt,
+        userPrompt,
+        4000
+      ),
+      30000,
+      'score-jobs-batch'
+    )
+    for (const entry of Array.isArray(scored) ? scored : []) {
+      if (!entry || typeof entry.id !== 'string') continue
+      scoreMap.set(entry.id, {
+        relevance_score: Math.min(100, Math.max(0, Math.round(entry.relevance_score ?? 50))),
+        reason: typeof entry.reason === 'string' ? entry.reason : 'Good match',
+      })
+    }
+  } catch (e) {
+    console.warn('[discover-jobs] Batch scoring failed, using neutral scores:', e)
+  }
 
-      try {
-        const scored = await withTimeout(
-          generateJSON<{ relevance_score: number; reason: string }>(systemPrompt, userPrompt),
-          20000,
-          'score-job'
-        )
-        relevance_score = Math.min(100, Math.max(0, Math.round(scored.relevance_score ?? 50)))
-        reason = scored.reason ?? 'Good match'
-      } catch (e) {
-        console.warn('[discover-jobs] Score error for', job.id, ':', e)
-      }
-
-      return {
-        user_id: user.id,
-        external_job_id: String(job.id),
-        source: 'adzuna',
-        title: job.title,
-        company: job.company.display_name,
-        location: job.location.display_name,
-        url: job.redirect_url,
-        employment_type: job.contract_type ?? null,
-        relevance_score,
-        raw_data: { reason, description: (job.description ?? '').slice(0, 500) },
-        fetched_at: new Date().toISOString(),
-      }
-    })
-  )
+  const scoredJobs = filtered.map(job => {
+    const score = scoreMap.get(String(job.id))
+    return {
+      user_id: user.id,
+      external_job_id: String(job.id),
+      source: 'adzuna',
+      title: job.title,
+      company: job.company.display_name,
+      location: job.location.display_name,
+      url: job.redirect_url,
+      employment_type: job.contract_type ?? null,
+      relevance_score: score?.relevance_score ?? 50,
+      // posted_at + salary bounds feed the client-side "Posted" and
+      // "Min salary" filters on the jobs page.
+      raw_data: {
+        reason: score?.reason ?? 'Score unavailable',
+        description: (job.description ?? '').slice(0, 500),
+        posted_at: job.created ?? null,
+        salary_min: job.salary_min ?? null,
+        salary_max: job.salary_max ?? null,
+      },
+      fetched_at: new Date().toISOString(),
+    }
+  })
 
   // -- Upsert (preserves is_saved / is_dismissed) -----------------------------
   const { error: upsertError } = await supabase

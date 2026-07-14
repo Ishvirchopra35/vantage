@@ -1,5 +1,8 @@
+// Uniform JSON response helpers - every API route answers through these so
+// clients can always rely on `{ error: string }` for failures.
 import { NextResponse } from 'next/server';
 
+/** 200 (or `status`) with the given JSON payload. */
 export function ok(data: unknown, status = 200) {
   return NextResponse.json(data, { status });
 }

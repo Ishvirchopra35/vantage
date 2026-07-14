@@ -1,3 +1,5 @@
+// Issues a fresh extension connection code (UUID) for the caller's profile,
+// shown once in the UI and stored for Bearer auth on extension routes.
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, serverError } from '@/lib/apiResponse'
 import { createClient } from '@/lib/supabase/server'
@@ -10,8 +12,6 @@ export async function POST(_request: Request): Promise<Response> {
   const token = crypto.randomUUID()
   const supabase = await createClient()
 
-  console.error('[extension/token] Saving token for user:', user.id, '| token length:', token.length)
-
   const { error } = await supabase
     .from('profiles')
     .update({
@@ -21,19 +21,8 @@ export async function POST(_request: Request): Promise<Response> {
     .eq('id', user.id)
 
   if (error) {
-    console.error('[extension/token] Supabase update error:', error.message)
     return serverError(new Error(error.message))
   }
-
-  // Confirm the token was actually written
-  const { data: verify, error: verifyError } = await supabase
-    .from('profiles')
-    .select('extension_token')
-    .eq('id', user.id)
-    .single()
-
-  console.error('[extension/token] Verify read error:', verifyError?.message ?? 'none')
-  console.error('[extension/token] Stored token matches:', verify?.extension_token === token)
 
   return ok({ token })
 }

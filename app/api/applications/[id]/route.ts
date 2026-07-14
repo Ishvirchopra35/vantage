@@ -1,3 +1,4 @@
+// Update (status/notes) or soft-delete one tracked application.
 import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
 import { ok, notFound, serverError } from '@/lib/apiResponse';
@@ -36,6 +37,10 @@ export async function PATCH(
       status?: string;
       applied_date?: string;
       notes?: string;
+      company?: string;
+      role?: string;
+      job_url?: string;
+      job_id?: string;
       resume_doc_id?: string;
       cover_letter_doc_id?: string;
       ats_score_id?: string;
@@ -49,12 +54,38 @@ export async function PATCH(
     if (validBody.status !== undefined) updates.status = validBody.status;
     if (validBody.applied_date !== undefined) updates.applied_date = validBody.applied_date;
     if (validBody.notes !== undefined) updates.notes = validBody.notes;
+    if (validBody.company !== undefined) {
+      if (!validBody.company.trim()) return new Response(JSON.stringify({ error: 'Company cannot be empty' }), { status: 400 });
+      updates.company = validBody.company.trim();
+    }
+    if (validBody.role !== undefined) {
+      if (!validBody.role.trim()) return new Response(JSON.stringify({ error: 'Role cannot be empty' }), { status: 400 });
+      updates.role = validBody.role.trim();
+    }
+    if (validBody.job_url !== undefined) updates.job_url = validBody.job_url.trim() || null;
+    // job_id lets a manual application be linked to a parsed job later
+    // (enables tailoring and ATS scoring from the tracker).
+    if (validBody.job_id !== undefined) updates.job_id = validBody.job_id;
     if (validBody.resume_doc_id !== undefined) updates.resume_doc_id = validBody.resume_doc_id;
     if (validBody.cover_letter_doc_id !== undefined) updates.cover_letter_doc_id = validBody.cover_letter_doc_id;
     if (validBody.ats_score_id !== undefined) updates.ats_score_id = validBody.ats_score_id;
 
     if (Object.keys(updates).length === 0) {
       return new Response(JSON.stringify({ error: 'No updatable fields were provided' }), { status: 400 });
+    }
+
+    // A linked job must exist and belong to this user.
+    if (typeof updates.job_id === 'string' && updates.job_id) {
+      const { data: jobRow } = await supabase
+        .from('jobs')
+        .select('id')
+        .eq('id', updates.job_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!jobRow) {
+        await logRoute('/api/applications/[id]', user.id, Date.now() - start, 404);
+        return notFound('Job');
+      }
     }
 
     const { data: updatedRow, error: updateError } = await supabase

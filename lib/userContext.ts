@@ -139,8 +139,13 @@ async function fetchAtsPerformance(svc: ServiceClient, userId: string) {
 
     if (scoresData.length === 0) return { avgOverall: null, avgKeyword: null, missingKeywords: [], avgImprovement: null };
 
-    const avgOverall = scoresData.length > 0 ? Math.round(scoresData.reduce((sum, s) => sum + (s.overall_score || 0), 0) / scoresData.length) : null;
-    const avgKeyword = scoresData.length > 0 ? Math.round(scoresData.reduce((sum, s) => sum + (s.keyword_score || 0), 0) / scoresData.length) : null;
+    // Average only over rows that actually have a score. Manually tracked
+    // applications produce rows with null scores; counting those as 0 was
+    // dragging the average down (e.g. strategy feedback reporting 46/100).
+    const overallValues = scoresData.map((s) => s.overall_score).filter((v): v is number => typeof v === 'number');
+    const keywordValues = scoresData.map((s) => s.keyword_score).filter((v): v is number => typeof v === 'number');
+    const avgOverall = overallValues.length > 0 ? Math.round(overallValues.reduce((a, b) => a + b, 0) / overallValues.length) : null;
+    const avgKeyword = keywordValues.length > 0 ? Math.round(keywordValues.reduce((a, b) => a + b, 0) / keywordValues.length) : null;
 
     const keywordMap: Record<string, number> = {};
     scoresData.forEach((s) => {
@@ -191,65 +196,17 @@ async function fetchSubscription(svc: ServiceClient, userId: string) {
 export async function buildUserContext(userId: string): Promise<UserContext> {
   const svc = serviceClient();
 
-  console.log('[buildUserContext] Starting for userId:', userId);
-
-  // Fetch all data with individual error handling
-  let profile = null;
-  try {
-    console.log('[buildUserContext] Fetching profile...');
-    profile = await fetchProfile(svc, userId);
-    console.log('[buildUserContext] Profile fetched');
-  } catch (e) {
-    console.error('[buildUserContext] Profile fetch error:', e);
-  }
-
-  let resume = null;
-  try {
-    console.log('[buildUserContext] Fetching resume...');
-    resume = await fetchBaseResume(svc, userId);
-    console.log('[buildUserContext] Resume fetched');
-  } catch (e) {
-    console.error('[buildUserContext] Resume fetch error:', e);
-  }
-
-  let appHistory = null;
-  try {
-    console.log('[buildUserContext] Fetching app history...');
-    appHistory = await fetchApplicationHistory(svc, userId);
-    console.log('[buildUserContext] App history fetched');
-  } catch (e) {
-    console.error('[buildUserContext] App history fetch error:', e);
-  }
-
-  let ats = null;
-  try {
-    console.log('[buildUserContext] Fetching ATS performance...');
-    ats = await fetchAtsPerformance(svc, userId);
-    console.log('[buildUserContext] ATS performance fetched');
-  } catch (e) {
-    console.error('[buildUserContext] ATS performance fetch error:', e);
-  }
-
-  let subscription = null;
-  try {
-    console.log('[buildUserContext] Fetching subscription...');
-    subscription = await fetchSubscription(svc, userId);
-    console.log('[buildUserContext] Subscription fetched');
-  } catch (e) {
-    console.error('[buildUserContext] Subscription fetch error:', e);
-  }
-
-  let limits = {};
-  try {
-    console.log('[buildUserContext] Fetching limits...');
-    limits = await getRemainingLimits(userId);
-    console.log('[buildUserContext] Limits fetched');
-  } catch (e) {
-    console.error('[buildUserContext] Limits fetch error:', e);
-    limits = {};
-  }
-
-  console.log('[buildUserContext] All data fetched successfully');
+  // All six sources are independent, so they load in parallel. Each one
+  // degrades to null/{} on failure - a missing section should never take
+  // down the AI route that needs the rest of the context.
+  const [profile, resume, appHistory, ats, subscription, limits] = await Promise.all([
+    fetchProfile(svc, userId).catch(() => null),
+    fetchBaseResume(svc, userId).catch(() => null),
+    fetchApplicationHistory(svc, userId).catch(() => null),
+    fetchAtsPerformance(svc, userId).catch(() => null),
+    fetchSubscription(svc, userId).catch(() => null),
+    getRemainingLimits(userId).catch(() => ({} as Record<string, number>)),
+  ]);
 
   return {
     fullName: profile?.full_name,

@@ -1,8 +1,10 @@
+// Parses a job posting (URL via Jina, or raw text) into structured fields
+// (skills, responsibilities, keywords) and stores it in jobs.
 import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
 import { ok, err, serverError, rateLimited } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
-import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
+import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse, checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit';
 import { withTimeout } from '@/lib/withTimeout';
 import { generateText } from '@/lib/ai';
 import { createClient } from '@/lib/supabase/server';
@@ -65,19 +67,21 @@ export async function POST(request: Request): Promise<Response> {
     const rateLimit = await checkRateLimit({
       key: 'parse-job',
       userId: user.id,
-      maxRequests: 20,
-      windowMinutes: 60,
+      devLimit: 5,
+      freeLimit: 20,
+      proLimit: 12,
+      devWindowMinutes: 1440,
+      freeWindowMinutes: 43200,
+      proWindowMinutes: 1440,
     });
     if (!rateLimit.allowed) {
       await logRoute('/api/parse-job', user.id, Date.now() - start, 429);
-      return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining);
+      return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier);
     }
 
     const body = await request.json().catch(() => null);
-    console.log('[parse-job] request body:', body)
     const validation = validateBody<{ url?: string; rawText?: string }>(body, []);
     if (!validation.valid) {
-      console.log('[parse-job] validation error:', validation.error)
       return err(validation.error, 400);
     }
 
@@ -102,8 +106,17 @@ export async function POST(request: Request): Promise<Response> {
     if (inputKind === 'rawText') {
       rawText = directText;
     } else {
+      // Platform-wide Jina token budget - only consumed when we actually scrape
+      // a URL (pasted text never hits Jina). Guard before spending a request.
+      const jinaQuota = await checkSharedQuota('jina_lifetime', 150, 36500);
+      if (!jinaQuota.allowed) {
+        await logRoute('/api/parse-job', user.id, Date.now() - start, 429);
+        return Response.json(
+          { error: 'URL scraping limit reached. Please paste the job description as text instead.' },
+          { status: 429 }
+        );
+      }
       try {
-        console.error('JINA_API_KEY present:', !!process.env.JINA_API_KEY);
         const jinaHeaders: Record<string, string> = {
           'Accept': 'text/markdown',
           'X-Return-Format': 'markdown',
@@ -135,6 +148,9 @@ export async function POST(request: Request): Promise<Response> {
         if (!rawText.trim() || rawText.trim().length < 80) {
           return err('Could not fetch usable job posting content. Try pasting the full job description directly.', 400);
         }
+
+        // Successful scrape - charge one against the shared Jina budget.
+        void incrementSharedQuota('jina_lifetime').catch(() => {});
       } catch {
         return err('Could not fetch that job posting. Try pasting the job description directly.', 400);
       }
@@ -142,13 +158,11 @@ export async function POST(request: Request): Promise<Response> {
 
     let parsed: ParsedJob;
     try {
-      console.log('[parse-job] before AI call');
       const rawAiOutput = await withTimeout(
         generateText(SYSTEM_PROMPT, buildUserPrompt(rawText), 2000),
         30000,
         'parse-job'
       );
-      console.log('[parse-job] AI raw output:', rawAiOutput);
       let candidate = rawAiOutput.trim();
 
       candidate = candidate

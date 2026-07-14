@@ -16,10 +16,17 @@ function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
 }
 
-export async function generateText(
+interface GeminiTurn {
+  role: 'user' | 'model';
+  parts: { text: string }[];
+}
+
+// Shared Gemini call with retry/backoff. All public helpers funnel through
+// here so capacity handling stays in one place.
+async function callGemini(
   systemPrompt: string,
-  userPrompt: string,
-  maxTokens = 2000
+  contents: GeminiTurn[],
+  maxTokens: number
 ): Promise<string> {
   const genAI = getGenAI();
   const model = genAI.getGenerativeModel({
@@ -32,7 +39,7 @@ export async function generateText(
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        contents,
         generationConfig: { maxOutputTokens: maxTokens },
       });
 
@@ -48,7 +55,9 @@ export async function generateText(
         (err as { status?: number })?.status ??
         (err as { statusCode?: number })?.statusCode;
 
-      if (status === 429) {
+      // 429 = rate limit/quota, 503 = "model experiencing high demand".
+      // Both are transient capacity errors worth retrying.
+      if (status === 429 || status === 503) {
         // Exponential backoff: 2s, 4s, 6s
         await sleep((attempt + 1) * 2000);
         continue;
@@ -62,6 +71,36 @@ export async function generateText(
 
   throw new Error(
     `Gemini failed after retries: ${lastError instanceof Error ? lastError.message : String(lastError)}`
+  );
+}
+
+export async function generateText(
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens = 2000
+): Promise<string> {
+  return callGemini(systemPrompt, [{ role: 'user', parts: [{ text: userPrompt }] }], maxTokens);
+}
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}
+
+/**
+ * Multi-turn chat completion. `messages` is the conversation so far, oldest
+ * first; the last entry must be the new user message. No streaming - the
+ * full reply comes back as one string.
+ */
+export async function generateChat(
+  systemPrompt: string,
+  messages: ChatMessage[],
+  maxTokens = 1000
+): Promise<string> {
+  return callGemini(
+    systemPrompt,
+    messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
+    maxTokens
   );
 }
 
@@ -89,6 +128,19 @@ export async function generateJSON<T = unknown>(
     throw new Error('Failed to parse JSON from AI response.');
   }
 }
+
+// True when the provider rejected the call for capacity reasons - quota /
+// rate limits (429) or "model experiencing high demand" (503). Routes use
+// this to answer with a friendly 429 instead of a generic 500.
+export function isAiQuotaError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  return /429|503|quota|rate.?limit|resource.?exhausted|too many requests|overloaded|high demand|service unavailable/i.test(message);
+}
+
+// Shared user-facing copy for AI-capacity 429s so every feature says the
+// same thing.
+export const AI_BUSY_MESSAGE =
+  'Our AI is temporarily over capacity. Please try again in a few minutes.';
 
 // -- Aliases kept for backward compatibility -----------------------------------
 // Legacy routes now share the same Gemini-backed helpers.

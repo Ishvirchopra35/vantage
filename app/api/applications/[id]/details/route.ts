@@ -1,3 +1,4 @@
+// Read one application with its linked job, documents, and ATS score.
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, notFound, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
@@ -29,10 +30,19 @@ export async function GET(
       return notFound('Application')
     }
 
+    interface TailorChange {
+      section: string
+      entry: string
+      original: string
+      tailored: string
+      reason: string
+    }
+
     let documents: Array<{
       id: string
       type: string
-      content: string
+      content: string | null
+      changes: TailorChange[] | null
       skill_gaps: string[] | null
       created_at: string
     }> = []
@@ -42,7 +52,7 @@ export async function GET(
       const [docsResult, atsResult] = await Promise.all([
         supabase
           .from('documents')
-          .select('id, type, content, skill_gaps, created_at')
+          .select('id, type, content, changes, skill_gaps, created_at')
           .eq('job_id', application.job_id)
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
@@ -51,12 +61,21 @@ export async function GET(
           .select('id, overall_score, keyword_score, format_score, experience_score, skills_score, missing_keywords, present_keywords, suggestions')
           .eq('job_id', application.job_id)
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
+          // ats_scores has scored_at, not created_at - ordering by a missing
+          // column errors the query and the modal never shows a score.
+          .order('scored_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
       ])
 
-      if (docsResult.data) documents = docsResult.data
+      if (docsResult.data) {
+        // The full tailored-resume text is internal-only (ATS scoring,
+        // auto-fill). Users only ever see the per-bullet diff, so the raw
+        // content is stripped here before it leaves the server.
+        documents = docsResult.data.map((doc) =>
+          doc.type === 'tailored_resume' ? { ...doc, content: null } : doc
+        )
+      }
       if (atsResult.data) atsScore = atsResult.data
     }
 

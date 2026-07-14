@@ -1,5 +1,6 @@
 'use client';
 
+// Colored pill for ATS scores: red under 60, amber 60-79, green 80+.
 interface ScoreBadgeProps {
   score: number;
 }

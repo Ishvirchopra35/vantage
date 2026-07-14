@@ -228,6 +228,13 @@ async function handleFill() {
         return;
       }
 
+      if (aiRes.status === 429) {
+        let message = "You've reached the auto-fill limit. Try again later.";
+        try { const d = await aiRes.json(); if (d && d.error) message = d.error; } catch {}
+        resultEl.innerHTML = `<div class="result-box result-error mt-8">${escapeHtml(message)}</div>`;
+        return;
+      }
+
       if (aiRes.ok) {
         const parsed = await aiRes.json();
         const fields = parsed?.data?.fields || parsed?.fields || [];

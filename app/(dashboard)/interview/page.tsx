@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, useRef } from 'react'
+import { rateLimitMessage } from '@/lib/rateLimitMessage'
 import { createClient } from '@/lib/supabase/client'
 import Spinner from '@/components/ui/Spinner'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
@@ -296,7 +297,11 @@ export default function InterviewPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, question, answer }),
       })
-      const json = await res.json() as { assessment?: Assessment; error?: string }
+      const json = await res.json() as { assessment?: Assessment; error?: string; retryAfter?: number }
+      if (res.status === 429) {
+        setError(json.error || rateLimitMessage(json.retryAfter))
+        return
+      }
       if (!res.ok || !json.assessment) {
         setError(json.error ?? 'Assessment failed')
         return
@@ -343,7 +348,11 @@ export default function InterviewPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      const json = await res.json() as { session?: InterviewSession; error?: string }
+      const json = await res.json() as { session?: InterviewSession; error?: string; retryAfter?: number }
+      if (res.status === 429) {
+        setError(json.error || rateLimitMessage(json.retryAfter))
+        return
+      }
       if (!res.ok || !json.session) {
         setError(json.error ?? 'Failed to start session')
         return
@@ -411,7 +420,7 @@ export default function InterviewPage() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="rsp-grid-2" style={{ gap: '10px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--muted)', marginBottom: '5px' }}>Job Title</label>
                   <input
@@ -830,7 +839,7 @@ export default function InterviewPage() {
                   )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+                <div className="rsp-grid-2" style={{ gap: '16px', marginBottom: '12px' }}>
                   <div>
                     <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600, color: '#4ade80', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Strengths</div>
                     {(assessment.strengths ?? []).length === 0 ? (

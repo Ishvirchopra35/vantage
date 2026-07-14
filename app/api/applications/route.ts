@@ -1,8 +1,10 @@
+// Application tracker: GET lists (with job/score joins), POST logs a new
+// application. The 150-application free cap is enforced via checkLimit.
 import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
-import { ok, err, rateLimited, serverError } from '@/lib/apiResponse';
+import { ok, err, serverError } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
-import { checkLimit, LIMITS } from '@/lib/rateLimit';
+import { checkLimit, resolveUserTier } from '@/lib/rateLimit';
 import { createClient } from '@/lib/supabase/server';
 
 export interface ApplicationRow {
@@ -123,15 +125,26 @@ export async function POST(request: Request): Promise<Response> {
   if (!validation.valid) return err(validation.error, 400);
   const { company, role, status, job_url, job_id, applied_date, notes, ats_score_id } = validation.data;
 
-  const limitCheck = await checkLimit(user.id, 'applications');
-  if (!limitCheck.allowed) {
-    await logRoute('/api/applications', user.id, Date.now() - start, 429);
-    return rateLimited('application tracking', LIMITS.applications, 0);
+  const supabase = await createClient();
+
+  // Free-tier cap: 150 tracked applications. Skipped in dev mode and for pro users.
+  const tier = await resolveUserTier(user.id);
+  if (tier === 'free') {
+    const { count } = await supabase
+      .from('applications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .is('deleted_at', null);
+    if ((count ?? 0) >= 150) {
+      await logRoute('/api/applications', user.id, Date.now() - start, 403);
+      return Response.json(
+        { error: 'You have reached the 150 application limit on the free plan. Upgrade to Pro for unlimited tracking.' },
+        { status: 403 }
+      );
+    }
   }
 
   try {
-    const supabase = await createClient();
-
     const { data: newRow, error: insertError } = await supabase
       .from('applications')
       .insert({

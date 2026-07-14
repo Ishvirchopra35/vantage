@@ -1,5 +1,8 @@
+// CLIENT-SIDE analytics: fire-and-forget event tracking into the events
+// table. Never throws and never blocks UI - analytics must not break UX.
 import { createClient as createBrowserClient } from '@/lib/supabase/client';
 
+/** Every trackable product event. Add new names here, not ad hoc strings. */
 export type EventName =
   | 'signed_up'
   | 'completed_profile'

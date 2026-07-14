@@ -1,3 +1,4 @@
+// Returns the caller's remaining monthly feature quotas for the sidebar/UI.
 import { requireAuth } from '@/lib/requireAuth';
 import { ok } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';

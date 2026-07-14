@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import AdminCampaignForm from '@/components/AdminCampaignForm';
+import AdminResetAnalytics from '@/components/AdminResetAnalytics';
 
 export const dynamic = 'force-dynamic';
 
@@ -153,15 +155,37 @@ export default async function AdminPage() {
       .from('subscriptions')
       .select('user_id, plan, status, cancelled_at, created_at')
       .order('created_at', { ascending: false }),
+    // Guardrails, not pagination: this page aggregates in memory, so cap the
+    // two unbounded tables at the most recent 50k rows. Totals silently
+    // become "last 50k" past that - use Reset analytics to keep them small.
     svc
       .from('events')
       .select('user_id, event_name, properties, created_at')
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(50000),
     svc
       .from('ats_scores')
       .select('job_id, document_id, resume_id, overall_score, created_at'),
-    svc.from('route_logs').select('route, duration_ms, created_at'),
+    svc
+      .from('route_logs')
+      .select('route, duration_ms, created_at')
+      .order('created_at', { ascending: false })
+      .limit(50000),
   ]);
+
+  // Marketing subscriber count for the campaign form. The column arrives
+  // with the batch3 migration; before it runs this simply reads as 0.
+  let optedInCount = 0;
+  try {
+    const { count } = await svc
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('marketing_emails_enabled', true)
+      .not('email', 'is', null);
+    optedInCount = count ?? 0;
+  } catch {
+    optedInCount = 0;
+  }
 
   const profiles = (profilesResult.data ?? []) as ProfileRow[];
   const subscriptions = (subscriptionsResult.data ?? []) as SubscriptionRow[];
@@ -633,6 +657,16 @@ export default async function AdminPage() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section style={pageCardStyle}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)', marginBottom: '16px' }}>Email campaign</h2>
+        <AdminCampaignForm optedInCount={optedInCount} />
+      </section>
+
+      <section style={pageCardStyle}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)', marginBottom: '16px' }}>Maintenance</h2>
+        <AdminResetAnalytics />
       </section>
     </main>
   );

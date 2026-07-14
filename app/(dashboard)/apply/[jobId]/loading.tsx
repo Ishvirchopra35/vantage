@@ -27,7 +27,7 @@ export default function Loading(): React.ReactElement {
         <div style={{ marginBottom: '14px' }}>
           <SkeletonLoader width={130} height={11} />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+        <div className="rsp-grid-3" style={{ gap: '14px' }}>
           {Array.from({ length: 3 }).map((_, i) => (
             <SkeletonLoader key={i} height={120} borderRadius="10px" />
           ))}

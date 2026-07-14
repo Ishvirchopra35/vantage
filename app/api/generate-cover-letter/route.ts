@@ -1,10 +1,12 @@
+// Generates a tailored cover letter from the user's context + job posting;
+// saved to documents with type cover_letter.
 import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
 import { ok, err, notFound, rateLimited, serverError } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
-import { checkLimit, LIMITS } from '@/lib/rateLimit';
+import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 import { withTimeout } from '@/lib/withTimeout';
-import { generateText } from '@/lib/ai';
+import { generateText, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai';
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext';
 import { createClient } from '@/lib/supabase/server';
 
@@ -24,6 +26,21 @@ export async function POST(request: Request): Promise<Response> {
   if (!limitCheck.allowed) {
     await logRoute('/api/generate-cover-letter', user.id, Date.now() - start, 429);
     return rateLimited('cover letter generation', LIMITS.cover_letter, 30);
+  }
+
+  const rateLimit = await checkRateLimit({
+    key: 'cover-letter',
+    userId: user.id,
+    devLimit: 1,
+    freeLimit: 10,
+    proLimit: 4,
+    devWindowMinutes: 1440,
+    freeWindowMinutes: 43200,
+    proWindowMinutes: 1440,
+  });
+  if (!rateLimit.allowed) {
+    await logRoute('/api/generate-cover-letter', user.id, Date.now() - start, 429);
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier);
   }
 
   const supabase = await createClient();
@@ -134,6 +151,10 @@ export async function POST(request: Request): Promise<Response> {
   try {
     coverLetterText = await withTimeout(generateText(systemPrompt, userPrompt, 1500), 30000, 'generate-cover-letter');
   } catch (e) {
+    if (isAiQuotaError(e)) {
+      await logRoute('/api/generate-cover-letter', user.id, Date.now() - start, 429);
+      return err(AI_BUSY_MESSAGE, 429);
+    }
     await logRoute('/api/generate-cover-letter', user.id, Date.now() - start, 500);
     return serverError(new Error('Failed to generate cover letter'));
   }

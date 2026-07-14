@@ -1,3 +1,5 @@
+// Imports profile fields (experience, projects, skills) from resume text so
+// users don't have to retype their history into the Profile form.
 import { requireAuth } from '@/lib/requireAuth'
 import { validateBody } from '@/lib/validateRequest'
 import { ok, err, serverError } from '@/lib/apiResponse'
@@ -49,12 +51,16 @@ export async function POST(request: Request): Promise<Response> {
   const rateLimit = await checkRateLimit({
     key: 'parse-profile',
     userId: user.id,
-    maxRequests: 10,
-    windowMinutes: 60,
+    devLimit: 1,
+    freeLimit: 3,
+    proLimit: 1,
+    devWindowMinutes: 1440,
+    freeWindowMinutes: 43200,
+    proWindowMinutes: 1440,
   })
   if (!rateLimit.allowed) {
     await logRoute('/api/parse-profile', user.id, Date.now() - start, 429)
-    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining)
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
   }
 
   const body = await request.json().catch(() => null)

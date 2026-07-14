@@ -1,10 +1,13 @@
+// Auto-apply Tier 3 (answers panel): Jina reads the application form URL,
+// then the AI drafts an answer for every question for the user to copy.
 import { requireAuth } from '@/lib/requireAuth'
 import { validateBody } from '@/lib/validateRequest'
-import { ok, err, serverError } from '@/lib/apiResponse'
+import { ok, err, rateLimited, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
 import { generateJSON } from '@/lib/ai'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
 import { withTimeout } from '@/lib/withTimeout'
+import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse, checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit'
 
 interface FormField {
   label: string
@@ -18,12 +21,45 @@ export async function POST(request: Request): Promise<Response> {
   if ('error' in auth) return auth.error
   const { user } = auth
 
+  // Tier 3 of auto-apply - counts against the same monthly credit as the
+  // extension fill.
+  const limitCheck = await checkLimit(user.id, 'auto_apply')
+  if (!limitCheck.allowed) {
+    await logRoute('analyze-form', user.id, Date.now() - start, 429)
+    return rateLimited('auto-apply', LIMITS.auto_apply, 30)
+  }
+
+  const rateLimit = await checkRateLimit({
+    key: 'analyze-form',
+    userId: user.id,
+    devLimit: 2,
+    freeLimit: 10,
+    proLimit: 10,
+    devWindowMinutes: 1440,
+    freeWindowMinutes: 43200,
+    proWindowMinutes: 1440,
+  })
+  if (!rateLimit.allowed) {
+    await logRoute('analyze-form', user.id, Date.now() - start, 429)
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
+  }
+
   const body = await request.json()
   const validation = validateBody<{ url: string; jobId?: string }>(body, ['url'])
   if (!validation.valid) return err(validation.error, 400)
   const { url } = validation.data
 
   try {
+    // Platform-wide Jina token budget - this route always scrapes a URL.
+    const jinaQuota = await checkSharedQuota('jina_lifetime', 150, 36500)
+    if (!jinaQuota.allowed) {
+      await logRoute('analyze-form', user.id, Date.now() - start, 429)
+      return Response.json(
+        { error: 'URL scraping limit reached. Please use the extension or console fill instead.' },
+        { status: 429 }
+      )
+    }
+
     // Fetch form content via Jina.ai reader (free, no API key)
     const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
       headers: { Accept: 'text/plain' },
@@ -32,6 +68,8 @@ export async function POST(request: Request): Promise<Response> {
       await logRoute('analyze-form', user.id, Date.now() - start, 422)
       return err('Could not fetch the form URL. Make sure it is a publicly accessible page.', 422)
     }
+    // Successful scrape - charge one against the shared Jina budget.
+    void incrementSharedQuota('jina_lifetime').catch(() => {})
     const formText = await jinaRes.text()
 
     const ctx = await buildUserContext(user.id)

@@ -534,9 +534,8 @@ export default function TrackerPage() {
         {!loading && applications.length > 0 && (
           <div className="tracker-table-wrapper fade-in" style={{ ...card, padding: 0 }}>
             {/* columns: company(flex) | role(flex) | status(100px) | since(52px) | ats(52px) | delete(32px) */}
-            <div style={{
+            <div className="tracker-table-row" style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(0,2fr) minmax(0,2fr) 100px 52px 52px 32px',
               padding: '10px 20px',
               borderBottom: '1px solid var(--border)',
               gap: '12px',
@@ -568,9 +567,9 @@ export default function TrackerPage() {
                   onClick={() => { if (!row.id.startsWith('temp-') && !isDeleting) setSelectedAppId(row.id) }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'var(--card-raised)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = idx % 2 === 0 ? 'var(--card-sunken)' : 'transparent' }}
+                  className="tracker-table-row"
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(0,2fr) minmax(0,2fr) 100px 52px 52px 32px',
                     padding: '13px 20px',
                     background: idx % 2 === 0 ? 'var(--card-sunken)' : 'transparent',
                     borderBottom: idx < applications.length - 1 ? '1px solid var(--border)' : 'none',
@@ -729,6 +728,12 @@ export default function TrackerPage() {
         <ApplicationDetailModal
           applicationId={selectedAppId}
           onClose={() => setSelectedAppId(null)}
+          onUpdated={updated => {
+            // Keep the table row in sync with edits made inside the modal.
+            setApplications(prev =>
+              prev.map(a => (a.id === updated.id ? { ...a, ...updated } : a))
+            )
+          }}
         />
       )}
     </div>

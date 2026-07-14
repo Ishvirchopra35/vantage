@@ -1,5 +1,7 @@
 'use client';
 
+// Standard zero-data placeholder: title, description, optional action link.
+// Every list/table renders this instead of an empty region.
 import Link from 'next/link';
 
 interface EmptyStateProps {

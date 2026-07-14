@@ -10,6 +10,8 @@ import CustomSelect from '@/components/CustomSelect'
 import PageHeader from '@/components/ui/PageHeader'
 import ExternalLinkIcon from '@/components/ui/ExternalLinkIcon'
 import { track } from '@/lib/analytics'
+import { rateLimitMessage } from '@/lib/rateLimitMessage'
+import { createClient } from '@/lib/supabase/client'
 
 // --- Types --------------------------------------------------------------------
 
@@ -166,7 +168,7 @@ function JobCard({
           rel="noopener noreferrer"
           style={smallBtn}
         >
-          View job <ExternalLinkIcon />
+          View Job <ExternalLinkIcon />
         </a>
         <Link
           href={`/tailor?prefill=${encodeURIComponent(job.url)}`}
@@ -200,11 +202,16 @@ function JobCard({
 interface Filters {
   location: string
   jobType: string
-  salaryMin: string
-  datePosted: string
 }
 
-const EMPTY_FILTERS: Filters = { location: '', jobType: '', salaryMin: '', datePosted: '' }
+const EMPTY_FILTERS: Filters = { location: '', jobType: '' }
+
+interface FilterPreset {
+  id: string
+  name: string
+  filters: Partial<Filters>
+  created_at: string
+}
 
 const JOB_TYPE_TO_CONTRACT: Record<string, string[]> = {
   'full-time': ['permanent'],
@@ -214,6 +221,7 @@ const JOB_TYPE_TO_CONTRACT: Record<string, string[]> = {
 }
 
 export default function JobsPage() {
+  const supabase = useMemo(() => createClient(), [])
   const [allJobs, setAllJobs] = useState<JobFeedItem[]>([])
   const [loading, setLoading] = useState(false)
   const [noTargetRoles, setNoTargetRoles] = useState(false)
@@ -221,18 +229,48 @@ export default function JobsPage() {
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
   const [initialLoadDone, setInitialLoadDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Cache key is namespaced by user id so switching accounts on the same
+  // device never surfaces another account's cached job feed.
+  const [cacheKey, setCacheKey] = useState<string | null>(null)
 
-  const hasActiveFilters = filters.location !== '' || filters.jobType !== '' || filters.salaryMin !== '' || filters.datePosted !== ''
+  // Saved filter presets
+  const [presets, setPresets] = useState<FilterPreset[]>([])
+  const [selectedPresetId, setSelectedPresetId] = useState('')
+  const [savingPreset, setSavingPreset] = useState(false)
+  const [presetNameOpen, setPresetNameOpen] = useState(false)
+  const [presetName, setPresetName] = useState('')
+  const [presetError, setPresetError] = useState<string | null>(null)
+
+  function writeCache(key: string | null, payload: { noTargetRoles: boolean; jobs: JobFeedItem[] }) {
+    if (!key) return
+    try {
+      localStorage.setItem(key, JSON.stringify(payload))
+    } catch {
+      // localStorage unavailable - caching is best-effort only
+    }
+  }
+
+  const hasActiveFilters = Object.values(filters).some(v => v !== '')
 
   function clearFilters() { setFilters(EMPTY_FILTERS) }
 
-  // Only called when user clicks "Find New" - never on filter change
+  // Only called when user clicks "Find New" - never on filter change.
+  // Server-side filters (radius, salary, date posted, type) are passed along
+  // so Adzuna returns matching jobs in the first place.
   async function fetchJobs() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/discover-jobs?refresh=true', { cache: 'no-store' })
+      const params = new URLSearchParams({ refresh: 'true' })
+      if (filters.jobType) params.set('jobType', filters.jobType)
+
+      const res = await fetch(`/api/discover-jobs?${params.toString()}`, { cache: 'no-store' })
       const json = await res.json()
+
+      if (res.status === 429) {
+        setError(json.error || rateLimitMessage(json.retryAfter))
+        return
+      }
 
       if (!res.ok) {
         setError(json.error || 'We could not load jobs right now. Try again.')
@@ -242,12 +280,12 @@ export default function JobsPage() {
       if (json.noTargetRoles) {
         setNoTargetRoles(true)
         setAllJobs([])
-        localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles: true, jobs: [] }))
+        writeCache(cacheKey, { noTargetRoles: true, jobs: [] })
       } else {
         setNoTargetRoles(false)
         const jobsList = (json.jobs ?? []) as JobFeedItem[]
         setAllJobs(jobsList)
-        localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles: false, jobs: jobsList }))
+        writeCache(cacheKey, { noTargetRoles: false, jobs: jobsList })
       }
     } catch {
       setError('Network error. Please try again.')
@@ -257,23 +295,137 @@ export default function JobsPage() {
     }
   }
 
-  // Load cached jobs from localStorage on mount - no API call
+  // Hydrate on mount: user-scoped localStorage first (instant, no request),
+  // falling back to the jobs already stored in the database (no AI cost) -
+  // so signing out and back in never loses the feed, while accounts on the
+  // same device still can't see each other's cache.
   useEffect(() => {
-    try {
-      const cached = localStorage.getItem('jobFeedCache')
-      if (cached) {
-        const parsed = JSON.parse(cached)
-        if (parsed.jobs && Array.isArray(parsed.jobs)) {
-          setAllJobs(parsed.jobs as JobFeedItem[])
-        }
-        if (parsed.noTargetRoles) setNoTargetRoles(true)
+    let cancelled = false
+    async function hydrate() {
+      let key: string | null = null
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) key = `jobFeedCache:${user.id}`
+      } catch {
+        // Auth lookup failed - skip caching for this session
       }
-    } catch {
-      // fail silently
-    } finally {
-      setInitialLoadDone(true)
+      if (cancelled) return
+      setCacheKey(key)
+
+      let hydratedFromCache = false
+      try {
+        // Drop the legacy un-namespaced cache; it may belong to another account.
+        localStorage.removeItem('jobFeedCache')
+        const cached = key ? localStorage.getItem(key) : null
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          if (parsed.jobs && Array.isArray(parsed.jobs) && parsed.jobs.length > 0) {
+            setAllJobs(parsed.jobs as JobFeedItem[])
+            hydratedFromCache = true
+          }
+          if (parsed.noTargetRoles) {
+            setNoTargetRoles(true)
+            hydratedFromCache = true
+          }
+        }
+      } catch {
+        // fail silently
+      }
+
+      if (!hydratedFromCache) {
+        try {
+          // Cache miss (fresh sign-in, new device): restore the stored feed.
+          const res = await fetch('/api/discover-jobs', { cache: 'no-store' })
+          if (res.ok) {
+            const json = await res.json()
+            const jobsList = (json.jobs ?? []) as JobFeedItem[]
+            if (!cancelled && jobsList.length > 0) {
+              setAllJobs(jobsList)
+              writeCache(key, { noTargetRoles: false, jobs: jobsList })
+            }
+          }
+        } catch {
+          // Feed restore is best-effort; "Find new" still works
+        }
+      }
+
+      if (!cancelled) setInitialLoadDone(true)
     }
+    void hydrate()
+    return () => { cancelled = true }
+  }, [supabase])
+
+  // Load saved filter presets once on mount
+  useEffect(() => {
+    let cancelled = false
+    async function loadPresets() {
+      try {
+        const res = await fetch('/api/job-filter-presets')
+        if (!res.ok) return
+        const json = await res.json()
+        if (!cancelled) setPresets((json.presets ?? []) as FilterPreset[])
+      } catch {
+        // Presets are a convenience - fail silently
+      }
+    }
+    void loadPresets()
+    return () => { cancelled = true }
   }, [])
+
+  function applyPreset(id: string) {
+    setSelectedPresetId(id)
+    if (!id) return
+    const preset = presets.find(p => p.id === id)
+    if (preset) {
+      // Only known keys - older presets may carry filters that no longer exist.
+      setFilters({
+        location: preset.filters.location ?? '',
+        jobType: preset.filters.jobType ?? '',
+      })
+    }
+  }
+
+  async function handleSavePreset() {
+    if (!presetName.trim()) {
+      setPresetError('Give the filter a name.')
+      return
+    }
+    setSavingPreset(true)
+    setPresetError(null)
+    try {
+      const res = await fetch('/api/job-filter-presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: presetName.trim(), filters }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setPresetError(json.error ?? 'Could not save the filter.')
+        return
+      }
+      const preset = json.preset as FilterPreset
+      setPresets(prev => [preset, ...prev])
+      setSelectedPresetId(preset.id)
+      setPresetName('')
+      setPresetNameOpen(false)
+    } catch {
+      setPresetError('Network error. Please try again.')
+    } finally {
+      setSavingPreset(false)
+    }
+  }
+
+  async function handleDeletePreset() {
+    if (!selectedPresetId) return
+    const id = selectedPresetId
+    setSelectedPresetId('')
+    setPresets(prev => prev.filter(p => p.id !== id))
+    try {
+      await fetch(`/api/job-filter-presets/${id}`, { method: 'DELETE' })
+    } catch {
+      // Row stays server-side on failure; it reappears on next load
+    }
+  }
 
   async function handleSave(id: string, currentValue: boolean) {
     const nextValue = !currentValue
@@ -283,7 +435,7 @@ export default function JobsPage() {
     const applySaved = (saved: boolean) => {
       setAllJobs(prev => {
         const updated = prev.map(j => j.id === id ? { ...j, is_saved: saved } : j)
-        localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles, jobs: updated }))
+        writeCache(cacheKey, { noTargetRoles, jobs: updated })
         return updated
       })
     }
@@ -308,7 +460,7 @@ export default function JobsPage() {
   function handleDismiss(id: string) {
     const updated = allJobs.map(j => j.id === id ? { ...j, is_dismissed: true } : j)
     setAllJobs(updated)
-    localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles, jobs: updated }))
+    writeCache(cacheKey, { noTargetRoles, jobs: updated })
     fetch(`/api/job-feed/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -316,7 +468,7 @@ export default function JobsPage() {
     }).catch(() => {
       const reverted = allJobs.map(j => j.id === id ? { ...j, is_dismissed: false } : j)
       setAllJobs(reverted)
-      localStorage.setItem('jobFeedCache', JSON.stringify({ noTargetRoles, jobs: reverted }))
+      writeCache(cacheKey, { noTargetRoles, jobs: reverted })
     })
   }
 
@@ -364,6 +516,25 @@ export default function JobsPage() {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '6px',
+    color: 'var(--muted)',
+  }
+
+  // Filter-bar building blocks: a labelled column per control so the bar
+  // reads as an organized form instead of a loose row of boxes.
+  const filterFieldStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '5px',
+    flex: '1 1 130px',
+    minWidth: 0,
+    maxWidth: '180px',
+  }
+
+  const filterLabelStyle: React.CSSProperties = {
+    fontSize: '10px',
+    fontWeight: 600,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
     color: 'var(--muted)',
   }
 
@@ -416,58 +587,47 @@ export default function JobsPage() {
         )}
       />
 
-      {/* -- Filter bar ---------------------------------------------------- */}
+      {/* -- Filter bar ------------------------------------------------------
+          One card, two aligned groups: labelled filter controls on the left,
+          saved-filter presets on the right. Everything shares the
+          .filter-control height so the row reads as a single system. */}
       <div style={{
         display: 'flex',
-        gap: '10px',
-        alignItems: 'center',
+        alignItems: 'flex-end',
         flexWrap: 'wrap',
+        gap: '12px 14px',
         marginBottom: '16px',
-        padding: '15px 16px',
+        padding: '14px 16px',
         background: 'var(--card)',
         borderRadius: '10px',
       }}>
-        <input
-          type="text"
-          placeholder="Location"
-          value={filters.location}
-          onChange={e => setFilters(prev => ({ ...prev, location: e.target.value }))}
-          className="filter-control"
-          style={{ width: '120px' }}
-        />
-        <CustomSelect
-          value={filters.jobType}
-          onChange={v => setFilters(prev => ({ ...prev, jobType: v }))}
-          options={[
-            { value: '', label: 'Any type' },
-            { value: 'full-time', label: 'Full-time' },
-            { value: 'part-time', label: 'Part-time' },
-            { value: 'contract', label: 'Contract' },
-            { value: 'internship', label: 'Internship' },
-          ]}
-          triggerClassName="filter-control"
-          style={{ minWidth: '140px' }}
-        />
-        <input
-          type="number"
-          placeholder="Min salary"
-          value={filters.salaryMin}
-          onChange={e => setFilters(prev => ({ ...prev, salaryMin: e.target.value }))}
-          className="filter-control"
-          style={{ width: '110px' }}
-        />
-        <CustomSelect
-          value={filters.datePosted}
-          onChange={v => setFilters(prev => ({ ...prev, datePosted: v }))}
-          options={[
-            { value: '', label: 'Any time' },
-            { value: 'today', label: 'Today' },
-            { value: 'week', label: 'This week' },
-            { value: 'month', label: 'This month' },
-          ]}
-          triggerClassName="filter-control"
-          style={{ minWidth: '130px' }}
-        />
+        <div style={filterFieldStyle}>
+          <label style={filterLabelStyle}>Location</label>
+          <input
+            type="text"
+            placeholder="e.g. Toronto"
+            value={filters.location}
+            onChange={e => setFilters(prev => ({ ...prev, location: e.target.value }))}
+            className="filter-control"
+            style={{ width: '100%', minWidth: 0 }}
+          />
+        </div>
+        <div style={filterFieldStyle}>
+          <label style={filterLabelStyle}>Job type</label>
+          <CustomSelect
+            value={filters.jobType}
+            onChange={v => setFilters(prev => ({ ...prev, jobType: v }))}
+            options={[
+              { value: '', label: 'Any type' },
+              { value: 'full-time', label: 'Full-time' },
+              { value: 'part-time', label: 'Part-time' },
+              { value: 'contract', label: 'Contract' },
+              { value: 'internship', label: 'Internship' },
+            ]}
+            triggerClassName="filter-control"
+            style={{ width: '100%' }}
+          />
+        </div>
         {hasActiveFilters && (
           <button
             type="button"
@@ -475,8 +635,83 @@ export default function JobsPage() {
             className="filter-control"
             style={{ width: 'auto', color: 'var(--muted)', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
-            Clear filters
+            Clear
           </button>
+        )}
+
+        {/* Spacer pushes the presets group to the card's right edge */}
+        <div style={{ flex: '1 0 12px' }} />
+
+        <div style={{ ...filterFieldStyle, maxWidth: '190px' }}>
+          <label style={filterLabelStyle}>Saved filters</label>
+          <CustomSelect
+            value={selectedPresetId}
+            onChange={applyPreset}
+            options={[
+              { value: '', label: presets.length === 0 ? 'None saved yet' : 'Choose a filter…' },
+              ...presets.map(p => ({ value: p.id, label: p.name })),
+            ]}
+            triggerClassName="filter-control"
+            style={{ width: '100%' }}
+          />
+        </div>
+        {selectedPresetId && (
+          <button
+            type="button"
+            onClick={() => void handleDeletePreset()}
+            className="filter-control"
+            style={{ width: 'auto', color: 'var(--score-red)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            Delete
+          </button>
+        )}
+        {presetNameOpen ? (
+          <>
+            <div style={{ ...filterFieldStyle, maxWidth: '190px' }}>
+              <label style={filterLabelStyle}>Name this filter</label>
+              <input
+                type="text"
+                placeholder="e.g. Toronto internships"
+                value={presetName}
+                onChange={e => setPresetName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !savingPreset) void handleSavePreset() }}
+                className="filter-control"
+                style={{ width: '100%', minWidth: 0 }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleSavePreset()}
+              disabled={savingPreset}
+              className="filter-control"
+              style={{ width: 'auto', cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '6px', opacity: savingPreset ? 0.7 : 1 }}
+            >
+              {savingPreset && <Spinner size="sm" />}
+              {savingPreset ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPresetNameOpen(false); setPresetName(''); setPresetError(null) }}
+              className="filter-control"
+              style={{ width: 'auto', color: 'var(--muted)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => setPresetNameOpen(true)}
+              className="filter-control"
+              style={{ width: 'auto', color: 'var(--muted)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              Save these filters
+            </button>
+          )
+        )}
+        {presetError && (
+          <span style={{ flexBasis: '100%', fontSize: '11px', color: 'var(--score-red)' }}>{presetError}</span>
         )}
       </div>
 

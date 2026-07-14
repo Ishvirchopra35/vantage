@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import ArrowIcon from '@/components/ui/ArrowIcon'
 import PageHeader from '@/components/ui/PageHeader'
+import TailorDiff, { formatTailoredBullets, type TailorChange } from '@/components/TailorDiff'
+import { rateLimitMessage } from '@/lib/rateLimitMessage'
+import { RESUME_CSS } from '@/lib/resumeCss'
 
 // --- Types -------------------------------------------------------------------
 
@@ -39,14 +42,6 @@ interface Doc {
   content: string
 }
 
-interface TailorChange {
-  section: string
-  entry: string
-  original: string
-  tailored: string
-  reason: string
-}
-
 // --- Helpers -----------------------------------------------------------------
 
 function scoreColor(n: number): string {
@@ -74,6 +69,7 @@ async function apiFetch<T>(
 
     const res = await fetch(url, fetchOptions)
     const json = await res.json()
+    if (res.status === 429) return { data: null, error: json.error || json.message || rateLimitMessage(json.retryAfter) }
     if (!res.ok) return { data: null, error: json.error || `Error ${res.status}` }
     return { data: json as T, error: null }
   } catch {
@@ -225,7 +221,14 @@ export default function TailorPage() {
   const [coverDoc, setCoverDoc] = useState<Doc | null>(null)
   const [activeTab, setActiveTab] = useState<'ats' | 'resume' | 'cover'>('resume')
   const [copied, setCopied] = useState<'resume' | 'cover' | null>(null)
-  const [copiedBullet, setCopiedBullet] = useState<number | null>(null)
+
+  // Tailored Resume tab has two views: the per-bullet diff (default) and a
+  // full rendered resume that can be downloaded as a PDF.
+  const [resumeView, setResumeView] = useState<'diff' | 'full'>('diff')
+  const [fullHtml, setFullHtml] = useState<string | null>(null)
+  const [fullHtmlError, setFullHtmlError] = useState<string | null>(null)
+  const [loadingFull, setLoadingFull] = useState(false)
+  const [downloadingResumePdf, setDownloadingResumePdf] = useState(false)
 
   // Log application
   const [logCompany, setLogCompany] = useState('')
@@ -378,8 +381,64 @@ export default function TailorPage() {
     setTailoredDoc(data.document)
     setTailorChanges(data.changes ?? [])
     if (data.atsScore) setTailoredAtsScore(data.atsScore)
+    // New tailoring invalidates any previously rendered full resume.
+    setFullHtml(null)
+    setFullHtmlError(null)
+    setResumeView('diff')
     setStep(3)
     setActiveTab('resume')
+  }
+
+  async function loadFullResume() {
+    if (!tailoredDoc || loadingFull) return
+    setFullHtmlError(null)
+    setLoadingFull(true)
+    const { data, error } = await apiFetch<{ html: string }>('/api/tailor-resume/render', {
+      method: 'POST',
+      body: JSON.stringify({ documentId: tailoredDoc.id }),
+    })
+    setLoadingFull(false)
+    if (error || !data?.html) {
+      setFullHtmlError(error || 'Could not render the full resume. Please try again.')
+      return
+    }
+    setFullHtml(data.html)
+  }
+
+  function switchResumeView(view: 'diff' | 'full') {
+    setResumeView(view)
+    if (view === 'full' && !fullHtml && !loadingFull) void loadFullResume()
+  }
+
+  async function downloadResumePdf() {
+    if (!fullHtml || downloadingResumePdf) return
+    setFullHtmlError(null)
+    setDownloadingResumePdf(true)
+    try {
+      const res = await fetch('/api/resume-studio/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html: fullHtml }),
+      })
+      if (!res.ok) {
+        const json = await res.json().catch(() => null)
+        setFullHtmlError(json?.error ?? 'Could not create the PDF. Please try again.')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = parsedJob
+        ? `${parsedJob.company} - ${parsedJob.title} - Resume.pdf`
+        : 'Tailored Resume.pdf'
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setFullHtmlError('Network error. Please try again.')
+    } finally {
+      setDownloadingResumePdf(false)
+    }
   }
 
   async function generateCoverLetter() {
@@ -415,36 +474,6 @@ export default function TailorPage() {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  async function copyBullet(text: string, idx: number) {
-    await navigator.clipboard.writeText(text)
-    setCopiedBullet(idx)
-    setTimeout(() => setCopiedBullet(null), 2000)
-  }
-
-  // Group changes by resume section, then by parent entry (company / project
-  // name), preserving the order they appear in
-  interface EntryGroup { name: string; items: { change: TailorChange; idx: number }[] }
-  interface SectionGroup { name: string; entries: EntryGroup[] }
-
-  function groupChanges(changes: TailorChange[]): SectionGroup[] {
-    const sections: SectionGroup[] = []
-    changes.forEach((change, idx) => {
-      let section = sections.find(s => s.name === change.section)
-      if (!section) {
-        section = { name: change.section, entries: [] }
-        sections.push(section)
-      }
-      const entryName = change.entry || ''
-      let entry = section.entries.find(e => e.name === entryName)
-      if (!entry) {
-        entry = { name: entryName, items: [] }
-        section.entries.push(entry)
-      }
-      entry.items.push({ change, idx })
-    })
-    return sections
-  }
-
   function downloadAsPDF(content: string, filename: string) {
     const iframe = document.createElement('iframe')
     iframe.style.display = 'none'
@@ -454,7 +483,14 @@ export default function TailorPage() {
     if (!doc) return
 
     const isHtml = isHtmlContent(content)
-    const bodyContent = isHtml ? content : `<pre>${escapeHtml(content)}</pre>`
+    // The AI is told not to emit scripts, but this iframe is same-origin so
+    // anything executable is stripped before document.write regardless.
+    const sanitized = content
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
+      .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+      .replace(/javascript:/gi, '')
+    const bodyContent = isHtml ? sanitized : `<pre>${escapeHtml(content)}</pre>`
 
     const pageStyles = `
       @page { margin: 0; size: letter; }
@@ -758,6 +794,34 @@ export default function TailorPage() {
               </div>
             )}
 
+            {/* Results already exist - never make the user regenerate to see them */}
+            {(tailoredDoc || coverDoc || displayScore) && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                flexWrap: 'wrap',
+                padding: '10px 14px',
+                background: 'rgba(34,197,94,0.07)',
+                border: '1px solid rgba(34,197,94,0.2)',
+                borderRadius: '10px',
+                marginBottom: '16px',
+                fontSize: '13px',
+                color: 'var(--text)',
+              }}>
+                <span>
+                  You already have results for this job
+                  {tailoredDoc ? ' - tailored resume' : ''}
+                  {displayScore ? `${tailoredDoc ? ',' : ' -'} ATS score` : ''}
+                  {coverDoc ? `${tailoredDoc || displayScore ? ',' : ' -'} cover letter` : ''}.
+                </span>
+                <button onClick={() => setStep(3)} style={smallSecondaryBtn}>
+                  View results <ArrowIcon />
+                </button>
+              </div>
+            )}
+
             {/* Three action buttons */}
             <div className="tailor-actions">
               <button
@@ -981,138 +1045,178 @@ export default function TailorPage() {
                 ) : (
                   <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--muted)', fontSize: '14px' }}>
                     <div style={{ marginBottom: '16px' }}>No ATS score yet.</div>
-                    <button onClick={() => setStep(2)} style={secondaryBtn}>
-                      Go back to check score
+                    {actionError && (
+                      <div style={{
+                        maxWidth: '420px',
+                        margin: '0 auto 14px',
+                        padding: '10px 14px',
+                        background: 'rgba(239,68,68,0.08)',
+                        border: '1px solid rgba(239,68,68,0.2)',
+                        borderRadius: '10px',
+                        color: 'var(--score-red)',
+                        fontSize: '13px',
+                      }}>
+                        {actionError}
+                      </div>
+                    )}
+                    {/* Runs in place - the tailored resume and cover letter stay put. */}
+                    <button
+                      onClick={checkAts}
+                      disabled={loading.ats}
+                      className="btn-gold-hover"
+                      style={{ ...primaryBtn, opacity: loading.ats ? 0.6 : 1 }}
+                    >
+                      {loading.ats ? <Spinner /> : 'Check ATS Score'}
                     </button>
                   </div>
                 )}
               </div>
             )}
 
-            {/* -- Tailored Resume tab: per-bullet diff view -- */}
+            {/* -- Tailored Resume tab: per-bullet diff or full rendered resume -- */}
             {activeTab === 'resume' && (
               <div style={card}>
                 {tailoredDoc ? (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '18px' }}>
-                      <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
-                        {tailorChanges.length > 0
-                          ? `${tailorChanges.length} bullet${tailorChanges.length === 1 ? '' : 's'} tailored for this job`
-                          : 'Tailored resume'}
+                      {/* View toggle: bullet changes vs the full resume */}
+                      <div style={{ display: 'inline-flex', background: 'var(--card-raised)', borderRadius: '999px', padding: '3px' }}>
+                        {([['diff', 'Bullet changes'], ['full', 'Full resume']] as const).map(([view, label]) => (
+                          <button
+                            key={view}
+                            onClick={() => switchResumeView(view)}
+                            style={{
+                              background: resumeView === view ? 'var(--btn-primary-bg)' : 'transparent',
+                              color: resumeView === view ? 'var(--btn-primary-text)' : 'var(--muted)',
+                              border: 'none',
+                              borderRadius: '999px',
+                              padding: '6px 14px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {label}
+                          </button>
+                        ))}
                       </div>
-                      <button
-                        onClick={() => copyToClipboard(tailoredDoc.content, 'resume')}
-                        style={smallSecondaryBtn}
-                        title="Copies the full updated resume text, ready to paste into Google Docs or Word"
-                      >
-                        {copied === 'resume' ? 'Copied!' : 'Copy all tailored bullets'}
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        {resumeView === 'diff' && (
+                          <span style={{ fontSize: '13px', color: 'var(--muted)' }}>
+                            {tailorChanges.length > 0
+                              ? `${tailorChanges.length} bullet${tailorChanges.length === 1 ? '' : 's'} tailored for this job`
+                              : 'Tailored resume'}
+                          </span>
+                        )}
+                        {resumeView === 'diff' && tailorChanges.length > 0 && (
+                          <button
+                            onClick={() => copyToClipboard(formatTailoredBullets(tailorChanges), 'resume')}
+                            style={smallSecondaryBtn}
+                            title="Copies just the tailored bullets, grouped by section"
+                          >
+                            {copied === 'resume' ? 'Copied!' : 'Copy all tailored bullets'}
+                          </button>
+                        )}
+                        {resumeView === 'full' && fullHtml && (
+                          <button
+                            onClick={() => void downloadResumePdf()}
+                            disabled={downloadingResumePdf}
+                            style={{ ...smallSecondaryBtn, opacity: downloadingResumePdf ? 0.6 : 1 }}
+                          >
+                            {downloadingResumePdf ? <Spinner /> : (
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                              </svg>
+                            )}
+                            <span style={{ marginLeft: '6px' }}>Download PDF</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    {tailorChanges.length > 0 ? (
-                      groupChanges(tailorChanges).map(group => (
-                        <div key={group.name} style={{ marginBottom: '24px' }}>
-                          <div style={{
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            color: 'var(--muted)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                            marginBottom: '10px',
-                          }}>
-                            {group.name}
-                          </div>
-                          {group.entries.map(entry => (
-                            <div key={entry.name || '(entry)'} style={{ marginBottom: '14px' }}>
-                              {entry.name && (
-                                <div style={{
-                                  fontSize: '13px',
-                                  fontWeight: 600,
-                                  color: 'var(--text)',
-                                  marginBottom: '8px',
-                                }}>
-                                  {entry.name}
-                                </div>
-                              )}
-                              {entry.items.map(({ change, idx }) => (
-                                <div
-                                  key={idx}
-                                  style={{
-                                    borderRadius: '10px',
-                                    padding: '14px 8px',
-                                    marginBottom: '10px',
-                                    background: 'var(--card-raised)',
-                                  }}
-                                >
-                                  <div style={{
-                                    fontSize: '13px',
-                                    color: 'var(--muted)',
-                                    textDecoration: 'line-through',
-                                    lineHeight: 1.6,
-                                    marginBottom: '8px',
-                                  }}>
-                                    {change.original}
-                                  </div>
-                                  <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                                    <div style={{
-                                      flex: 1,
-                                      fontSize: '13px',
-                                      color: 'var(--text)',
-                                      lineHeight: 1.6,
-                                      background: 'rgba(34,197,94,0.08)',
-                                      border: '1px solid rgba(34,197,94,0.2)',
-                                      borderRadius: '8px',
-                                      padding: '8px 10px',
-                                    }}>
-                                      {change.tailored}
-                                    </div>
-                                    <button
-                                      onClick={() => void copyBullet(change.tailored, idx)}
-                                      style={{ ...smallSecondaryBtn, flexShrink: 0 }}
-                                    >
-                                      {copiedBullet === idx ? 'Copied!' : 'Copy bullet'}
-                                    </button>
-                                  </div>
-                                  {change.reason && (
-                                    <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>
-                                      {change.reason}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          ))}
+                    {resumeView === 'diff' ? (
+                      tailorChanges.length > 0 ? (
+                        <TailorDiff changes={tailorChanges} />
+                      ) : (
+                        <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
+                          No bullets needed changes for this job - your resume already matches its language well.
                         </div>
-                      ))
+                      )
                     ) : (
                       <>
-                        <div style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '12px' }}>
-                          No individual bullet changes were returned - full tailored text below.
-                        </div>
-                        <pre style={{
-                          fontFamily: "'Courier New', Courier, monospace",
-                          fontSize: '13px',
-                          lineHeight: 1.7,
-                          color: 'var(--text)',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          maxHeight: '600px',
-                          overflowY: 'auto',
-                          background: 'var(--card-raised)',
-                          borderRadius: '10px',
-                          padding: '16px',
-                          margin: 0,
-                        }}>
-                          {isHtmlContent(tailoredDoc.content) ? stripHtml(tailoredDoc.content) : tailoredDoc.content}
-                        </pre>
+                        {fullHtmlError && (
+                          <div style={{
+                            marginBottom: '12px',
+                            padding: '10px 14px',
+                            background: 'rgba(239,68,68,0.08)',
+                            border: '1px solid rgba(239,68,68,0.2)',
+                            borderRadius: '10px',
+                            color: 'var(--score-red)',
+                            fontSize: '13px',
+                          }}>
+                            {fullHtmlError}
+                          </div>
+                        )}
+                        {loadingFull ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '48px 0', justifyContent: 'center', color: 'var(--muted)', fontSize: '14px' }}>
+                            <Spinner /> Building your full resume…
+                          </div>
+                        ) : fullHtml ? (
+                          <iframe
+                            title="Tailored resume preview"
+                            sandbox=""
+                            srcDoc={`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><style>${RESUME_CSS} body { padding: 32px 40px; }</style></head><body>${fullHtml}</body></html>`}
+                            style={{
+                              width: '100%',
+                              minHeight: '700px',
+                              border: 'none',
+                              borderRadius: '8px',
+                              background: '#ffffff',
+                            }}
+                          />
+                        ) : !fullHtmlError ? (
+                          <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                            <button onClick={() => void loadFullResume()} style={secondaryBtn}>
+                              Build full resume
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                            <button onClick={() => void loadFullResume()} style={secondaryBtn}>
+                              Try again
+                            </button>
+                          </div>
+                        )}
                       </>
                     )}
                   </>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--muted)', fontSize: '14px' }}>
                     <div style={{ marginBottom: '16px' }}>No tailored resume yet.</div>
-                    <button onClick={() => setStep(2)} style={secondaryBtn}>
-                      Go back to tailor resume
+                    {actionError && (
+                      <div style={{
+                        maxWidth: '420px',
+                        margin: '0 auto 14px',
+                        padding: '10px 14px',
+                        background: 'rgba(239,68,68,0.08)',
+                        border: '1px solid rgba(239,68,68,0.2)',
+                        borderRadius: '10px',
+                        color: 'var(--score-red)',
+                        fontSize: '13px',
+                      }}>
+                        {actionError}
+                      </div>
+                    )}
+                    {/* Runs in place - the ATS score and cover letter stay put. */}
+                    <button
+                      onClick={tailorResume}
+                      disabled={loading.tailor}
+                      className="btn-gold-hover"
+                      style={{ ...primaryBtn, opacity: loading.tailor ? 0.6 : 1 }}
+                    >
+                      {loading.tailor ? <Spinner /> : 'Tailor My Resume'}
                     </button>
                   </div>
                 )}

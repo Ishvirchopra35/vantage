@@ -1,3 +1,5 @@
+// Pure helpers for deciding which job rows are "real" and tracked - shared
+// by the dashboard stats and the Auto-apply listing. No I/O, fully testable.
 export interface TrackableJob {
   jobId: string | null;
   title: string | null;

@@ -1,3 +1,5 @@
+// Creates a Stripe Checkout session for the Pro subscription, tagging it
+// with the Supabase user id so the webhook can map it back.
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, err } from '@/lib/apiResponse'
 import Stripe from 'stripe'
@@ -11,7 +13,6 @@ export async function POST(request: Request): Promise<Response> {
   const priceId = process.env.STRIPE_PRO_PRICE_ID
   const appUrl = process.env.NEXT_PUBLIC_APP_URL
 
-  console.log('[stripe/checkout] env check - secretKey:', !!secretKey, 'priceId:', priceId, 'appUrl:', appUrl)
 
   if (!secretKey || !priceId || !appUrl) {
     console.error('[stripe/checkout] Missing env vars')
@@ -30,9 +31,11 @@ export async function POST(request: Request): Promise<Response> {
       metadata: { supabase_user_id: user.id },
       subscription_data: {
         metadata: { supabase_user_id: user.id },
+        // 7-day free trial: the card is collected up front, billing starts
+        // when the trial ends, and it is cancellable any time via the portal.
+        trial_period_days: 7,
       },
     })
-    console.log('[stripe/checkout] Session created, url:', session.url)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[stripe/checkout] Session creation failed:', msg)

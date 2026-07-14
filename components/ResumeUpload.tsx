@@ -1,6 +1,9 @@
 'use client'
 
+// Base resume uploader: validates the file, stores it in the private
+// resumes bucket, then triggers parse + save via the API.
 import { useState, useEffect, useRef } from 'react'
+import { rateLimitMessage } from '@/lib/rateLimitMessage'
 import { createClient } from '@/lib/supabase/client'
 
 interface ResumeInfo {
@@ -110,6 +113,7 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
         body: JSON.stringify({ fileUrl: signedData.signedUrl, fileName: file.name }),
       })
       const parseJson = await parseRes.json()
+      if (parseRes.status === 429) { setError(parseJson.error || rateLimitMessage(parseJson.retryAfter)); return }
       if (!parseRes.ok) throw new Error(parseJson.error || 'Failed to extract text from the document')
 
       const saveRes = await fetch('/api/save-resume', {

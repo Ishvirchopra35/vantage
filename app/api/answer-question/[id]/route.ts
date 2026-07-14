@@ -1,3 +1,4 @@
+// Update or delete one saved application-question answer (user-scoped).
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, err, notFound, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'

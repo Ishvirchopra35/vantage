@@ -1,5 +1,7 @@
 'use client';
 
+// Dashboard navigation shell: nav items, plan badge, usage hints, and the
+// footer link cluster. Renders both desktop rail and mobile drawer.
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -24,7 +26,8 @@ type NavItem = {
   locked?: boolean;
   comingSoon?: boolean;
   freemiumOnly?: boolean;
-  isNew?: boolean;
+  /** Small gold status tag after the label, e.g. 'New' or 'Experimental'. */
+  badge?: string;
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -35,8 +38,10 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/strategy', label: 'Strategy' },
   { href: '/networking', label: 'Networking' },
   { href: '/interview', label: 'Interview Prep' },
-  { href: '/apply', label: 'Auto-apply', isNew: true },
+  { href: '/apply', label: 'Auto-apply', badge: 'New' },
+  { href: '/resume-studio', label: 'Resume Studio', badge: 'Experimental' },
   { href: '/profile', label: 'Profile' },
+  { href: '/limits', label: 'Usage Limits' },
   { href: '/settings', label: 'Settings' },
   { href: '/billing', label: 'Billing', freemiumOnly: true },
 ];
@@ -189,6 +194,19 @@ export default function Sidebar({
 
   async function handleSignOut() {
     await supabase.auth.signOut();
+    // Drop any per-user client caches so the next account never sees this
+    // account's data (theme is intentionally device-wide, so it stays).
+    try {
+      const stale = Object.keys(window.localStorage).filter((key) =>
+        key.startsWith('jobFeedCache')
+      );
+      stale.forEach((key) => window.localStorage.removeItem(key));
+    } catch {
+      // localStorage unavailable (private mode etc.) - nothing to clear.
+    }
+    // Refresh the Router Cache so cached server components from this session
+    // are not served to the next account.
+    router.refresh();
     router.push('/login');
   }
 
@@ -264,10 +282,10 @@ export default function Sidebar({
         }}
       >
         <span style={{ flex: 1 }}>{item.label}</span>
-        {item.isNew && (
+        {item.badge && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontFamily: 'var(--font-display)', fontSize: '10px', fontWeight: 600, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
             <span aria-hidden="true" style={{ fontSize: '7px', lineHeight: 1 }}>●</span>
-            New
+            {item.badge}
           </span>
         )}
         {locked && <span style={{ display: 'inline-flex', color: 'currentColor' }}><LockIcon /></span>}
@@ -310,14 +328,16 @@ export default function Sidebar({
         </Link>
       </div>
 
-      <nav style={{ display: 'flex', flexDirection: 'column', padding: '12px 16px 0', gap: '12px', flex: 1 }}>
+      {/* minHeight 0 + overflow lets the nav scroll on short viewports
+          instead of pushing the footer past the bottom edge. */}
+      <nav style={{ display: 'flex', flexDirection: 'column', padding: '12px 16px', gap: '12px', flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {NAV_ITEMS.filter(item => !item.freemiumOnly || enableFreemium).map((item) => (
           <NavLink key={item.href} item={item} />
         ))}
 
       </nav>
 
-      <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', fontSize: '12px' }}>
+      <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px 10px', fontSize: '12px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div
             className="ds-avatar"
@@ -388,7 +408,7 @@ export default function Sidebar({
             <Link href="/changelog" className="sidebar-footer-link">Changelog</Link>
             <Link href="/docs" className="sidebar-footer-link">Docs</Link>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '0 0 4px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             <Link href="/about" className="sidebar-footer-link">About</Link>
             <Link href="/feedback" className="sidebar-footer-link">Feedback</Link>
             <Link href="/privacy" className="sidebar-footer-link">Privacy</Link>

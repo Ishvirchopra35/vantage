@@ -1,3 +1,4 @@
+// Small inline external-link glyph appended to outbound links.
 import type { CSSProperties } from 'react';
 
 interface ExternalLinkIconProps {

@@ -655,7 +655,10 @@ export default function LandingPage() {
               ))}
             </ul>
 
-            <Link href="/signup" className="lp-metal-btn" style={{ display: 'block', marginTop: 24, fontSize: 14, padding: '12px 24px' }}>Get started free</Link>
+            <Link href="/signup" className="lp-metal-btn" style={{ display: 'block', marginTop: 24, fontSize: 14, padding: '12px 24px' }}>Start 7-day free trial</Link>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--muted)', textAlign: 'center', margin: '10px 0 0' }}>
+              7-day free trial, cancel any time · 7-day money-back guarantee
+            </p>
           </Spotlight>
           </Reveal>
         </div>

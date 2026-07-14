@@ -1,9 +1,11 @@
+// Scores a resume against a job posting (keywords/format/experience/skills)
+// and stores the breakdown in ats_scores.
 import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
 import { ok, err, serverError, notFound, rateLimited } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
 import { withTimeout } from '@/lib/withTimeout';
-import { generateJSON } from '@/lib/ai';
+import { generateJSON, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai';
 import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext';
 import { createClient } from '@/lib/supabase/server';
@@ -49,12 +51,16 @@ export async function POST(request: Request): Promise<Response> {
   const rateLimit = await checkRateLimit({
     key: 'ats-score',
     userId: user.id,
-    maxRequests: 10,
-    windowMinutes: 60,
+    devLimit: 2,
+    freeLimit: 10,
+    proLimit: 7,
+    devWindowMinutes: 1440,
+    freeWindowMinutes: 43200,
+    proWindowMinutes: 1440,
   });
   if (!rateLimit.allowed) {
     await logRoute('/api/ats-score', user.id, Date.now() - start, 429);
-    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining);
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier);
   }
 
   const supabase = await createClient();
@@ -154,6 +160,10 @@ Return JSON with:
   try {
     score = await withTimeout(generateJSON<ATSScoreResult>(systemPrompt, userPrompt), 30000, 'ats-score');
   } catch (e) {
+    if (isAiQuotaError(e)) {
+      await logRoute('/api/ats-score', user.id, Date.now() - start, 429);
+      return err(AI_BUSY_MESSAGE, 429);
+    }
     await logRoute('/api/ats-score', user.id, Date.now() - start, 500);
     return serverError(new Error('Could not generate ATS score'));
   }

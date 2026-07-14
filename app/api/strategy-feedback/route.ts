@@ -1,9 +1,11 @@
+// Whole-search strategy feedback: analyzes the user's application history
+// and ATS performance; cached in strategy_feedback (one row per user).
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, err, rateLimited, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkLimit } from '@/lib/rateLimit'
+import { checkLimit, checkRateLimit, rateLimitResponse, resolveUserTier } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
-import { generateJSON } from '@/lib/ai'
+import { generateJSON, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
 import { createClient } from '@/lib/supabase/server'
 import { hasRealJobTitle } from '@/lib/jobFilters'
@@ -77,6 +79,25 @@ export async function GET(request: Request): Promise<Response> {
   if (!limit.allowed) {
     await logRoute('/api/strategy-feedback', user.id, Date.now() - start, 429)
     return rateLimited('strategy feedback', 2, 30)
+  }
+
+  // Pro users have no strategy-feedback rate limit. Dev = 2/day, free = 2/month.
+  const tier = await resolveUserTier(user.id)
+  if (tier !== 'pro') {
+    const rateLimit = await checkRateLimit({
+      key: 'strategy-feedback',
+      userId: user.id,
+      devLimit: 2,
+      freeLimit: 2,
+      proLimit: 2,
+      devWindowMinutes: 1440,
+      freeWindowMinutes: 43200,
+      proWindowMinutes: 1440,
+    })
+    if (!rateLimit.allowed) {
+      await logRoute('/api/strategy-feedback', user.id, Date.now() - start, 429)
+      return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
+    }
   }
 
   // Fetch analytics data
@@ -167,7 +188,10 @@ export async function GET(request: Request): Promise<Response> {
     .join(', ')
 
   const systemPrompt =
-    'You are a job search strategy analyst. Generate data-driven, specific advice. Return ONLY valid JSON.'
+    'You are a job search strategy analyst writing directly to the job seeker. ' +
+    'Generate data-driven, specific advice. Address them as "you" and "your" in every string - ' +
+    'never say "the candidate", "the user", or "this candidate". The context below labels their ' +
+    'data as CANDIDATE PROFILE, but your output speaks to them directly. Return ONLY valid JSON.'
 
   const userPrompt = `${contextStr}
 
@@ -180,14 +204,14 @@ ATS score for interviews/offers: ${avgAtsSuccess != null ? `${avgAtsSuccess}/100
 Average ATS score overall: ${avgAtsOverall != null ? `${avgAtsOverall}/100` : 'N/A'}
 Most common missing ATS keywords: ${topMissingKeywords.join(', ') || 'none tracked'}
 
-Return JSON with exactly these keys:
+Return JSON with exactly these keys (every string addresses the job seeker as "you"):
 {
-  "top_insights": ["3 specific observations grounded in the actual numbers - not generic advice"],
-  "focus_roles": ["roles with highest response rate - name them specifically"],
-  "avoid_roles": ["role name - specific reason this role has poor response rate for this candidate"],
-  "ats_insight": "1 sentence: does a higher ATS score correlate with getting interviews for this specific user?",
+  "top_insights": ["3 specific observations grounded in the actual numbers - not generic advice - e.g. 'You have a 100% response rate for...'"],
+  "focus_roles": ["roles where you have the highest response rate - name them specifically"],
+  "avoid_roles": ["role name - specific reason this role has a poor response rate for you"],
+  "ats_insight": "1 sentence, addressed to you: does a higher ATS score correlate with you getting interviews?",
   "top_suggestions": ["actionable step under 25 words", "actionable step", "actionable step", "actionable step"],
-  "skill_gaps_to_fix": ["keyword that appears most in missing_keywords and would improve ATS score"]
+  "skill_gaps_to_fix": ["keyword that appears most in missing_keywords and would improve your ATS score"]
 }`
 
   let feedback: StrategyFeedback
@@ -198,6 +222,10 @@ Return JSON with exactly these keys:
       'strategy-feedback'
     )
   } catch (e) {
+    if (isAiQuotaError(e)) {
+      await logRoute('/api/strategy-feedback', user.id, Date.now() - start, 429)
+      return err(AI_BUSY_MESSAGE, 429)
+    }
     await logRoute('/api/strategy-feedback', user.id, Date.now() - start, 500)
     return serverError(e)
   }

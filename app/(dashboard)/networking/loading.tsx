@@ -24,7 +24,7 @@ export default function Loading() {
       {/* Section 1 · Find contacts */}
       <div style={card}>
         <SkeletonLoader width={140} height={12} />
-        <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <div className="rsp-grid-2" style={{ marginTop: '16px', gap: '12px' }}>
           <SkeletonLoader height={38} />
           <SkeletonLoader height={38} />
         </div>
@@ -36,12 +36,12 @@ export default function Loading() {
       {/* Section 2 · Generate message */}
       <div style={card}>
         <SkeletonLoader width={160} height={12} />
-        <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+        <div className="rsp-grid-3" style={{ marginTop: '16px', gap: '12px' }}>
           {[1, 2, 3].map(i => (
             <SkeletonLoader key={i} height={38} />
           ))}
         </div>
-        <div style={{ marginTop: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+        <div className="rsp-grid-3" style={{ marginTop: '12px', gap: '12px' }}>
           {[1, 2, 3].map(i => (
             <SkeletonLoader key={i} height={38} />
           ))}

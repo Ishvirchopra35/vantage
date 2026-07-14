@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 const INPUT_STYLE: React.CSSProperties = {
   width: '100%',
@@ -381,6 +382,28 @@ export default function SignupPage() {
             'Sign up'
           )}
         </button>
+
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>or</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        </div>
+
+        <GoogleSignInButton />
+
+        {/* OAuth skips the checkbox above, so consent is stated inline. */}
+        <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 10, lineHeight: 1.5 }}>
+          By continuing with Google you agree to the{' '}
+          <Link href="/terms" target="_blank" style={{ color: 'var(--text)', textDecoration: 'underline', textUnderlineOffset: 2 }}>
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link href="/privacy" target="_blank" style={{ color: 'var(--text)', textDecoration: 'underline', textUnderlineOffset: 2 }}>
+            Privacy Policy
+          </Link>
+          .
+        </p>
 
         {/* Validation error */}
         {validationError && (

@@ -1,9 +1,11 @@
+// Starts an interview practice session: generates questions for a job and
+// creates the interview_sessions row.
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, err, notFound, rateLimited, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
 import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
-import { generateJSON } from '@/lib/ai'
+import { generateJSON, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
 import { createClient } from '@/lib/supabase/server'
 
@@ -44,12 +46,16 @@ export async function POST(request: Request): Promise<Response> {
   const rateLimit = await checkRateLimit({
     key: 'interview-prep-generate',
     userId: user.id,
-    maxRequests: 10,
-    windowMinutes: 60,
+    devLimit: 1,
+    freeLimit: 5,
+    proLimit: 5,
+    devWindowMinutes: 1440,
+    freeWindowMinutes: 43200,
+    proWindowMinutes: 1440,
   })
   if (!rateLimit.allowed) {
     await logRoute(ROUTE, user.id, Date.now() - start, 429)
-    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining)
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
   }
 
   const supabase = await createClient()
@@ -132,6 +138,10 @@ export async function POST(request: Request): Promise<Response> {
     )
   } catch (e) {
     console.error('[interview-prep/generate] AI error:', e)
+    if (isAiQuotaError(e)) {
+      await logRoute(ROUTE, user.id, Date.now() - start, 429)
+      return err(AI_BUSY_MESSAGE, 429)
+    }
     await logRoute(ROUTE, user.id, Date.now() - start, 500)
     return serverError(new Error('Failed to generate interview questions'))
   }

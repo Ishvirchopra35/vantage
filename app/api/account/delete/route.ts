@@ -1,3 +1,5 @@
+// Permanently deletes the caller's account. auth.users cascade removes all
+// owned rows; storage files are dropped by the same cascade on objects.owner.
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'

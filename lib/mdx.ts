@@ -1,3 +1,6 @@
+// SERVER-SIDE ONLY - loads and validates MDX content for the public blog
+// (/content/blog) and changelog (/content/changelog). Frontmatter is
+// validated strictly: a malformed post fails the build, not the reader.
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';

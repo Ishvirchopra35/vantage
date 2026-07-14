@@ -1,5 +1,6 @@
 'use client';
 
+// CSS-only loading spinner (sm/md/lg). Used inside every async button.
 interface SpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;

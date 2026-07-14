@@ -1,6 +1,9 @@
+// Auto-apply Tier 2: emits a console IIFE with the user's answers baked in
+// for pasting into the browser console on an application page.
 import { requireAuth } from '@/lib/requireAuth'
-import { ok, serverError } from '@/lib/apiResponse'
+import { ok, rateLimited, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
+import { checkLimit, LIMITS } from '@/lib/rateLimit'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request): Promise<Response> {
@@ -9,6 +12,14 @@ export async function POST(request: Request): Promise<Response> {
   const auth = await requireAuth()
   if ('error' in auth) return auth.error
   const { user } = auth
+
+  // Tier 2 of auto-apply - no AI call, but it delivers the same product
+  // value as the extension fill, so it consumes the same monthly credit.
+  const limitCheck = await checkLimit(user.id, 'auto_apply')
+  if (!limitCheck.allowed) {
+    await logRoute('generate-fill-snippet', user.id, Date.now() - start, 429)
+    return rateLimited('auto-apply', LIMITS.auto_apply, 30)
+  }
 
   let jobId: string | undefined
   try {

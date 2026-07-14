@@ -1,0 +1,11 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - heading "Adzuna" [level=1] [ref=e4]
+    - text: Every job. Everywhere.
+  - heading [level=2] [ref=e5]:
+    - text: You are now being redirected to
+    - strong [ref=e6]: Viggle AI
+  - paragraph [ref=e16]:
+    - text: If you are not redirected within 5 seconds,
+    - link "view ad here" [ref=e17] [cursor=pointer]:
+      - /url: https://jobs.ashbyhq.com/viggle/d181a1c3-a874-4a2d-a4b2-de8b94b6463b?utm_source=adzuna&utm_medium=adzuna

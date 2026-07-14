@@ -1,3 +1,4 @@
+// Small inline arrow glyph used on links and CTAs.
 import type { CSSProperties } from 'react';
 
 interface ArrowIconProps {

@@ -1,3 +1,5 @@
+// Public feedback form handler - forwards to the spreadsheet webhook
+// (FEEDBACK_SHEET_WEBHOOK_URL). No auth: visitors can report bugs too.
 import { validateBody } from '@/lib/validateRequest';
 import { ok, err, serverError } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';

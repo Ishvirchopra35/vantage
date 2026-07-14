@@ -328,9 +328,20 @@ html[data-theme="light"] img[src="/logo.png"] {
   display: table-cell;
 }
 
+/* Column template for the tracker's grid table. On phones the "Since" cells
+   are display:none, so the template drops that track too - otherwise an
+   empty 52px column would be reserved. */
+.tracker-table-row {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) 100px 52px 52px 32px;
+}
+
 @media (max-width: 640px) {
   .tracker-table-col-since {
     display: none;
+  }
+
+  .tracker-table-row {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) 92px 44px 28px;
   }
 }
 
@@ -383,6 +394,71 @@ html[data-theme="light"] img[src="/logo.png"] {
   .tailor-input-row > input,
   .tailor-input-row > button {
     min-height: 44px;
+  }
+}
+
+/* Desktop-only gate for the dashboard: under 768px the shell is hidden
+   entirely and a full-screen notice renders instead. The blocker element
+   carries display:none inline (fail-safe on desktop), so the phone rule
+   needs !important to win. */
+@media (max-width: 767px) {
+  .dashboard-shell {
+    display: none;
+  }
+
+  .mobile-blocker {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+    background: var(--bg);
+  }
+}
+
+.mobile-blocker-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 340px;
+  text-align: center;
+}
+
+.mobile-blocker-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.mobile-blocker-text {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* Responsive column helpers - fixed multi-column form/kit grids collapse to
+   a single column on phones. Pair with inline gap/margins; do not set
+   grid-template-columns inline (it would override the breakpoint). */
+.rsp-grid-2,
+.rsp-grid-3 {
+  display: grid;
+}
+
+.rsp-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rsp-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 640px) {
+  .rsp-grid-2,
+  .rsp-grid-3 {
+    grid-template-columns: 1fr;
   }
 }
 

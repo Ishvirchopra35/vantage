@@ -1,0 +1,99 @@
+- generic [ref=f1e2]:
+  - list [ref=f1e4]:
+    - listitem [ref=f1e5]:
+      - link [ref=f1e6] [cursor=pointer]:
+        - /url: viggle.ai
+        - paragraph [ref=f1e7]: Viggle AI
+    - listitem [ref=f1e8]:
+      - link "Back to Viggle AI’s Job Listings" [ref=f1e9] [cursor=pointer]:
+        - /url: /viggle?utm_source=adzuna&utm_medium=adzuna
+    - listitem
+  - generic [ref=f1e12]:
+    - heading "Software Engineer (intern/co-op)" [level=1] [ref=f1e14]
+    - generic [ref=f1e15]:
+      - generic [ref=f1e16]:
+        - generic [ref=f1e17]:
+          - heading "Location" [level=2] [ref=f1e18]
+          - paragraph [ref=f1e19]: Toronto
+        - generic [ref=f1e20]:
+          - heading "Employment Type" [level=2] [ref=f1e21]
+          - paragraph [ref=f1e22]: Full time
+        - generic [ref=f1e23]:
+          - heading "Location Type" [level=2] [ref=f1e24]
+          - paragraph [ref=f1e25]: On-site
+        - generic [ref=f1e26]:
+          - heading "Department" [level=2] [ref=f1e27]
+          - paragraph [ref=f1e28]: Engineering
+        - generic [ref=f1e29]:
+          - heading "Compensation" [level=2] [ref=f1e30]
+          - list [ref=f1e31]:
+            - listitem [ref=f1e32]:
+              - generic [ref=f1e33]: Toronto Intern
+              - generic [ref=f1e34]: Estimate Base Salary CA$5K – CA$8K per month
+      - generic [ref=f1e35]:
+        - tablist [ref=f1e36]:
+          - tab "Overview" [selected] [ref=f1e37] [cursor=pointer]
+          - tab "Application" [ref=f1e38] [cursor=pointer]
+        - tabpanel "Overview" [ref=f1e40]:
+          - generic [ref=f1e41]:
+            - paragraph [ref=f1e42]:
+              - emphasis [ref=f1e43]: "\"Learning fast is an engineer’s superpower in the AI era.\""
+            - paragraph [ref=f1e44]:
+              - strong [ref=f1e45]: About Us
+            - paragraph [ref=f1e46]: Viggle AI is a startup backed by top-tier investors such as a16z and TSFV. We're at the forefront of the GenAI revolution, building the foundation model for the world — and the products that put it in everyone's hands, from first-time meme makers to professional studios.
+            - paragraph [ref=f1e47]:
+              - text: "The result is one of the most loved creative platforms in AI: over 45 million users, one of the largest communities on Discord, and creators spanning Hollywood professionals to TikTokers. Behind it is a Toronto-based team that lives by one principle —"
+              - strong [ref=f1e48]: serious tech, silly fun.
+            - paragraph [ref=f1e49]:
+              - strong [ref=f1e50]: About the job
+            - paragraph [ref=f1e51]:
+              - emphasis [ref=f1e52]: "\"Learning fast is an engineer's superpower in the AI era.\""
+            - paragraph [ref=f1e53]: At Viggle, you won't be boxed into a role label. We hire for engineering judgment and the ability to learn fast — across our App, PINOC, Games, API, and the infrastructure behind them, the same person might touch a generation pipeline, a real-time rendering path, and the product surface a creator actually sees. As an intern or co-op, you'll own real work that ships, not side projects.
+            - paragraph [ref=f1e54]:
+              - strong [ref=f1e55]: What We're Looking For
+            - paragraph [ref=f1e56]: "Tell us what you love building, and we'll find the surface that fits. Here's where you'd likely land:"
+            - paragraph [ref=f1e57]:
+              - strong [ref=f1e58]: 🎬 Viggle App — Consumer, mobile & web
+              - text: The product 40M+ creators actually touch — fast generation flows and real-time editing.
+              - emphasis [ref=f1e59]: "You:"
+              - text: React Native or React/Next.js + TypeScript, with a love for performance and polish.
+            - paragraph [ref=f1e60]:
+              - strong [ref=f1e61]: 🦴 PINOC — AI motion capture & 3D pipeline
+              - text: Turn any footage into skeletal animation, exported to FBX/GLB for real 3D pipelines.
+              - emphasis [ref=f1e62]: "You:"
+              - text: 3D graphics (Three.js/WebGL), rigging/retargeting, pose estimation/CV, glTF/FBX, Python.
+            - paragraph [ref=f1e63]:
+              - strong [ref=f1e64]: 🎮 Viggle Games — Real-time interactive 3D
+              - text: Playable, multiplayer experiences built on generative 3D, like
+              - emphasis [ref=f1e65]: Fight Anyone 3D
+              - text: .
+              - emphasis [ref=f1e66]: "You:"
+              - text: game engines (Unity/Unreal) or WebGL, multiplayer netcode, react, node.
+            - paragraph [ref=f1e67]:
+              - strong [ref=f1e68]: ⚙️ Viggle API — Developer platform & inference infra
+              - text: The platform other developers and AI agents build on — any motion in one call.
+              - emphasis [ref=f1e69]: "You:"
+              - text: Go, Python, backend/distributed systems, inference serving & GPU orchestration, API design, Go/Python/Rust.
+            - paragraph [ref=f1e70]:
+              - strong [ref=f1e71]: 🛠️ Infrastructure & ML Systems — Training, inference & data
+              - text: The backbone behind every model — training, inference, and the data they learn from.
+              - emphasis [ref=f1e72]: "You:"
+              - text: ML infra/MLOps, model optimization, distributed training & GPU orchestration (CUDA/PyTorch/Ray), data pipelines.
+            - paragraph [ref=f1e73]:
+              - strong [ref=f1e74]: Not sure which track?
+              - text: That's fine — strong fundamentals of travel, and our engineers move across these areas as projects demand. Just tell us what you're best at and what you want to learn next.
+          - link [ref=f1e75] [cursor=pointer]:
+            - /url: /viggle/d181a1c3-a874-4a2d-a4b2-de8b94b6463b/application?utm_source=adzuna&utm_medium=adzuna
+            - button "Apply for this Job" [ref=f1e76]
+  - contentinfo [ref=f1e77]:
+    - link "Learn more about Ashby" [ref=f1e78] [cursor=pointer]:
+      - /url: https://www.ashbyhq.com
+      - generic [ref=f1e79]: Powered by
+      - img "Ashby" [ref=f1e80]
+    - paragraph [ref=f1e86]:
+      - link "Privacy Policy" [ref=f1e87] [cursor=pointer]:
+        - /url: https://www.ashbyhq.com/privacy
+      - link "Security" [ref=f1e88] [cursor=pointer]:
+        - /url: https://www.ashbyhq.com/security
+      - link "Vulnerability Disclosure" [ref=f1e89] [cursor=pointer]:
+        - /url: https://www.ashbyhq.com/disclosure

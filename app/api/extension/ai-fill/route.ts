@@ -1,9 +1,12 @@
+// Chrome extension endpoint (Bearer = connection code, not a session):
+// generates field answers for the form the extension found on the page.
+// The extension fills inputs only - it never clicks submit.
 import { createClient } from '@supabase/supabase-js'
-import { ok, unauthorized, serverError } from '@/lib/apiResponse'
+import { ok, unauthorized, rateLimited, serverError } from '@/lib/apiResponse'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
 import { generateJSON } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
-import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
+import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -106,14 +109,25 @@ export async function POST(request: Request): Promise<Response> {
 
   const resolvedUserId = profile.id as string
 
+  // Auto-fill is what an auto-apply credit pays for - charge the monthly
+  // feature quota before the per-route rate limit.
+  const limitCheck = await checkLimit(resolvedUserId, 'auto_apply')
+  if (!limitCheck.allowed) {
+    return rateLimited('auto-apply', LIMITS.auto_apply, 30)
+  }
+
   const rateLimit = await checkRateLimit({
     key: 'extension-ai-fill',
     userId: resolvedUserId,
-    maxRequests: 20,
-    windowMinutes: 60,
+    devLimit: 2,
+    freeLimit: 20,
+    proLimit: 10,
+    devWindowMinutes: 1440,
+    freeWindowMinutes: 43200,
+    proWindowMinutes: 1440,
   })
   if (!rateLimit.allowed) {
-    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining)
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
   }
 
   let body: { questions: Question[]; jobUrl?: string }

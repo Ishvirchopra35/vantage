@@ -1,3 +1,4 @@
+// Save or dismiss one job feed item (user-scoped PATCH).
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, err, notFound, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'

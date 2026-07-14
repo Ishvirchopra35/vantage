@@ -1,3 +1,4 @@
+// Pure helpers behind the Auto-apply page listing. No I/O, fully testable.
 import { hasRealJobTitle } from '@/lib/jobFilters';
 
 /**

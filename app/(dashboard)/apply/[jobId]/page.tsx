@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { rateLimitMessage } from '@/lib/rateLimitMessage'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -8,6 +9,7 @@ import ScoreBadge from '@/components/ui/ScoreBadge'
 import Spinner from '@/components/ui/Spinner'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import ArrowIcon from '@/components/ui/ArrowIcon'
+import TailorDiff, { formatTailoredBullets, type TailorChange } from '@/components/TailorDiff'
 
 // --- Types --------------------------------------------------------------------
 
@@ -25,6 +27,7 @@ interface DocRow {
   id: string
   type: 'tailored_resume' | 'cover_letter'
   content: string
+  changes: TailorChange[] | null
   created_at: string
 }
 
@@ -113,6 +116,8 @@ export default function ApplyPrepPage() {
   // Kit card copy buttons
   const [copiedResume, setCopiedResume] = useState(false)
   const [copiedCover, setCopiedCover] = useState(false)
+  // Saved per-bullet diff, viewable inline without regenerating anything
+  const [showResumeDiff, setShowResumeDiff] = useState(false)
 
   // Question generation
   const [questionInput, setQuestionInput] = useState('')
@@ -230,7 +235,7 @@ export default function ApplyPrepPage() {
         const [docsRes, atsRes, pRes] = await Promise.all([
           supabase
             .from('documents')
-            .select('id, type, content, created_at')
+            .select('id, type, content, changes, created_at')
             .eq('job_id', dataJobId)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false }),
@@ -239,7 +244,9 @@ export default function ApplyPrepPage() {
             .select('id, overall_score')
             .eq('job_id', dataJobId)
             .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
+            // ats_scores has scored_at, not created_at - ordering by a
+            // missing column errors the whole query and hides the score.
+            .order('scored_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
           supabase
@@ -295,12 +302,15 @@ export default function ApplyPrepPage() {
     setGeneratingAnswer(true)
     setGenerateError(null)
     try {
+      // Send the resolved jobs.id (null for manual applications), never the
+      // route param - that is an application id and won't match a jobs row.
       const res = await fetch('/api/answer-question', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, applicationId: application.id, question: questionInput.trim() }),
+        body: JSON.stringify({ jobId: job.id, applicationId: application.id, question: questionInput.trim() }),
       })
       const json = await res.json()
+      if (res.status === 429) { setGenerateError(json.error || rateLimitMessage(json.retryAfter)); return }
       if (!res.ok) { setGenerateError(json.error ?? 'Failed to generate answer.'); return }
       const newRow = json.question as Omit<QuestionRow, 'localAnswer'>
       setQuestions(prev => [...prev, { ...newRow, localAnswer: newRow.generated_answer }])
@@ -487,7 +497,7 @@ export default function ApplyPrepPage() {
         <div style={{ fontSize: '14px', color: '#ef4444', marginBottom: '16px' }}>
           {pageError ?? 'Job not found.'}
         </div>
-        <Link href="/tracker" style={smallBtn}><ArrowIcon direction="left" /> Back to tracker</Link>
+        <Link href="/apply" style={smallBtn}><ArrowIcon direction="left" /> Back to auto-apply</Link>
       </div>
     )
   }
@@ -497,8 +507,8 @@ export default function ApplyPrepPage() {
 
       {/* -- Header ---------------------------------------------------------- */}
       <div style={{ marginBottom: '28px' }}>
-        <Link href="/tracker" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none', display: 'inline-block', marginBottom: '10px' }}>
-          <ArrowIcon direction="left" /> Back to tracker
+        <Link href="/apply" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none', display: 'inline-block', marginBottom: '10px' }}>
+          <ArrowIcon direction="left" /> Back to auto-apply
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)', margin: 0 }}>
@@ -526,35 +536,41 @@ export default function ApplyPrepPage() {
       {/* -- Application Kit ------------------------------------------------- */}
       <div style={card}>
         <div style={sectionLabel}>Application Kit</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+        <div className="rsp-grid-3" style={{ gap: '14px' }}>
 
-          {/* Tailored Resume */}
+          {/* Tailored Resume - only the per-bullet changes are ever shown or
+              copied; the full rewritten resume text stays internal. */}
           <div style={kitCard}>
             <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)' }}>Tailored Resume</div>
             {resumeDoc ? (
               <>
-                <div style={{
-                  fontSize: '11px',
-                  color: 'var(--muted)',
-                  fontFamily: 'monospace',
-                  whiteSpace: 'pre-wrap',
-                  lineHeight: 1.5,
-                  overflow: 'hidden',
-                  maxHeight: '72px',
-                }}>
-                  {resumeDoc.content.slice(0, 200)}{resumeDoc.content.length > 200 ? '…' : ''}
+                <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.5, flex: 1 }}>
+                  {(resumeDoc.changes ?? []).length > 0
+                    ? `${(resumeDoc.changes ?? []).length} bullet${(resumeDoc.changes ?? []).length === 1 ? '' : 's'} tailored for this job.`
+                    : 'Tailored - no bullets needed changes.'}
                 </div>
-                <div>
-                  <button type="button" onClick={() => copyDoc('resume', resumeDoc.content)} style={smallBtn}>
-                    {copiedResume ? 'Copied!' : 'Copy'}
-                  </button>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {(resumeDoc.changes ?? []).length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => copyDoc('resume', formatTailoredBullets(resumeDoc.changes ?? []))}
+                        style={smallBtn}
+                      >
+                        {copiedResume ? 'Copied!' : 'Copy tailored bullets'}
+                      </button>
+                      <button type="button" onClick={() => setShowResumeDiff(v => !v)} style={smallBtn}>
+                        {showResumeDiff ? 'Hide changes' : 'View changes'}
+                      </button>
+                    </>
+                  )}
                 </div>
               </>
             ) : (
               <>
                 <div style={{ fontSize: '12px', color: 'var(--muted)', flex: 1 }}>No tailored resume yet.</div>
                 <div>
-                  <Link href={`/tailor?jobId=${jobId}`} style={smallBtn}>Tailor resume <ArrowIcon /></Link>
+                  <Link href={job.id ? `/tailor?jobId=${job.id}` : '/tailor'} style={smallBtn}>Tailor resume <ArrowIcon /></Link>
                 </div>
               </>
             )}
@@ -586,7 +602,7 @@ export default function ApplyPrepPage() {
               <>
                 <div style={{ fontSize: '12px', color: 'var(--muted)', flex: 1 }}>No cover letter yet.</div>
                 <div>
-                  <Link href={`/tailor?jobId=${jobId}`} style={smallBtn}>Generate <ArrowIcon /></Link>
+                  <Link href={job.id ? `/tailor?jobId=${job.id}` : '/tailor'} style={smallBtn}>Generate <ArrowIcon /></Link>
                 </div>
               </>
             )}
@@ -604,13 +620,26 @@ export default function ApplyPrepPage() {
               <>
                 <div style={{ fontSize: '12px', color: 'var(--muted)', flex: 1 }}>No ATS score yet.</div>
                 <div>
-                  <Link href={`/tailor?jobId=${jobId}`} style={smallBtn}>Check score <ArrowIcon /></Link>
+                  <Link href={job.id ? `/tailor?jobId=${job.id}` : '/tailor'} style={smallBtn}>Check score <ArrowIcon /></Link>
                 </div>
               </>
             )}
           </div>
 
         </div>
+
+        {/* Saved per-bullet diff for the tailored resume - viewing it never
+            re-runs tailoring. */}
+        {showResumeDiff && resumeDoc && (resumeDoc.changes ?? []).length > 0 && (
+          <div style={{ marginTop: '16px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginBottom: '12px' }}>
+              What changed in your tailored resume
+            </div>
+            <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
+              <TailorDiff changes={resumeDoc.changes ?? []} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* -- Question Answerer ------------------------------------------------ */}

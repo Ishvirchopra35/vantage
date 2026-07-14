@@ -1,6 +1,9 @@
 'use client';
 
+// Profile editor: identity, education, skills, target roles, experience,
+// and projects - the inputs that feed buildUserContext for every AI call.
 import { useState, useRef, useEffect } from 'react';
+import { rateLimitMessage } from '@/lib/rateLimitMessage';
 import { updateProfile } from '@/app/(dashboard)/actions';
 import { track } from '@/lib/analytics';
 import ResumeUpload from '@/components/ResumeUpload';
@@ -111,6 +114,10 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
+        if (res.status === 429) {
+          setError(json.error || json.message || rateLimitMessage(json.retryAfter));
+          return;
+        }
         setError(json.error || 'We could not read your profile from your resume.');
         return;
       }
@@ -381,7 +388,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
       </div>
 
       {/* Graduation Year & Years Experience */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px', marginBottom: '18px' }}>
+      <div className="rsp-grid-2" style={{ gap: '16px', marginBottom: '18px' }}>
         <div>
           <label style={labelStyle}>
             Graduation year
@@ -585,7 +592,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
                 </button>
 
                 {/* Title + Company */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px', paddingRight: '24px' }}>
+                <div className="rsp-grid-2" style={{ gap: '12px', marginBottom: '12px', paddingRight: '24px' }}>
                   <div>
                     <label style={{ ...labelStyle, fontSize: '12px' }}>Job title</label>
                     <input
@@ -613,7 +620,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
                 </div>
 
                 {/* Dates + Location */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                <div className="rsp-grid-3" style={{ gap: '12px', marginBottom: '10px' }}>
                   <div>
                     <label style={{ ...labelStyle, fontSize: '12px' }}>Start date</label>
                     <input
@@ -812,7 +819,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
                 </button>
 
                 {/* Name + URL */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px', paddingRight: '24px' }}>
+                <div className="rsp-grid-2" style={{ gap: '12px', marginBottom: '12px', paddingRight: '24px' }}>
                   <div>
                     <label style={{ ...labelStyle, fontSize: '12px' }}>Project name</label>
                     <input

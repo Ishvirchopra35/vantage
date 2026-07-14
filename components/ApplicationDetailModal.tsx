@@ -1,6 +1,12 @@
 'use client'
 
+// Tracker detail modal: one application's job info, linked documents,
+// ATS score, and generated question answers.
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import TailorDiff, { formatTailoredBullets, type TailorChange } from '@/components/TailorDiff'
+import CustomSelect from '@/components/CustomSelect'
+import Spinner from '@/components/ui/Spinner'
 
 // --- Types --------------------------------------------------------------------
 
@@ -10,16 +16,20 @@ interface Application {
   id: string
   company: string
   role: string
+  job_url: string | null
   status: AppStatus
   applied_date: string | null
   notes: string | null
   job_id: string | null
 }
 
+// Tailored resumes arrive with content stripped (server-side) - only the
+// per-bullet changes are shown. Cover letters keep their full content.
 interface Document {
   id: string
   type: 'tailored_resume' | 'cover_letter'
-  content: string
+  content: string | null
+  changes: TailorChange[] | null
   skill_gaps: string[] | null
   created_at: string
 }
@@ -45,6 +55,8 @@ interface DetailsData {
 interface Props {
   applicationId: string
   onClose: () => void
+  // Fired after a successful edit so the tracker list can refresh its row.
+  onUpdated?: (application: Application) => void
 }
 
 // --- Status badge maps (mirrors tracker page) --------------------------------
@@ -135,12 +147,31 @@ function ModalSkeleton() {
 
 // --- Modal --------------------------------------------------------------------
 
-export default function ApplicationDetailModal({ applicationId, onClose }: Props) {
+export default function ApplicationDetailModal({ applicationId, onClose, onUpdated }: Props) {
+  const router = useRouter()
   const [data, setData] = useState<DetailsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'resume' | 'cover'>('resume')
   const [copied, setCopied] = useState<'resume' | 'cover' | null>(null)
+
+  // Edit mode - every user-owned field of the application is editable
+  const [editing, setEditing] = useState(false)
+  const [editCompany, setEditCompany] = useState('')
+  const [editRole, setEditRole] = useState('')
+  const [editJobUrl, setEditJobUrl] = useState('')
+  const [editAppliedDate, setEditAppliedDate] = useState('')
+  const [editStatus, setEditStatus] = useState<AppStatus>('applied')
+  const [editNotes, setEditNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  // Tailor-from-tracker for manual applications: paste the posting once,
+  // parse it into a jobs row, link it, then jump to the tailor flow.
+  const [tailorOpen, setTailorOpen] = useState(false)
+  const [tailorInput, setTailorInput] = useState('')
+  const [tailorLoading, setTailorLoading] = useState(false)
+  const [tailorError, setTailorError] = useState<string | null>(null)
 
   // Lock body scroll while open
   useEffect(() => {
@@ -185,6 +216,107 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
     setTimeout(() => setCopied(null), 2000)
   }
 
+  function startEditing(): void {
+    if (!data) return
+    setEditCompany(data.application.company)
+    setEditRole(data.application.role)
+    setEditJobUrl(data.application.job_url ?? '')
+    setEditAppliedDate(data.application.applied_date ?? '')
+    setEditStatus(data.application.status)
+    setEditNotes(data.application.notes ?? '')
+    setSaveError(null)
+    setEditing(true)
+  }
+
+  async function handleSaveEdits(): Promise<void> {
+    if (!data) return
+    if (!editCompany.trim() || !editRole.trim()) {
+      setSaveError('Company and role are required.')
+      return
+    }
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const res = await fetch(`/api/applications/${data.application.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company: editCompany.trim(),
+          role: editRole.trim(),
+          job_url: editJobUrl.trim(),
+          applied_date: editAppliedDate || undefined,
+          status: editStatus,
+          notes: editNotes,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setSaveError(json.error ?? 'Could not save changes.')
+        return
+      }
+      const updated = json.application as Application
+      setData(prev => (prev ? { ...prev, application: { ...prev.application, ...updated } } : prev))
+      onUpdated?.(updated)
+      setEditing(false)
+    } catch {
+      setSaveError('Network error. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // "Tailor resume" entry point. Linked applications jump straight to the
+  // tailor flow; manual ones first parse + link a job via the panel below.
+  function handleTailorClick(): void {
+    if (!data) return
+    if (data.application.job_id) {
+      router.push(`/tailor?jobId=${data.application.job_id}`)
+      return
+    }
+    setTailorOpen(o => !o)
+    setTailorError(null)
+    setTailorInput(data.application.job_url ?? '')
+  }
+
+  async function handleParseAndTailor(): Promise<void> {
+    if (!data || !tailorInput.trim()) return
+    setTailorLoading(true)
+    setTailorError(null)
+    try {
+      const input = tailorInput.trim()
+      const isUrl = /^https?:\/\//i.test(input)
+      const parseRes = await fetch('/api/parse-job', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isUrl ? { url: input } : { rawText: input }),
+      })
+      const parseJson = await parseRes.json()
+      if (!parseRes.ok || !parseJson.job?.id) {
+        setTailorError(parseJson.error ?? 'Could not read that job posting.')
+        return
+      }
+      const jobId = parseJson.job.id as string
+
+      // Link the parsed job so ATS scoring and future tailoring can find it.
+      const linkRes = await fetch(`/api/applications/${data.application.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: jobId }),
+      })
+      if (!linkRes.ok) {
+        const linkJson = await linkRes.json().catch(() => null)
+        setTailorError(linkJson?.error ?? 'Could not link the job to this application.')
+        return
+      }
+
+      router.push(`/tailor?jobId=${jobId}`)
+    } catch {
+      setTailorError('Network error. Please try again.')
+    } finally {
+      setTailorLoading(false)
+    }
+  }
+
   const smallBtn: React.CSSProperties = {
     background: 'var(--card-raised)',
     color: 'var(--text)',
@@ -198,9 +330,28 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
     gap: '6px',
   }
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '8px 10px',
+    background: 'var(--card-raised)',
+    border: '1px solid var(--border)',
+    borderRadius: '8px',
+    color: 'var(--text)',
+    fontSize: '13px',
+    outline: 'none',
+    boxSizing: 'border-box',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: '11px',
+    fontWeight: 600,
+    color: 'var(--muted)',
+    marginBottom: '4px',
+  }
+
   const resumeDoc = data?.documents.find(d => d.type === 'tailored_resume')
   const coverDoc = data?.documents.find(d => d.type === 'cover_letter')
-  const activeDoc = activeTab === 'resume' ? resumeDoc : coverDoc
   const hasDocTabs = !!(resumeDoc || coverDoc)
 
   return (
@@ -239,35 +390,98 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
         {!loading && !fetchError && data && (
           <>
             {/* -- Header ------------------------------------------------ */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
-              <div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
-                  {data.application.company}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', gap: '12px' }}>
+              {editing ? (
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                    <div>
+                      <label style={labelStyle}>Company *</label>
+                      <input value={editCompany} onChange={e => setEditCompany(e.target.value)} style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Role *</label>
+                      <input value={editRole} onChange={e => setEditRole(e.target.value)} style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Job URL</label>
+                      <input value={editJobUrl} onChange={e => setEditJobUrl(e.target.value)} style={inputStyle} placeholder="https://…" />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Applied date</label>
+                      <input type="date" value={editAppliedDate} onChange={e => setEditAppliedDate(e.target.value)} style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Status</label>
+                      <CustomSelect
+                        value={editStatus}
+                        onChange={v => setEditStatus(v as AppStatus)}
+                        options={(Object.keys(STATUS_LABEL) as AppStatus[]).map(s => ({ value: s, label: STATUS_LABEL[s] }))}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={labelStyle}>Notes</label>
+                    <textarea
+                      value={editNotes}
+                      onChange={e => setEditNotes(e.target.value)}
+                      rows={3}
+                      style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => void handleSaveEdits()}
+                      disabled={saving}
+                      style={{ ...smallBtn, background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)', opacity: saving ? 0.7 : 1 }}
+                    >
+                      {saving && <Spinner size="sm" />}
+                      {saving ? 'Saving…' : 'Save changes'}
+                    </button>
+                    <button onClick={() => setEditing(false)} disabled={saving} style={smallBtn}>Cancel</button>
+                    {saveError && <span style={{ fontSize: '12px', color: 'var(--score-red)' }}>{saveError}</span>}
+                  </div>
                 </div>
-                <div style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '12px' }}>
-                  {data.application.role}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <span style={{
-                    background: STATUS_COLOR[data.application.status],
-                    color: STATUS_TEXT[data.application.status],
-                    borderRadius: '20px',
-                    padding: '2px 7px',
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '10px',
-                    fontWeight: 600,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase' as const,
-                  }}>
-                    {STATUS_LABEL[data.application.status]}
-                  </span>
-                  {data.application.applied_date && (
-                    <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                      Applied {new Date(data.application.applied_date).toLocaleDateString()}
+              ) : (
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
+                    {data.application.company}
+                  </div>
+                  <div style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '12px' }}>
+                    {data.application.role}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                    <span style={{
+                      background: STATUS_COLOR[data.application.status],
+                      color: STATUS_TEXT[data.application.status],
+                      borderRadius: '20px',
+                      padding: '2px 7px',
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase' as const,
+                    }}>
+                      {STATUS_LABEL[data.application.status]}
                     </span>
+                    {data.application.applied_date && (
+                      <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                        Applied {new Date(data.application.applied_date).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button onClick={startEditing} style={smallBtn}>Edit application</button>
+                    <button onClick={handleTailorClick} style={smallBtn}>
+                      {data.documents.some(d => d.type === 'tailored_resume') ? 'Retailor resume' : 'Tailor resume'}
+                    </button>
+                  </div>
+                  {data.application.notes && (
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '12px', whiteSpace: 'pre-wrap' }}>
+                      {data.application.notes}
+                    </div>
                   )}
                 </div>
-              </div>
+              )}
               <button
                 onClick={onClose}
                 style={{
@@ -284,6 +498,41 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
                 ×
               </button>
             </div>
+
+            {/* -- Add job details (manual applications only) -------------- */}
+            {tailorOpen && !data.application.job_id && (
+              <div style={{
+                background: 'var(--card-raised)',
+                borderRadius: 'var(--radius)',
+                padding: '16px',
+                marginBottom: '24px',
+              }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>
+                  Add job details to tailor
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '10px', lineHeight: 1.5 }}>
+                  This application was logged without a job posting. Paste the posting URL or the full description and we&apos;ll link it, then take you to the tailor flow.
+                </div>
+                <textarea
+                  value={tailorInput}
+                  onChange={e => setTailorInput(e.target.value)}
+                  rows={3}
+                  placeholder="Paste the job URL or full job description…"
+                  style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5, marginBottom: '10px' }}
+                />
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => void handleParseAndTailor()}
+                    disabled={tailorLoading || !tailorInput.trim()}
+                    style={{ ...smallBtn, background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)', opacity: tailorLoading || !tailorInput.trim() ? 0.7 : 1 }}
+                  >
+                    {tailorLoading && <Spinner size="sm" />}
+                    {tailorLoading ? 'Reading posting…' : 'Continue to tailor'}
+                  </button>
+                  {tailorError && <span style={{ fontSize: '12px', color: 'var(--score-red)' }}>{tailorError}</span>}
+                </div>
+              </div>
+            )}
 
             {/* -- ATS Score --------------------------------------------- */}
             {data.atsScore && (
@@ -390,16 +639,42 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
                   )}
                 </div>
 
-                {activeDoc && (
+                {/* Tailored resume: per-bullet diff only - the full rewritten
+                    text is never rendered or downloadable. */}
+                {activeTab === 'resume' && resumeDoc && (
+                  <div>
+                    {(resumeDoc.changes ?? []).length > 0 ? (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '14px' }}>
+                          <button
+                            onClick={() => copyToClipboard(formatTailoredBullets(resumeDoc.changes ?? []), 'resume')}
+                            style={smallBtn}
+                          >
+                            {copied === 'resume' ? 'Copied!' : 'Copy tailored bullets'}
+                          </button>
+                        </div>
+                        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                          <TailorDiff changes={resumeDoc.changes ?? []} />
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: '13px', color: 'var(--muted)', padding: '16px 0' }}>
+                        This resume was tailored, but no per-bullet changes were recorded.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'cover' && coverDoc && coverDoc.content && (
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '14px' }}>
-                      <button onClick={() => copyToClipboard(activeDoc.content, activeTab)} style={smallBtn}>
-                        {copied === activeTab ? 'Copied!' : 'Copy'}
+                      <button onClick={() => copyToClipboard(coverDoc.content ?? '', 'cover')} style={smallBtn}>
+                        {copied === 'cover' ? 'Copied!' : 'Copy'}
                       </button>
                       <button
                         onClick={() => downloadAsPDF(
-                          activeDoc.content,
-                          `${data.application.company} - ${data.application.role} - ${activeTab === 'resume' ? 'Tailored Resume' : 'Cover Letter'}.pdf`
+                          coverDoc.content ?? '',
+                          `${data.application.company} - ${data.application.role} - Cover Letter.pdf`
                         )}
                         style={smallBtn}
                       >
@@ -423,7 +698,7 @@ export default function ApplicationDetailModal({ applicationId, onClose }: Props
                       margin: 0,
                       color: 'var(--text)',
                     }}>
-                      {activeDoc.content}
+                      {coverDoc.content}
                     </pre>
                   </div>
                 )}

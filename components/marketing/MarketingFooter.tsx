@@ -144,6 +144,7 @@ export default function MarketingFooter() {
               links={[
                 { label: 'Privacy Policy', href: '/privacy' },
                 { label: 'Terms of Service', href: '/terms' },
+                { label: 'Data Compliance', href: '/data-compliance' },
               ]}
             />
           </div>

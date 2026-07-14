@@ -1,13 +1,14 @@
 import { redirect } from 'next/navigation'
 import { requireAuth } from '@/lib/requireAuth'
 import { createClient } from '@/lib/supabase/server'
-import { UpgradeButton, ManageButton } from '@/components/BillingActions'
+import { UpgradeButton, ManageButton, RefundButton } from '@/components/BillingActions'
 import PageHeader from '@/components/ui/PageHeader'
 
 interface Subscription {
   plan: string
   status: string
   current_period_end: string | null
+  trial_end: string | null
   tailoring_uses: number | null
   cover_letter_uses: number | null
   auto_apply_uses: number | null
@@ -57,13 +58,14 @@ export default async function BillingPage() {
   const supabase = await createClient()
   const { data: sub } = await supabase
     .from('subscriptions')
-    .select('plan, status, current_period_end, tailoring_uses, cover_letter_uses, auto_apply_uses, strategy_uses, networking_uses, interview_uses, monthly_reset_at')
+    .select('plan, status, current_period_end, trial_end, tailoring_uses, cover_letter_uses, auto_apply_uses, strategy_uses, networking_uses, interview_uses, monthly_reset_at')
     .eq('user_id', user.id)
     .single()
 
   const s = sub as Subscription | null
   const plan = s?.plan ?? 'free'
   const isPro = plan === 'pro'
+  const isTrialing = isPro && s?.status === 'trialing'
 
   const LIMITS = isPro
     ? { tailoring: null, cover_letter: null, auto_apply: null, strategy: null, networking: null, interview: null }
@@ -78,7 +80,7 @@ export default async function BillingPage() {
 
       {/* Current plan card */}
       <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
               <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>
@@ -91,17 +93,27 @@ export default async function BillingPage() {
                 borderRadius: '20px',
                 color: 'var(--muted)',
               }}>
-                {isPro ? 'Active' : 'Free tier'}
+                {isTrialing ? 'Free trial' : isPro ? 'Active' : 'Free tier'}
               </span>
             </div>
             <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
-              {isPro
-                ? `Renews ${formatDate(s?.current_period_end ?? null)}`
-                : 'Upgrade for unlimited access - $8/month'}
+              {isTrialing
+                ? `Trial ends ${formatDate(s?.trial_end ?? null)} - billing starts then. Cancel any time before that and you pay nothing.`
+                : isPro
+                  ? `Renews ${formatDate(s?.current_period_end ?? null)}`
+                  : 'Upgrade for unlimited access - $8/month with a 7-day free trial'}
             </div>
           </div>
           {isPro ? <ManageButton /> : <UpgradeButton />}
         </div>
+        {isPro && !isTrialing && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+            <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+              7-day money-back guarantee: not happy? Refund your last payment within 7 days, no questions asked.
+            </span>
+            <RefundButton />
+          </div>
+        )}
       </div>
 
       {/* Monthly usage card */}

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getRemainingLimits } from '@/lib/rateLimit';
 import Sidebar, { type SidebarUserProfile } from '@/components/Sidebar';
+import HelpChatWidget from '@/components/HelpChatWidget';
 
 export default async function DashboardLayout({
   children,
@@ -53,17 +54,34 @@ export default async function DashboardLayout({
   const remainingTailorings = enableFreemium ? (limitsResult?.tailoring ?? null) : null;
 
   return (
-    <div className="dashboard-shell">
-      <Sidebar
-        profile={profile}
-        remainingTailorings={remainingTailorings}
-        applicationCount={applicationCount}
-        plan={plan}
-        enableFreemium={enableFreemium}
-      />
-      <main className="dashboard-main">
-        <div className="dashboard-main-inner">{children}</div>
-      </main>
-    </div>
+    <>
+      {/* The dashboard is desktop-only: on phones the shell is hidden and
+          this notice renders instead. Hidden inline by default so it can
+          never flash on desktop even if the stylesheet is stale; the phone
+          media query flips it on with !important (globals.css). */}
+      <div className="mobile-blocker" style={{ display: 'none' }}>
+        <div className="mobile-blocker-card">
+          <img src="/logo.png" width={40} height={40} alt="Vantage logo" style={{ borderRadius: 'var(--radius-sm)' }} />
+          <div className="mobile-blocker-title">Vantage is built for desktop</div>
+          <div className="mobile-blocker-text">
+            Tailoring resumes, tracking applications, and auto-filling forms need a bigger screen.
+            Open Vantage on a laptop or desktop to continue.
+          </div>
+        </div>
+      </div>
+      <div className="dashboard-shell">
+        <Sidebar
+          profile={profile}
+          remainingTailorings={remainingTailorings}
+          applicationCount={applicationCount}
+          plan={plan}
+          enableFreemium={enableFreemium}
+        />
+        <main className="dashboard-main">
+          <div className="dashboard-main-inner">{children}</div>
+        </main>
+        <HelpChatWidget />
+      </div>
+    </>
   );
 }

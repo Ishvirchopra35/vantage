@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, type CSSProperties, useEffect, useMemo, useState } from 'react';
+import { rateLimitMessage } from '@/lib/rateLimitMessage';
 import { createClient } from '@/lib/supabase/client';
 import SkeletonLoader from '@/components/ui/SkeletonLoader';
 import CustomSelect from '@/components/CustomSelect';
@@ -25,8 +26,12 @@ type AtsScoreRow = {
   documents: { type: string | null; version: number | null } | null;
 };
 
-type JobRow = {
-  id: string;
+// Job option sourced from the application tracker. Manual applications have
+// no jobs row (jobId null) and cannot be ATS-scored until job details are
+// added from the tracker.
+type JobOption = {
+  key: string;
+  jobId: string | null;
   title: string | null;
   company: string | null;
 };
@@ -108,7 +113,7 @@ export default function AtsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [scores, setScores] = useState<AtsScoreRow[]>([]);
-  const [jobs, setJobs] = useState<JobRow[]>([]);
+  const [jobs, setJobs] = useState<JobOption[]>([]);
   const [baseResume, setBaseResume] = useState<ResumeRow | null>(null);
   const [tailoredDocs, setTailoredDocs] = useState<DocumentRow[]>([]);
 
@@ -135,7 +140,7 @@ export default function AtsPage() {
         return;
       }
 
-      const [scoresRes, jobsRes, baseResumeRes, docsRes] = await Promise.all([
+      const [scoresRes, appsRes, baseResumeRes, docsRes] = await Promise.all([
         supabase
           .from('ats_scores')
           .select(
@@ -143,11 +148,13 @@ export default function AtsPage() {
           )
           .eq('user_id', user.id)
           .order('scored_at', { ascending: false }),
+        // Source the job picker from the application tracker (manual rows
+        // have no jobs record); titles are enriched from jobs afterwards.
         supabase
-          .from('jobs')
-          .select('id, title, company, applications!inner(id)')
+          .from('applications')
+          .select('id, job_id, role, company')
           .eq('user_id', user.id)
-          .is('applications.deleted_at', null)
+          .is('deleted_at', null)
           .order('created_at', { ascending: false }),
         supabase
           .from('resumes')
@@ -165,20 +172,61 @@ export default function AtsPage() {
           .order('created_at', { ascending: false }),
       ]);
 
-      if (scoresRes.error || jobsRes.error || docsRes.error) {
-        console.error('[ats] failed to load ATS data:', scoresRes.error || jobsRes.error || docsRes.error);
+      if (scoresRes.error || appsRes.error || docsRes.error) {
+        console.error('[ats] failed to load ATS data:', scoresRes.error || appsRes.error || docsRes.error);
         setError('We could not load your ATS scores right now. Please try again.');
         setLoading(false);
         return;
       }
 
-      setScores((scoresRes.data ?? []) as unknown as AtsScoreRow[]);
-      setJobs((jobsRes.data ?? []).map(({ id, title, company }) => ({ id, title, company })) as JobRow[]);
+      // Enrich tracked applications with parsed job titles, keep manual rows,
+      // and dedupe repeated company/role pairs (same pattern as interview).
+      const appRows = (appsRes.data ?? []) as Array<{ id: string; job_id: string | null; role: string; company: string }>;
+      const jobIds = [...new Set(appRows.map((a) => a.job_id).filter(Boolean))] as string[];
+      let jobMap = new Map<string, { title: string; company: string }>();
+      if (jobIds.length > 0) {
+        const { data: jobRows } = await supabase
+          .from('jobs')
+          .select('id, title, company')
+          .in('id', jobIds);
+        jobMap = new Map(
+          ((jobRows ?? []) as { id: string; title: string; company: string }[]).map((j) => [
+            j.id,
+            { title: j.title, company: j.company },
+          ])
+        );
+      }
+
+      const seen = new Set<string>();
+      const options: JobOption[] = [];
+      for (const a of appRows) {
+        const dedupeKey = a.job_id ?? `${a.company.toLowerCase()}|${a.role.toLowerCase()}`;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        const job = a.job_id ? jobMap.get(a.job_id) : undefined;
+        options.push({
+          key: a.job_id ?? `app:${a.id}`,
+          jobId: a.job_id,
+          title: job?.title || a.role,
+          company: job?.company || a.company,
+        });
+      }
+
+      // Score history only shows jobs that are tracked applications - scores
+      // for tailored-but-never-logged jobs (often title-less "Untitled job"
+      // rows) stay out of the page entirely.
+      const trackedJobIds = new Set(jobIds);
+      const trackedScores = ((scoresRes.data ?? []) as unknown as AtsScoreRow[]).filter(
+        (row) => row.job_id !== null && trackedJobIds.has(row.job_id)
+      );
+
+      setScores(trackedScores);
+      setJobs(options);
       setBaseResume((baseResumeRes.data ?? null) as ResumeRow | null);
       setTailoredDocs((docsRes.data ?? []) as DocumentRow[]);
 
-      if ((jobsRes.data ?? []).length > 0) {
-        setSelectedJobId((jobsRes.data ?? [])[0].id);
+      if (options.length > 0) {
+        setSelectedJobId(options[0].key);
       }
 
       setLoading(false);
@@ -230,9 +278,10 @@ export default function AtsPage() {
       });
     }
 
-    if (selectedJobId) {
+    const selectedRealJobId = jobs.find((j) => j.key === selectedJobId)?.jobId ?? null;
+    if (selectedRealJobId) {
       const jobDocs = tailoredDocs
-        .filter((doc) => doc.job_id === selectedJobId)
+        .filter((doc) => doc.job_id === selectedRealJobId)
         .sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
 
       for (const doc of jobDocs) {
@@ -245,7 +294,7 @@ export default function AtsPage() {
     }
 
     return choices;
-  }, [baseResume, selectedJobId, tailoredDocs]);
+  }, [baseResume, selectedJobId, tailoredDocs, jobs]);
 
   useEffect(() => {
     if (!selectedJobId) {
@@ -328,12 +377,19 @@ export default function AtsPage() {
       return;
     }
 
+    // Manual tracker entries carry no parsed job posting to score against.
+    const selectedJob = jobs.find((j) => j.key === selectedJobId);
+    if (!selectedJob?.jobId) {
+      setRunError('This application has no job details yet. Open it in the Applications tracker and add the job posting first.');
+      return;
+    }
+
     setRunning(true);
     setRunError(null);
     setRunResult(null);
 
     const [kind, id] = selectedResumeChoice.split(':');
-    const payload: Record<string, string> = { jobId: selectedJobId };
+    const payload: Record<string, string> = { jobId: selectedJob.jobId };
     if (kind === 'base') payload.resumeId = id;
     if (kind === 'doc') payload.documentId = id;
 
@@ -344,7 +400,12 @@ export default function AtsPage() {
         body: JSON.stringify(payload),
       });
 
-      const json = (await res.json()) as { score?: RunResult; error?: string };
+      const json = (await res.json()) as { score?: RunResult; error?: string; retryAfter?: number };
+      if (res.status === 429) {
+        setRunError(json.error || rateLimitMessage(json.retryAfter));
+        setRunning(false);
+        return;
+      }
       if (!res.ok || !json.score) {
         setRunError(json.error || 'Failed to run ATS check.');
         setRunning(false);
@@ -531,10 +592,10 @@ export default function AtsPage() {
               onChange={setSelectedJobId}
               options={
                 jobs.length === 0
-                  ? [{ value: '', label: 'No jobs available' }]
+                  ? [{ value: '', label: 'No tracked applications yet' }]
                   : jobs.map((job) => ({
-                      value: job.id,
-                      label: `${job.title || 'Untitled'}${job.company ? ` - ${job.company}` : ''}`,
+                      value: job.key,
+                      label: `${job.title || 'Untitled'}${job.company ? ` - ${job.company}` : ''}${job.jobId ? '' : ' (needs job details)'}`,
                     }))
               }
             />

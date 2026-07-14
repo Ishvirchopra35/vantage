@@ -1,10 +1,13 @@
+// Reference implementation of the required API route pattern (auth ->
+// validate -> limits -> withTimeout -> logRoute). Copy this when adding
+// routes; it is a live endpoint but nothing in the app calls it.
 import { NextRequest } from 'next/server';
 import { ok, err, serverError, rateLimited } from '@/lib/apiResponse';
 import { validateBody } from '@/lib/validateRequest';
 import requireAuth from '@/lib/requireAuth';
 import { withTimeout } from '@/lib/withTimeout';
 import logRoute from '@/lib/logger';
-import { checkLimit, LIMITS } from '@/lib/rateLimit';
+import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 import { generateText } from '@/lib/ai';
 
 export async function POST(req: NextRequest) {
@@ -20,6 +23,21 @@ export async function POST(req: NextRequest) {
       if (!limitCheck.allowed) {
         await logRoute('/api/example', userId, Date.now() - start, 429).catch(() => {});
         return rateLimited('AI usage', LIMITS.tailoring, 30);
+      }
+
+      const rateLimit = await checkRateLimit({
+        key: 'example',
+        userId,
+        devLimit: 5,
+        freeLimit: 10,
+        proLimit: 10,
+        devWindowMinutes: 1440,
+        freeWindowMinutes: 43200,
+        proWindowMinutes: 1440,
+      });
+      if (!rateLimit.allowed) {
+        await logRoute('/api/example', userId, Date.now() - start, 429).catch(() => {});
+        return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier);
       }
     }
 

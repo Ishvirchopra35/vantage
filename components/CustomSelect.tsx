@@ -1,5 +1,7 @@
 'use client';
 
+// Styled dropdown used instead of native <select> so the menu matches the
+// dark-glass design system.
 import { useEffect, useRef, useState } from 'react';
 
 export interface CustomSelectOption {

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 const INPUT_STYLE: React.CSSProperties = {
   width: '100%',
@@ -28,6 +29,15 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // The OAuth callback redirects here with ?error=oauth when the code
+  // exchange fails; window.location avoids the useSearchParams Suspense
+  // requirement on a client page.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('error') === 'oauth') {
+      setError('Google sign-in did not complete. Please try again.');
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -79,6 +89,10 @@ export default function LoginPage() {
         return;
       }
 
+      // Refresh the Router Cache so server components re-render for the new
+      // session - without this, a user switching accounts sees the previous
+      // account's cached pages (name, email, data) until a hard reload.
+      router.refresh();
       router.push('/dashboard');
     } catch (e) {
       setError('An unexpected error occurred. Please try again.');
@@ -228,6 +242,15 @@ export default function LoginPage() {
             'Sign in'
           )}
         </button>
+
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>or</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        </div>
+
+        <GoogleSignInButton />
 
         {/* Error */}
         {error && (

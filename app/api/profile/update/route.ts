@@ -1,3 +1,4 @@
+// Updates the caller's profile row (server-validated variant of the form).
 import { requireAuth } from '@/lib/requireAuth'
 import { validateBody } from '@/lib/validateRequest'
 import { ok, err, serverError } from '@/lib/apiResponse'

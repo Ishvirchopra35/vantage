@@ -1,5 +1,6 @@
 'use client'
 
+// Expand/collapse wrapper for long changelog entries on /changelog.
 import { useState, useEffect, useRef } from 'react'
 
 interface Props {
