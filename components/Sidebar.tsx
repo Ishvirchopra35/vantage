@@ -366,12 +366,6 @@ export default function Sidebar({
           </div>
         </div>
 
-        {enableFreemium && remainingTailorings !== null && (
-          <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--muted)' }}>
-            {remainingTailorings} / 10 tailorings
-          </div>
-        )}
-
         {enableFreemium && plan === 'free' && (
           <button type="button" className="ds-btn" style={{ marginTop: '12px', width: '100%', fontSize: '12px' }}>
             Upgrade to Pro
@@ -539,12 +533,6 @@ export default function Sidebar({
               </div>
             </div>
           </div>
-
-          {enableFreemium && remainingTailorings !== null && (
-            <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--muted)' }}>
-              {remainingTailorings} / 10 tailorings
-            </div>
-          )}
 
           {enableFreemium && plan === 'free' && (
             <button type="button" className="ds-btn" style={{ marginTop: '12px', width: '100%', fontSize: '12px' }}>
