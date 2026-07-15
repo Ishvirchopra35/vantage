@@ -48,11 +48,10 @@ Requirements:
 - Privacy/legal contact: **ishvir.chopra@gmail.com** [CONFIRM: or a
   dedicated address].
 - Pricing: Free tier with monthly usage limits; **Pro $8/month CAD** via
-  Stripe. Cancel any time (access runs to period end). **Self-serve refund
-  of the latest payment within 7 days of that payment**; otherwise no
-  partial-month refunds. Pricing changes with 30 days notice. Trials may
-  exist (treated as Pro while active; cancelling before first charge means
-  nothing to refund).
+  Stripe. Cancel any time (access runs to period end). **Payments are
+  non-refundable, including partial months.** Pricing changes with 30 days
+  notice. Trials may exist (treated as Pro while active; cancelling before
+  the first charge means you are never billed).
 
 ## Features (what users do)
 
@@ -127,7 +126,7 @@ merger/acquisition/asset sale, with notice to users beforehand.
 - Marketing opt-out: Settings toggle + one-click unsubscribe link in every
   marketing email (opt-in is off by default, sourced from an explicit
   signup checkbox).
-- Cancel/manage billing via Stripe portal; 7-day self-serve refund.
+- Cancel/manage billing via Stripe portal; payments are non-refundable.
 - NOT implemented: data export (portability). Requests would be handled
   manually via email [CONFIRM this is acceptable to state].
 

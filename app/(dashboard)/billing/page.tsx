@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { requireAuth } from '@/lib/requireAuth'
 import { createClient } from '@/lib/supabase/server'
-import { UpgradeButton, ManageButton, RefundButton } from '@/components/BillingActions'
+import { UpgradeButton, ManageButton } from '@/components/BillingActions'
 import PageHeader from '@/components/ui/PageHeader'
 
 interface Subscription {
@@ -70,14 +70,6 @@ export default async function BillingPage() {
           </div>
           {isPro ? <ManageButton /> : <UpgradeButton />}
         </div>
-        {isPro && !isTrialing && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-            <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
-              7-day money-back guarantee: not happy? Refund your last payment within 7 days, no questions asked.
-            </span>
-            <RefundButton />
-          </div>
-        )}
       </div>
     </div>
   )

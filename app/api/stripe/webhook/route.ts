@@ -1,5 +1,5 @@
-// Stripe -> subscriptions sync. Signature-verified; the ONLY writer of
-// plan/status besides the self-serve refund route.
+// Stripe -> subscriptions sync. Signature-verified; the only writer of
+// plan/status.
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 // Terms of Service - plain-language, in-house version (2026-07-13).
-// Facts here must track the product: refund window, pricing, and feature
+// Facts here must track the product: refund policy, pricing, and feature
 // behavior all mirror what the code actually does. A lawyer-reviewed
 // replacement is planned; see docs/legal-dossier.md for the drafting brief.
 export const dynamic = 'force-static';
@@ -149,9 +149,8 @@ export default function TermsPage() {
             the current billing period.
           </Bullet>
           <Bullet>
-            Refunds: you can refund your most recent Pro payment yourself from the billing page
-            within 7 days of that payment; doing so ends the subscription immediately. Beyond
-            that window there are no refunds for partial months.
+            Refunds: payments are non-refundable, including for partial months. When you cancel,
+            you keep Pro access until the end of the current billing period.
           </Bullet>
           <Bullet>
             If you are on a free trial, you are not charged until the trial ends, and cancelling

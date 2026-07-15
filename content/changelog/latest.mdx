@@ -1331,3 +1331,14 @@ title: Loading status while your resume auto-fills your profile
 - components/ProfileForm.tsx: added a parsing state that shows a status banner ("Reading your resume and filling in your profile... please stay on this page") after a resume upload finishes, covering the gap while /api/parse-profile runs and the fields populate
 - no change to upload/parse functionality; purely a visible loading indicator during the existing buffer
 - no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-15
+type: Update
+title: Removed the self-serve refund feature
+- app/api/stripe/refund/route.ts deleted: the self-serve refund endpoint is gone
+- components/BillingActions.tsx: removed the RefundButton component
+- app/(dashboard)/billing/page.tsx: removed the money-back guarantee note and refund button from the Pro plan card
+- app/(marketing)/page.tsx, app/(marketing)/terms/page.tsx: pricing/terms copy no longer mentions a money-back guarantee; refund policy is now non-refundable, cancel-anytime with access to period end
+- docs/legal-dossier.md updated to match
+- no DB changes, no new env vars, no packages
