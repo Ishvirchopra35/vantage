@@ -27,8 +27,13 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Refresh the session to keep it alive
-  await supabase.auth.getSession();
+  // Refresh the session to keep it alive. Must be getUser(), not getSession():
+  // getUser() validates the token with Supabase and, when the access token has
+  // expired, uses the refresh token to mint a new one - and the setAll callback
+  // above writes that fresh token back into the response cookies. getSession()
+  // only reads the cookie, so an expired token never gets refreshed here, which
+  // bounces the user between /login and /dashboard once their token ages out.
+  await supabase.auth.getUser();
 
   return response;
 }

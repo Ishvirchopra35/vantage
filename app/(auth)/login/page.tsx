@@ -43,11 +43,15 @@ export default function LoginPage() {
     let isMounted = true;
 
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
+      // Validate the token against Supabase (getUser), not just read the
+      // cookie (getSession). The dashboard layout guards with getUser too, so
+      // a stale/invalid session must fail here as well - otherwise the two
+      // disagree and bounce the user between /login and /dashboard forever.
+      const { data } = await supabase.auth.getUser();
 
       if (!isMounted) return;
 
-      if (data.session) {
+      if (data.user) {
         router.replace('/dashboard');
         return;
       }
