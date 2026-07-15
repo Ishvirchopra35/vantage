@@ -3,8 +3,17 @@
 // Provider: Gemini 2.5 Flash-Lite
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit';
 
 const MODEL_NAME = 'gemini-2.5-flash-lite';
+
+// Platform-wide kill switch: the absolute number of Gemini calls the whole
+// app may make per 30 days, regardless of how many users sign up. Per-user
+// rate limits scale with signups; this does not. At flash-lite pricing
+// ($0.10/M in, $0.40/M out) 4500 worst-case calls is roughly $15 - the
+// monthly AI budget ceiling. When exhausted, every AI feature returns the
+// friendly "over capacity" 429 until the window resets.
+const PLATFORM_MONTHLY_CALL_BUDGET = 4500;
 
 function getGenAI(): GoogleGenerativeAI {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -28,6 +37,13 @@ async function callGemini(
   contents: GeminiTurn[],
   maxTokens: number
 ): Promise<string> {
+  // Hard spend ceiling before anything reaches Google. The message contains
+  // "quota" so isAiQuotaError() routes it to the friendly 429 path.
+  const budget = await checkSharedQuota('gemini_monthly', PLATFORM_MONTHLY_CALL_BUDGET, 30);
+  if (!budget.allowed) {
+    throw new Error('Platform AI quota exhausted for this period');
+  }
+
   const genAI = getGenAI();
   const model = genAI.getGenerativeModel({
     model: MODEL_NAME,
@@ -47,6 +63,9 @@ async function callGemini(
       if (!text || text.trim() === '') {
         throw new Error('Empty response from Gemini');
       }
+      // Count against the platform budget only when Google actually served
+      // (and therefore billed) the call.
+      void incrementSharedQuota('gemini_monthly').catch(() => {});
       return text;
     } catch (err: unknown) {
       lastError = err;

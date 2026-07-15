@@ -4,7 +4,7 @@
 import { requireAuth } from '@/lib/requireAuth'
 import { err, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
+import { checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit'
 import { generateResumeBuffer } from '@/lib/generatePdf'
 
 const ROUTE = '/api/resume-studio/pdf'
@@ -32,6 +32,13 @@ export async function POST(request: Request): Promise<Response> {
   if ('error' in auth) return auth.error
   const { user } = auth
 
+  // Validate input before touching the limit - a bad request costs nothing.
+  const body = await request.json().catch(() => null)
+  const html = (body as { html?: unknown } | null)?.html
+  if (typeof html !== 'string' || !html.trim() || html.length > MAX_HTML_CHARS) {
+    return err('Invalid resume HTML', 400)
+  }
+
   // No AI here, but each render spins up headless Chromium - bound it.
   const rateLimit = await checkRateLimit({
     key: 'resume-pdf',
@@ -48,12 +55,6 @@ export async function POST(request: Request): Promise<Response> {
     return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
   }
 
-  const body = await request.json().catch(() => null)
-  const html = (body as { html?: unknown } | null)?.html
-  if (typeof html !== 'string' || !html.trim() || html.length > MAX_HTML_CHARS) {
-    return err('Invalid resume HTML', 400)
-  }
-
   try {
     const pdf = await generateResumeBuffer(sanitize(html))
     if (!pdf) {
@@ -61,7 +62,11 @@ export async function POST(request: Request): Promise<Response> {
       return err('PDF rendering is unavailable right now. Please try again later.', 500)
     }
 
-    await logRoute(ROUTE, user.id, Date.now() - start, 200)
+    // Charge the limit only now that the PDF actually rendered.
+    await Promise.all([
+      recordRateLimitUse('resume-pdf', user.id),
+      logRoute(ROUTE, user.id, Date.now() - start, 200),
+    ])
     return new Response(new Uint8Array(pdf), {
       status: 200,
       headers: {

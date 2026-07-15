@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/requireAuth'
 import { validateBody } from '@/lib/validateRequest'
 import { ok, err, serverError, rateLimited } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkLimit, checkRateLimit, rateLimitResponse, checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit'
+import { checkLimit, consumeLimit, checkRateLimit, rateLimitResponse, recordRateLimitUse, checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit'
 
 const ROUTE = '/api/find-contacts'
 
@@ -49,7 +49,10 @@ async function searchContacts(company: string, role: string): Promise<Contact[]>
 
   if (!res.ok || data.error) {
     console.error('[find-contacts] SerpApi error:', data.error)
-    return []
+    // Throw instead of returning [] so the route 500s and the user is not
+    // charged for (or misled by) a "no contacts found" that was really an
+    // upstream failure.
+    throw new Error(data.error || `SerpApi request failed with status ${res.status}`)
   }
 
   // Charge the shared SerpApi budget only after a genuinely successful call.
@@ -127,6 +130,11 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const contacts = await searchContacts(company, role ?? '')
 
+    // Charge the limits only now that the search actually ran.
+    await Promise.all([
+      consumeLimit(user.id, 'networking'),
+      recordRateLimitUse('find-contacts', user.id),
+    ])
     await logRoute(ROUTE, user.id, Date.now() - start, 200)
     return ok({
       contacts,

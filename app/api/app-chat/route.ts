@@ -5,7 +5,7 @@
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, err, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
+import { checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
 import { generateChat, isAiQuotaError, AI_BUSY_MESSAGE, type ChatMessage } from '@/lib/ai'
 import { HELP_SYSTEM_PROMPT } from '@/lib/appKnowledge'
@@ -64,7 +64,11 @@ export async function POST(request: Request): Promise<Response> {
       20000,
       'app-chat'
     )
-    await logRoute(ROUTE, user.id, Date.now() - start, 200)
+    // Charge the limit only now that the chat reply actually generated.
+    await Promise.all([
+      recordRateLimitUse('app-chat', user.id),
+      logRoute(ROUTE, user.id, Date.now() - start, 200),
+    ])
     return ok({ reply })
   } catch (e) {
     if (isAiQuotaError(e)) {

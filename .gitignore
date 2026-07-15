@@ -49,3 +49,4 @@ CLAUDE.md
 
 *.test.ts
 *.test.tsx
+.playwright-mcp/

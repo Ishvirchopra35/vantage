@@ -101,7 +101,7 @@ export default async function BillingPage() {
                 ? `Trial ends ${formatDate(s?.trial_end ?? null)} - billing starts then. Cancel any time before that and you pay nothing.`
                 : isPro
                   ? `Renews ${formatDate(s?.current_period_end ?? null)}`
-                  : 'Upgrade for unlimited access - $8/month with a 7-day free trial'}
+                  : 'Upgrade for unlimited access - $8/month CAD with a 7-day free trial'}
             </div>
           </div>
           {isPro ? <ManageButton /> : <UpgradeButton />}

@@ -6,7 +6,7 @@ import { ok, err, serverError, notFound, rateLimited } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
 import { withTimeout } from '@/lib/withTimeout';
 import { generateJSON, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai';
-import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
+import { checkLimit, consumeLimit, LIMITS, checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit';
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext';
 import { createClient } from '@/lib/supabase/server';
 
@@ -206,6 +206,11 @@ Return JSON with:
     })
   ).catch(() => {});
 
-  await logRoute('/api/ats-score', user.id, Date.now() - start, 200);
+  // Charge the limits only now that the score was generated and saved.
+  await Promise.all([
+    consumeLimit(user.id, 'tailoring'),
+    recordRateLimitUse('ats-score', user.id),
+    logRoute('/api/ats-score', user.id, Date.now() - start, 200),
+  ]);
   return ok({ score: savedScore });
 }

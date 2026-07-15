@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/requireAuth'
 import { validateBody } from '@/lib/validateRequest'
 import { ok, err, serverError, rateLimited } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkLimit, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
+import { checkLimit, consumeLimit, checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
 import { generateText, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
@@ -272,6 +272,11 @@ export async function POST(request: Request): Promise<Response> {
     })
   ).catch(() => {})
 
-  await logRoute(ROUTE, user.id, Date.now() - start, 200)
+  // Charge the limits only now that the message was generated and saved.
+  await Promise.all([
+    consumeLimit(user.id, 'networking'),
+    recordRateLimitUse('networking-outreach', user.id),
+    logRoute(ROUTE, user.id, Date.now() - start, 200),
+  ])
   return ok({ message: savedRow })
 }

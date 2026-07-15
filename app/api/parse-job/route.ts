@@ -4,10 +4,11 @@ import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
 import { ok, err, serverError, rateLimited } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
-import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse, checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit';
+import { checkLimit, consumeLimit, LIMITS, checkRateLimit, rateLimitResponse, recordRateLimitUse, checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit';
 import { withTimeout } from '@/lib/withTimeout';
 import { generateText } from '@/lib/ai';
 import { createClient } from '@/lib/supabase/server';
+import { hasRealJobTitle } from '@/lib/jobFilters';
 
 interface ParsedJob {
   title: string;
@@ -58,27 +59,7 @@ export async function POST(request: Request): Promise<Response> {
     if ('error' in auth) return auth.error;
     const { user } = auth;
 
-    const limitCheck = await checkLimit(user.id, 'tailoring');
-    if (!limitCheck.allowed) {
-      await logRoute('/api/parse-job', user.id, Date.now() - start, 429);
-      return rateLimited('job parsing', LIMITS.tailoring, 30);
-    }
-
-    const rateLimit = await checkRateLimit({
-      key: 'parse-job',
-      userId: user.id,
-      devLimit: 5,
-      freeLimit: 20,
-      proLimit: 12,
-      devWindowMinutes: 1440,
-      freeWindowMinutes: 43200,
-      proWindowMinutes: 1440,
-    });
-    if (!rateLimit.allowed) {
-      await logRoute('/api/parse-job', user.id, Date.now() - start, 429);
-      return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier);
-    }
-
+    // Validate input before touching any limits - a bad request costs nothing.
     const body = await request.json().catch(() => null);
     const validation = validateBody<{ url?: string; rawText?: string }>(body, []);
     if (!validation.valid) {
@@ -94,6 +75,27 @@ export async function POST(request: Request): Promise<Response> {
 
     if (!url && !pastedText) {
       return err('Either url or rawText is required', 400);
+    }
+
+    const limitCheck = await checkLimit(user.id, 'tailoring');
+    if (!limitCheck.allowed) {
+      await logRoute('/api/parse-job', user.id, Date.now() - start, 429);
+      return rateLimited('job parsing', LIMITS.tailoring, 30);
+    }
+
+    const rateLimit = await checkRateLimit({
+      key: 'parse-job',
+      userId: user.id,
+      devLimit: 5,
+      freeLimit: 20,
+      proLimit: 10,
+      devWindowMinutes: 1440,
+      freeWindowMinutes: 43200,
+      proWindowMinutes: 1440,
+    });
+    if (!rateLimit.allowed) {
+      await logRoute('/api/parse-job', user.id, Date.now() - start, 429);
+      return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier);
     }
 
     const parsedAsUrl = url ? isHttpUrl(url) : false;
@@ -184,6 +186,20 @@ export async function POST(request: Request): Promise<Response> {
       return err('Could not extract structured data from this job posting. The page may require login or have unusual formatting.', 422);
     }
 
+    // The AI can "succeed" with an empty shell (title "." and nothing else,
+    // usually from a login wall or scraper-block page). Reject junk parses
+    // before saving so the user gets a clear error and is not charged.
+    const hasSubstance =
+      (parsed.required_skills?.length ?? 0) > 0 ||
+      (parsed.key_responsibilities?.length ?? 0) > 0 ||
+      (parsed.keywords?.length ?? 0) > 0;
+    if (!hasRealJobTitle(parsed.title) || !hasSubstance) {
+      if (inputKind === 'rawText') {
+        return err('That text does not look like a full job posting - no job title or requirements were found. Please paste the complete job description.', 422);
+      }
+      return err('Could not read a real job posting from that page - it may require login or block scrapers. Try pasting the job description as text instead.', 422);
+    }
+
     const supabase = await createClient();
 
     const { data: job, error: dbError } = await supabase
@@ -217,7 +233,12 @@ export async function POST(request: Request): Promise<Response> {
       properties: { title: parsed.title, company: parsed.company },
     })).catch(() => {});
 
-    await logRoute('/api/parse-job', user.id, Date.now() - start, 200);
+    // Charge the limits only now that the job was parsed and saved.
+    await Promise.all([
+      consumeLimit(user.id, 'tailoring'),
+      recordRateLimitUse('parse-job', user.id),
+      logRoute('/api/parse-job', user.id, Date.now() - start, 200),
+    ]);
     return ok({ job });
   } catch (parseError) {
     console.error('[parse-job] unhandled error:', parseError);

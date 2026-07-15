@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/requireAuth'
 import { validateBody } from '@/lib/validateRequest'
 import { ok, err, notFound, rateLimited, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
+import { checkLimit, consumeLimit, LIMITS, checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
 import { generateText, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
@@ -38,7 +38,7 @@ export async function POST(request: Request): Promise<Response> {
     userId: user.id,
     devLimit: 5,
     freeLimit: 15,
-    proLimit: 20,
+    proLimit: 10,
     devWindowMinutes: 1440,
     freeWindowMinutes: 43200,
     proWindowMinutes: 1440,
@@ -151,7 +151,12 @@ Instructions: Draw from their specific resume content. Reference real work, proj
     })
   ).catch(() => {})
 
-  await logRoute(ROUTE, user.id, Date.now() - start, 200)
+  // Charge the limits only now that the answer was generated and saved.
+  await Promise.all([
+    consumeLimit(user.id, 'tailoring'),
+    recordRateLimitUse('answer-question', user.id),
+    logRoute(ROUTE, user.id, Date.now() - start, 200),
+  ])
   return ok({ question: savedRow })
 }
 

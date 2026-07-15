@@ -94,8 +94,8 @@ const JSON_LD = {
       offers: {
         '@type': 'Offer',
         price: '0',
-        priceCurrency: 'USD',
-        description: 'Free tier with 10 resume tailorings per month; Pro at $8/month.',
+        priceCurrency: 'CAD',
+        description: 'Free tier with 10 resume tailorings per month; Pro at $8/month CAD.',
       },
     },
   ],
@@ -644,7 +644,7 @@ export default function LandingPage() {
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)' }}>Pro</div>
               <span style={{ fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', background: 'var(--gold-dim)', color: 'var(--gold)', borderRadius: '20px', padding: '2px 7px' }}>Most popular</span>
             </div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 42, fontWeight: 800, marginBottom: 20, color: 'var(--text)' }}>$8 <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 400, color: 'var(--muted)' }}>/month</span></div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 42, fontWeight: 800, marginBottom: 20, color: 'var(--text)' }}>$8 <span style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 400, color: 'var(--muted)' }}>CAD/month</span></div>
 
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {PRO_FEATURES.map((feature, i) => (

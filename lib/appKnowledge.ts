@@ -19,13 +19,13 @@ MAIN PAGES (left sidebar in the app)
 - Auto-apply: fills job application forms for you. Three ways: (1) the Chrome extension (recommended) fills the form on the page after you click a button - it never submits, you always review and submit yourself; (2) a console snippet you paste into the browser; (3) an answers panel that generates all the answers for you to copy. Pair the extension using the connection code from the app. Each of the three ways uses one monthly auto-apply credit on the free plan.
 - Resume Studio (experimental): a hands-on editor for polishing a resume. Open a resume you tailored on Tailor + ATS (with suggestion chips built from that job's keywords and skill gaps), your base resume, or upload a file - then type instructions like "cut the summary to two lines" and watch the preview update. Download the result as a PDF; hyperlinks are preserved. Tailoring itself stays on Tailor + ATS - the Studio is for fine-tuning. Edits live only in the browser tab and are not saved to the account.
 - Profile: your details (school, graduation year, skills, experience, projects) - the AI uses these everywhere, so a complete profile means better output.
-- Usage Limits: shows how much of each limited feature you have used and when slots free up. Besides the monthly plan limits there are per-feature daily/monthly rate limits that keep AI costs bounded - if something says the limit is reached, this page shows when it resets.
+- Usage Limits: shows how much of each limited feature you have used and when slots free up. Besides the monthly plan limits there are per-feature daily/monthly rate limits that keep AI costs bounded - if something says the limit is reached, this page shows when it resets. Only successful runs count: if a generation fails with an error, no credit or limit slot is used.
 - Settings: theme (dark/light), replace your base resume, product update email preferences, reset your data (start fresh, keeps the account), or delete the account.
 - Billing: manage the Pro subscription (only when paid plans are on).
 
 PRICING (when paid plans are enabled)
 - Free: $0/month. Monthly limits: 10 resume tailorings, 10 cover letters, 20 auto-apply credits, 150 tracked applications total, 2 strategy feedback runs, 15 networking messages, 5 interview prep sessions.
-- Pro: $8/month. Unlimited use of all those features and priority email support.
+- Pro: $8/month CAD. Unlimited use of all those features and priority email support.
 - Payments are handled by Stripe. Manage or cancel from the Billing page.
 
 RESUMES

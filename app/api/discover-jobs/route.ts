@@ -6,7 +6,7 @@ import { buildUserContext } from '@/lib/userContext'
 import { generateJSON } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
 import { createClient } from '@/lib/supabase/server'
-import { checkRateLimit, rateLimitResponse, checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit'
+import { checkRateLimit, rateLimitResponse, recordRateLimitUse, checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit'
 
 export const maxDuration = 60
 
@@ -240,7 +240,11 @@ export async function GET(request: Request): Promise<Response> {
   console.log(`[discover-jobs] ${allJobs.length} unique → ${filtered.length} after seniority filter`)
 
   if (filtered.length === 0) {
-    await logRoute(ROUTE, user.id, Date.now() - start, 200)
+    // The refresh ran (Adzuna was called) even though nothing matched - charge it.
+    await Promise.all([
+      recordRateLimitUse('discover-jobs-refresh', user.id),
+      logRoute(ROUTE, user.id, Date.now() - start, 200),
+    ])
     return new Response(JSON.stringify({ jobs: [] }), {
       headers: { 'Content-Type': 'application/json' },
     })
@@ -340,7 +344,11 @@ export async function GET(request: Request): Promise<Response> {
     .eq('is_dismissed', false)
     .order('relevance_score', { ascending: false })
 
-  await logRoute(ROUTE, user.id, Date.now() - start, 200)
+  // Charge the refresh only now that the feed actually updated.
+  await Promise.all([
+    recordRateLimitUse('discover-jobs-refresh', user.id),
+    logRoute(ROUTE, user.id, Date.now() - start, 200),
+  ])
   return new Response(JSON.stringify({ jobs: results ?? [] }), {
     headers: { 'Content-Type': 'application/json' },
   })

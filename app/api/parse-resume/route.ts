@@ -8,7 +8,7 @@ import { ok, err, serverError } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
 import { withTimeout } from '@/lib/withTimeout';
 import { generateText } from '@/lib/ai';
-import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
+import { checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit';
 import { createClient } from '@/lib/supabase/server';
 import { extractResumeText, isDocxFile } from '@/lib/extractResumeText';
 
@@ -193,6 +193,10 @@ ${text}`,
     console.error('[parse-resume] html generation failed:', e)
   }
 
-  await logRoute('/api/parse-resume', user.id, Date.now() - start, 200);
+  // Charge the limit only now that the resume actually parsed.
+  await Promise.all([
+    recordRateLimitUse('parse-resume', user.id),
+    logRoute('/api/parse-resume', user.id, Date.now() - start, 200),
+  ]);
   return ok({ text, resumeHtml });
 }

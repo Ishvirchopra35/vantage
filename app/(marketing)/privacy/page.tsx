@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-// Privacy Policy - plain-language, in-house version (2026-07-13).
+// Privacy Policy - plain-language, in-house version (2026-07-15).
 // The inventory here mirrors docs/legal-dossier.md; when either changes,
 // change both. A lawyer-reviewed replacement is planned.
 export const dynamic = 'force-static';
@@ -73,7 +73,7 @@ export default function PrivacyPage() {
         <span className="lph-metal">Privacy Policy</span>
       </h1>
       <p style={{ fontSize: '0.88rem', color: 'var(--muted)', marginBottom: '56px' }}>
-        Last updated: July 13, 2026
+        Last updated: July 15, 2026
       </p>
 
       <section style={{ marginBottom: '48px' }}>
@@ -131,8 +131,19 @@ export default function PrivacyPage() {
 
         <Item title="Usage data">
           Which features you use and when, plus technical logs (which API was called, how long
-          it took). This drives usage limits and tells us where to improve the product.
+          it took, your IP address, and your browser and device type). This drives usage limits,
+          keeps the app secure, and tells us where to improve the product.
         </Item>
+      </section>
+
+      <section style={{ marginBottom: '48px' }}>
+        <h2 style={h2}>What we don&rsquo;t collect</h2>
+        <p style={{ ...p, marginBottom: 0 }}>
+          We do not collect sensitive personal information, things like race, ethnicity,
+          religion, sexual orientation, or biometric data. We also do not collect information
+          from third parties about you; everything above comes directly from you or from the
+          services you choose to connect.
+        </p>
       </section>
 
       <section style={{ marginBottom: '48px' }}>
@@ -175,7 +186,9 @@ export default function PrivacyPage() {
 
         <Item title="Google (sign-in)">
           If you choose &ldquo;Continue with Google&rdquo;, Google shares your name and email with us to
-          create your session. We never see your Google password.
+          create your session. We never see your Google password. Our use of any data received
+          through Google APIs follows Google&rsquo;s API Services User Data Policy, including its
+          Limited Use requirements.
         </Item>
 
         <Item title="Stripe">
@@ -243,6 +256,10 @@ export default function PrivacyPage() {
           </Bullet>
           <Bullet>No advertising or third-party analytics cookies.</Bullet>
         </ul>
+        <p style={{ ...p, marginTop: '20px', marginBottom: 0 }}>
+          Some browsers send a &ldquo;Do Not Track&rdquo; signal. There&rsquo;s no agreed-upon standard for
+          how sites should respond to it yet, so like most sites, we don&rsquo;t currently act on it.
+        </p>
       </section>
 
       <section style={{ marginBottom: '48px' }}>
@@ -276,6 +293,15 @@ export default function PrivacyPage() {
       </section>
 
       <section style={{ marginBottom: '48px' }}>
+        <h2 style={h2}>Business transfers</h2>
+        <p style={{ ...p, marginBottom: 0 }}>
+          If Vantage is ever involved in a merger, acquisition, or sale of assets, your data may
+          be transferred as part of that deal. We&rsquo;d notify you before your data becomes
+          subject to a different privacy policy.
+        </p>
+      </section>
+
+      <section style={{ marginBottom: '48px' }}>
         <h2 style={h2}>Your rights</h2>
         <p style={p}>
           Vantage is built for Canadian users, and we comply with Canada&rsquo;s PIPEDA (Personal
@@ -285,8 +311,17 @@ export default function PrivacyPage() {
           <Bullet>Access the data we hold about you (email us for a copy).</Bullet>
           <Bullet>Correct inaccurate data (most of it is editable on your Profile).</Bullet>
           <Bullet>Withdraw consent, reset your data, or delete your account.</Bullet>
+          <Bullet>
+            Opt out of any data use for targeted advertising or sale of your data - though this
+            is moot for Vantage, since we do neither.
+          </Bullet>
         </ul>
         <p style={{ ...p, marginTop: '20px', marginBottom: 0 }}>
+          If you&rsquo;re located outside Canada, your local law may give you additional or
+          different rights (for example, some US states and the EU). We&rsquo;ll honor requests
+          made under those laws too - just reach out and tell us where you&rsquo;re writing from.
+        </p>
+        <p style={{ ...p, marginTop: '12px', marginBottom: 0 }}>
           To exercise these rights or ask anything about your data, contact
           ishvir.chopra@gmail.com. See also the{' '}
           <Link href="/data-compliance" style={linkStyle}>Data Compliance</Link> page for how we

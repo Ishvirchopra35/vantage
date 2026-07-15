@@ -1254,3 +1254,72 @@ type: Update
 title: Help chat knowledge base caught up with today's features
 - lib/appKnowledge.ts: the chat widget now knows about the Tailor + ATS "Bullet changes"/"Full resume" views with PDF download, in-place tab actions, Resume Studio's tailoring-focused start sources and suggestion chips, hyperlink preservation in generated PDFs, auto-apply credits applying to all three fill tiers, and the per-feature rate limits shown on Usage Limits
 - no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-15
+type: Fix
+title: Failed requests no longer count toward usage limits
+- lib/rateLimit.ts: checkLimit() and checkRateLimit() are now read-only checks; new consumeLimit() and recordRateLimitUse() charge the monthly quota and per-route rate limit only when a route reaches its success path - AI errors, timeouts, upstream failures, and database errors no longer burn a use
+- every rate-limited route updated to charge on success only: tailor-resume, ats-score, generate-cover-letter, parse-job, answer-question, analyze-form, extension/ai-fill, generate-fill-snippet, interview-prep generate + assess, generate-outreach, find-contacts, discover-jobs, strategy-feedback, parse-resume, parse-profile, app-chat, resume-studio + pdf, tailor-resume/render, and the example template route
+- parse-job, analyze-form, extension/ai-fill, resume-studio, and resume-studio/pdf now validate the request body before the limit checks, so a bad request costs nothing (previously an invalid Resume Studio body still burned an edit)
+- app/api/find-contacts/route.ts: a SerpApi failure now returns an error instead of a misleading "no contacts found" success (and is not charged)
+- app/api/extension/ai-fill/route.ts: the degraded partial result returned when the AI fails (deterministic answers only) is no longer charged
+- lib/appKnowledge.ts: Usage Limits section notes that only successful runs count
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-15
+type: Fix
+title: Junk job parses (title "." and nothing else) are rejected instead of saved
+- app/api/parse-job/route.ts: after the AI parse, the job must have a real title plus at least one of required skills, responsibilities, or keywords - empty-shell parses (usually login walls or scraper-block pages behind the URL) now return a clear 422 pointing at pasting the description instead, and are not charged against any limit
+- lib/jobFilters.ts: hasRealJobTitle() now also rejects punctuation-only strings (".", "---") and common AI placeholder values ("Unknown", "N/A", "Not specified") - this also cleans those out of strategy-feedback role grouping and the auto-apply job listing
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-15
+type: Improvement
+title: Gemini spend hardening - platform-wide AI budget and pro strategy-feedback cap
+- lib/ai.ts: callGemini() now enforces a platform-wide budget of 3000 Gemini calls per 30 days (platform_limits key gemini_monthly) - an absolute spend ceiling (~$10/month worst case) that holds no matter how many accounts sign up; when exhausted, AI features return the friendly "over capacity" 429 until the window resets, and the counter only increments on calls Google actually served
+- app/api/strategy-feedback/route.ts: pro users previously skipped the per-route rate limit entirely, and ?force=true bypasses the result cache - an unbounded AI path; pro now has a hidden 10/day abuse cap (dev 2/day and free 2/month unchanged; the /limits page still shows pro as unlimited)
+- full audit confirmed the Gemini SDK is imported only in lib/ai.ts and all 18 routes that call it check a rate limit before the AI call
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-15
+type: Update
+title: Tighter pro daily caps to keep worst-case AI spend under the subscription price
+- pro per-day limits lowered: Resume Studio edits 60 to 30, job parsing 12 to 10, application question answers 20 to 10, interview answer feedback 15 to 10, strategy feedback hidden abuse cap 10 to 5
+- app/api/resume-studio, parse-job, answer-question, interview-prep/assess, strategy-feedback route configs and RATE_LIMIT_SPECS in lib/rateLimit.ts updated together
+- worst-case fully-maxed pro user drops from roughly $12/month to roughly $8/month in Gemini costs
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-15
+type: Update
+title: Example endpoint no longer calls the AI; Resume Studio pro cap 15/day; platform AI budget raised to ~$15
+- app/api/example/route.ts: the live reference template now echoes the prompt instead of calling Gemini - nothing in the app calls it, so it should not be able to spend tokens; a comment marks where the AI call goes when copying the pattern
+- app/api/resume-studio/route.ts + lib/rateLimit.ts RATE_LIMIT_SPECS: pro Resume Studio edits lowered from 30/day to 15/day
+- lib/ai.ts: PLATFORM_MONTHLY_CALL_BUDGET raised from 3000 to 4500 calls per 30 days (~$15/month absolute worst-case Gemini spend)
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-15
+type: Update
+title: Privacy Policy expanded with data-collection and rights detail
+- app/(marketing)/privacy/page.tsx: added a "What we don't collect" section (no sensitive personal information, no data about you sourced from third parties), a "Business transfers" section, and a Do-Not-Track note under Cookies
+- Usage data entry now explicitly names IP address and browser/device type among the technical logs collected
+- Google (sign-in) entry now notes compliance with Google's API Services User Data Policy, including Limited Use
+- Your rights section gained an opt-out-of-sale/targeted-advertising bullet and a note that non-Canadian users' local rights will be honored on request
+- docs/legal-dossier.md updated to mirror the same facts
+- no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-15
+type: Update
+title: Pro pricing displayed as CAD instead of USD
+- app/(marketing)/page.tsx: pricing card now reads "$8 CAD/month"; structured-data offer priceCurrency changed from USD to CAD
+- app/(marketing)/terms/page.tsx, app/(marketing)/docs/billing/page.tsx, app/(dashboard)/billing/page.tsx, lib/appKnowledge.ts: "$8/month" copy now says CAD instead of (or in addition to) USD
+- app/admin/page.tsx: formatMoney() now formats MRR as CAD (en-CA/CAD) instead of USD - display-only, does not change what Stripe actually charges
+- CLAUDE.md and docs/legal-dossier.md updated to match
+- owner action still required: the Stripe Price behind STRIPE_PRO_PRICE_ID must itself be a CAD price for checkout to actually charge CAD - currency lives on the Stripe Price object, not in this codebase, and Stripe prices can't be edited in place, so a new CAD price must be created and the env var repointed to its id (in .env.local and Vercel)
+- no new DB columns, no new npm packages

@@ -1,14 +1,15 @@
 // Reference implementation of the required API route pattern (auth ->
-// validate -> limits -> withTimeout -> logRoute). Copy this when adding
-// routes; it is a live endpoint but nothing in the app calls it.
+// validate -> limits -> withTimeout -> charge on success -> logRoute).
+// Copy this when adding routes; it is a live endpoint but nothing in the
+// app calls it, so it deliberately makes NO AI call - the placeholder
+// below marks where generateText/generateJSON from '@/lib/ai' would go.
 import { NextRequest } from 'next/server';
 import { ok, err, serverError, rateLimited } from '@/lib/apiResponse';
 import { validateBody } from '@/lib/validateRequest';
 import requireAuth from '@/lib/requireAuth';
 import { withTimeout } from '@/lib/withTimeout';
 import logRoute from '@/lib/logger';
-import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
-import { generateText } from '@/lib/ai';
+import { checkLimit, consumeLimit, LIMITS, checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit';
 
 export async function POST(req: NextRequest) {
   const start = Date.now();
@@ -17,6 +18,11 @@ export async function POST(req: NextRequest) {
     if ('error' in auth) return auth.error;
 
     const userId = auth.user?.id ?? null;
+
+    const body = await req.json().catch(() => null);
+
+    const validated = validateBody<{ prompt: string }>(body, ['prompt']);
+    if (!validated.valid) return err(validated.error, 400);
 
     if (userId) {
       const limitCheck = await checkLimit(userId, 'tailoring');
@@ -41,21 +47,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const body = await req.json().catch(() => null);
-
-    const validated = validateBody<{ prompt: string }>(body, ['prompt']);
-    if (!validated.valid) return err(validated.error, 400);
-
-    // Call AI with a timeout of 30s
+    // Business logic goes here, wrapped in withTimeout. A real AI route would
+    // call generateText/generateJSON from '@/lib/ai' at this point; this
+    // template endpoint just echoes to avoid spending tokens on a route
+    // nothing calls.
     const text = await withTimeout(
-      generateText('You are a helpful assistant.', validated.data.prompt, 800),
+      Promise.resolve(`Echo: ${validated.data.prompt}`),
       30000,
-      'AI'
+      'example'
     );
 
-    // Example of a Supabase operation wrapped with timeout (5000ms) - omitted actual call
-
     const duration = Date.now() - start;
+    // Charge the limits only on success - checkLimit/checkRateLimit are
+    // read-only, so failed requests never burn a use.
+    if (userId) {
+      await Promise.all([
+        consumeLimit(userId, 'tailoring'),
+        recordRateLimitUse('example', userId),
+      ]);
+    }
     // Log route (fire-and-forget)
     logRoute('/api/example', userId, duration, 200).catch(() => {});
 

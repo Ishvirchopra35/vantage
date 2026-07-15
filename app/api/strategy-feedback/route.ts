@@ -3,7 +3,7 @@
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, err, rateLimited, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkLimit, checkRateLimit, rateLimitResponse, resolveUserTier } from '@/lib/rateLimit'
+import { checkLimit, consumeLimit, checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
 import { generateJSON, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
@@ -81,23 +81,22 @@ export async function GET(request: Request): Promise<Response> {
     return rateLimited('strategy feedback', 2, 30)
   }
 
-  // Pro users have no strategy-feedback rate limit. Dev = 2/day, free = 2/month.
-  const tier = await resolveUserTier(user.id)
-  if (tier !== 'pro') {
-    const rateLimit = await checkRateLimit({
-      key: 'strategy-feedback',
-      userId: user.id,
-      devLimit: 2,
-      freeLimit: 2,
-      proLimit: 2,
-      devWindowMinutes: 1440,
-      freeWindowMinutes: 43200,
-      proWindowMinutes: 1440,
-    })
-    if (!rateLimit.allowed) {
-      await logRoute('/api/strategy-feedback', user.id, Date.now() - start, 429)
-      return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
-    }
+  // Dev = 2/day, free = 2/month. Pro is sold as unlimited, but ?force=true
+  // bypasses the cache, so a hidden 5/day abuse cap keeps AI spend bounded -
+  // no genuine user regenerates strategy feedback five times in a day.
+  const rateLimit = await checkRateLimit({
+    key: 'strategy-feedback',
+    userId: user.id,
+    devLimit: 2,
+    freeLimit: 2,
+    proLimit: 5,
+    devWindowMinutes: 1440,
+    freeWindowMinutes: 43200,
+    proWindowMinutes: 1440,
+  })
+  if (!rateLimit.allowed) {
+    await logRoute('/api/strategy-feedback', user.id, Date.now() - start, 429)
+    return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
   }
 
   // Fetch analytics data
@@ -245,6 +244,11 @@ Return JSON with exactly these keys (every string addresses the job seeker as "y
       .insert({ user_id: user.id, event_name: 'viewed_strategy_feedback', properties: {} })
   ).catch(() => {})
 
-  await logRoute('/api/strategy-feedback', user.id, Date.now() - start, 200)
+  // Charge the limits only now that the feedback actually generated.
+  await Promise.all([
+    consumeLimit(user.id, 'strategy_feedback'),
+    recordRateLimitUse('strategy-feedback', user.id),
+    logRoute('/api/strategy-feedback', user.id, Date.now() - start, 200),
+  ])
   return ok({ feedback, cached: false, generatedAt })
 }

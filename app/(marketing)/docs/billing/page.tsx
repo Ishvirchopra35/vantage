@@ -25,7 +25,7 @@ export default function BillingPage() {
                 <tr>
                   <th style={th}>Feature</th>
                   <th style={th}>Free ($0/mo)</th>
-                  <th style={th}>Pro ($8/mo)</th>
+                  <th style={th}>Pro ($8/mo CAD)</th>
                 </tr>
               </thead>
               <tbody>

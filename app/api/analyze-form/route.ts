@@ -7,7 +7,7 @@ import { logRoute } from '@/lib/logger'
 import { generateJSON } from '@/lib/ai'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
 import { withTimeout } from '@/lib/withTimeout'
-import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse, checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit'
+import { checkLimit, consumeLimit, LIMITS, checkRateLimit, rateLimitResponse, recordRateLimitUse, checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit'
 
 interface FormField {
   label: string
@@ -20,6 +20,12 @@ export async function POST(request: Request): Promise<Response> {
   const auth = await requireAuth()
   if ('error' in auth) return auth.error
   const { user } = auth
+
+  // Validate input before touching any limits - a bad request costs nothing.
+  const body = await request.json().catch(() => null)
+  const validation = validateBody<{ url: string; jobId?: string }>(body, ['url'])
+  if (!validation.valid) return err(validation.error, 400)
+  const { url } = validation.data
 
   // Tier 3 of auto-apply - counts against the same monthly credit as the
   // extension fill.
@@ -43,11 +49,6 @@ export async function POST(request: Request): Promise<Response> {
     await logRoute('analyze-form', user.id, Date.now() - start, 429)
     return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
   }
-
-  const body = await request.json()
-  const validation = validateBody<{ url: string; jobId?: string }>(body, ['url'])
-  if (!validation.valid) return err(validation.error, 400)
-  const { url } = validation.data
 
   try {
     // Platform-wide Jina token budget - this route always scrapes a URL.
@@ -109,7 +110,12 @@ Return a bare JSON array, one entry per field, with the exact label text as show
         ? (fields as { fields: FormField[] }).fields
         : []
 
-    await logRoute('analyze-form', user.id, Date.now() - start, 200)
+    // Charge the limits only now that the form analysis actually succeeded.
+    await Promise.all([
+      consumeLimit(user.id, 'auto_apply'),
+      recordRateLimitUse('analyze-form', user.id),
+      logRoute('analyze-form', user.id, Date.now() - start, 200),
+    ])
     return ok({ fields: normalized })
   } catch (e) {
     await logRoute('analyze-form', user.id, Date.now() - start, 500)

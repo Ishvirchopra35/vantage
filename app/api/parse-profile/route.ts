@@ -7,7 +7,7 @@ import { logRoute } from '@/lib/logger'
 import { generateJSON } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
 import { createClient } from '@/lib/supabase/server'
-import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
+import { checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit'
 
 interface WorkExperience {
   company: string
@@ -133,6 +133,10 @@ ${rawText}`
     return serverError(upsertError)
   }
 
-  await logRoute('/api/parse-profile', user.id, Date.now() - start, 200)
+  // Charge the limit only now that the import parsed and saved.
+  await Promise.all([
+    recordRateLimitUse('parse-profile', user.id),
+    logRoute('/api/parse-profile', user.id, Date.now() - start, 200),
+  ])
   return ok({ profile: upsertedProfile })
 }

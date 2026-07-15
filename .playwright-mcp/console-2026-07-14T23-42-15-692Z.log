@@ -50,3 +50,172 @@
 [ 1363201ms] [LOG] [Fast Refresh] done in 190ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
 [ 1464517ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
 [ 1465496ms] [LOG] [Fast Refresh] done in 1081ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[ 2552129ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[ 2552307ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[ 2552337ms] [LOG] [Fast Refresh] done in 140ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[ 3825643ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[ 8610035ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[ 8610037ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:42
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:693:11
+    at new Promise (<anonymous>)
+    at retryable (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:675:21)
+    at SupabaseAuthClient._refreshAccessToken (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7631:284)
+    at SupabaseAuthClient._callRefreshToken (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7787:48)
+    at SupabaseAuthClient.__loadSession (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:6134:57)
+    at async SupabaseAuthClient._useSession (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:6064:28)
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:8057:32 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[ 8610143ms] [ERROR] WebSocket is already in CLOSING or CLOSED state. @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2836
+[ 8610274ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[ 8610274ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:36 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[ 8610449ms] [ERROR] WebSocket is already in CLOSING or CLOSED state. @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2836
+[ 8610695ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[ 8610697ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:36 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[ 8610702ms] [ERROR] WebSocket is already in CLOSING or CLOSED state. @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2836
+[ 8610781ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[ 8611245ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[ 8611519ms] [LOG] [Fast Refresh] done in 379ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[ 8611536ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[ 8611537ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:36 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[ 8611791ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[ 8611865ms] [LOG] [Fast Refresh] done in 176ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[ 8613175ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[ 8613175ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:36 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[48340972ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[48340973ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:36 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[48340980ms] [ERROR] WebSocket is already in CLOSING or CLOSED state. @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2836
+[48341084ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[48341084ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:42
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:693:11
+    at new Promise (<anonymous>)
+    at retryable (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:675:21)
+    at SupabaseAuthClient._refreshAccessToken (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7631:284)
+    at SupabaseAuthClient._callRefreshToken (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7787:48)
+    at SupabaseAuthClient.__loadSession (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:6134:57)
+    at async SupabaseAuthClient._useSession (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:6064:28)
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:8057:32
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:6013:28 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[48341088ms] [ERROR] WebSocket is already in CLOSING or CLOSED state. @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2836
+[48341223ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48341364ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[48341364ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:36 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[48341699ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48341811ms] [LOG] [Fast Refresh] done in 217ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48342762ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48343057ms] [LOG] [Fast Refresh] done in 396ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48343385ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[48343385ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:36 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[48344197ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[48344198ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:36 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[48345865ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[48345865ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:36 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[48370983ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[48370983ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:36 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[48370986ms] [ERROR] WebSocket is already in CLOSING or CLOSED state. @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2836
+[48371135ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://valwicxypaipkbzokgad.supabase.co/auth/v1/token?grant_type=refresh_token:0
+[48371135ms] [ERROR] TypeError: Failed to fetch
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:606:23
+    at _handleRequest (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:988:24)
+    at _request (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:975:24)
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7636:285
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:681:42
+    at http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:693:11
+    at new Promise (<anonymous>)
+    at retryable (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:675:21)
+    at SupabaseAuthClient._refreshAccessToken (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7631:284)
+    at SupabaseAuthClient._callRefreshToken (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:7787:48)
+    at SupabaseAuthClient.__loadSession (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:6134:57)
+    at async SupabaseAuthClient._useSession (http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:6064:28)
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:8057:32
+    at async http://localhost:3000/_next/static/chunks/084p_%40supabase_auth-js_dist_module_0bq~2b~._.js:6013:28 @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:3318
+[48371137ms] [ERROR] WebSocket is already in CLOSING or CLOSED state. @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2836
+[48371200ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48371531ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48371680ms] [LOG] [Fast Refresh] done in 262ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48374942ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48374983ms] [LOG] [Fast Refresh] done in 149ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48375132ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48375193ms] [LOG] [Fast Refresh] done in 172ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48378305ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48378314ms] [LOG] [Fast Refresh] done in 116ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48378868ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48378889ms] [LOG] [Fast Refresh] done in 123ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48379365ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48379387ms] [LOG] [Fast Refresh] done in 123ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48379508ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48379621ms] [LOG] [Fast Refresh] done in 216ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48379961ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48379993ms] [LOG] [Fast Refresh] done in 141ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48380101ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48380133ms] [LOG] [Fast Refresh] done in 138ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48380311ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48380313ms] [LOG] [Fast Refresh] done in 104ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48380777ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48380786ms] [LOG] [Fast Refresh] done in 122ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48380975ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48380986ms] [LOG] [Fast Refresh] done in 112ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48381097ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48381138ms] [LOG] [Fast Refresh] done in 152ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48382077ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48382136ms] [LOG] [Fast Refresh] done in 172ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48382282ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477
+[48382352ms] [LOG] [Fast Refresh] done in 184ms @ http://localhost:3000/_next/static/chunks/084p_next_dist_0~3.i_i._.js:2477

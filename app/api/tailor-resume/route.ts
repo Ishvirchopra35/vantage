@@ -6,7 +6,7 @@ import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
 import { ok, err, notFound, rateLimited, serverError } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
-import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
+import { checkLimit, consumeLimit, LIMITS, checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit';
 import { withTimeout } from '@/lib/withTimeout';
 import { generateJSON, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai';
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext';
@@ -330,6 +330,11 @@ Return JSON with:
     })
   ).catch(() => {});
 
-  await logRoute('/api/tailor-resume', user.id, Date.now() - start, 200);
+  // Charge the limits only now that the tailoring actually succeeded.
+  await Promise.all([
+    consumeLimit(user.id, 'tailoring'),
+    recordRateLimitUse('tailor-resume', user.id),
+    logRoute('/api/tailor-resume', user.id, Date.now() - start, 200),
+  ]);
   return ok({ document: savedDoc, changes, skillGaps: parsedGaps, atsScore: immediateScore });
 }

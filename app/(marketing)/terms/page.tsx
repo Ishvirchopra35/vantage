@@ -143,7 +143,7 @@ export default function TermsPage() {
         <h2 style={h2}>6. Subscription and billing</h2>
         <ul style={list}>
           <Bullet>The Free tier is free forever with usage limits.</Bullet>
-          <Bullet>The Pro tier is $8/month USD, billed monthly via Stripe.</Bullet>
+          <Bullet>The Pro tier is $8/month CAD, billed monthly via Stripe.</Bullet>
           <Bullet>
             You can cancel at any time from the billing page. Access continues until the end of
             the current billing period.

@@ -47,7 +47,7 @@ Requirements:
   whether CCPA/GDPR sections are needed].
 - Privacy/legal contact: **ishvir.chopra@gmail.com** [CONFIRM: or a
   dedicated address].
-- Pricing: Free tier with monthly usage limits; **Pro $8/month USD** via
+- Pricing: Free tier with monthly usage limits; **Pro $8/month CAD** via
   Stripe. Cancel any time (access runs to period end). **Self-serve refund
   of the latest payment within 7 days of that payment**; otherwise no
   partial-month refunds. Pricing changes with 30 days notice. Trials may
@@ -110,9 +110,15 @@ manually.
 
 Committed practices: no selling data, no training AI models on user data,
 no sharing with employers/job boards, no advertising cookies or third-party
-analytics. Cookies: Supabase auth cookies (essential) only; localStorage
-for theme + UI dismissals; sessionStorage for the Resume Studio working
-copy.
+analytics, no collection of sensitive personal information (race, religion,
+sexual orientation, biometric data, etc.) and no collection of data about
+users from third parties. Cookies: Supabase auth cookies (essential) only;
+localStorage for theme + UI dismissals; sessionStorage for the Resume
+Studio working copy. Do-Not-Track browser signals are not currently acted
+on (no accepted standard yet). Google Sign-In use of Google user data
+follows Google's API Services User Data Policy, including Limited Use.
+Standard business-transfer clause: data may transfer as part of a future
+merger/acquisition/asset sale, with notice to users beforehand.
 
 ## User rights already implemented in-product
 

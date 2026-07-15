@@ -5,13 +5,27 @@ export interface TrackableJob {
   title: string | null;
 }
 
+// Placeholder strings AI parsers emit when they can't find the real value.
+const PLACEHOLDER_TITLES = new Set([
+  'untitled job',
+  'untitled',
+  'unknown',
+  'n/a',
+  'na',
+  'none',
+  'null',
+  'not specified',
+  'not provided',
+]);
+
 /** A title is "real" when it is a non-empty, non-whitespace, non-placeholder string. */
 export function hasRealJobTitle(title: string | null | undefined): boolean {
   if (title == null) return false;
   const t = title.trim();
   if (t.length === 0) return false;
-  const lower = t.toLowerCase();
-  return lower !== 'untitled job' && lower !== 'untitled';
+  // Punctuation-only strings like "." or "---" are not titles.
+  if (!/[a-z0-9]/i.test(t)) return false;
+  return !PLACEHOLDER_TITLES.has(t.toLowerCase());
 }
 
 /** Keep only first occurrence per non-null jobId, preserving input order. */

@@ -6,7 +6,7 @@ import { ok, unauthorized, rateLimited, serverError } from '@/lib/apiResponse'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
 import { generateJSON } from '@/lib/ai'
 import { withTimeout } from '@/lib/withTimeout'
-import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
+import { checkLimit, consumeLimit, LIMITS, checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -109,8 +109,20 @@ export async function POST(request: Request): Promise<Response> {
 
   const resolvedUserId = profile.id as string
 
-  // Auto-fill is what an auto-apply credit pays for - charge the monthly
-  // feature quota before the per-route rate limit.
+  // Parse the body before touching any limits - a bad request costs nothing.
+  let body: { questions: Question[]; jobUrl?: string }
+  try {
+    body = await request.json()
+  } catch {
+    return serverError(new Error('Invalid request body'))
+  }
+
+  const questions = Array.isArray(body.questions) ? body.questions.slice(0, 50) : []
+  if (!questions.length) return ok({ fields: [] })
+
+  // Auto-fill is what an auto-apply credit pays for - check the monthly
+  // feature quota before the per-route rate limit. Both checks are read-only;
+  // the charge happens on the success paths below.
   const limitCheck = await checkLimit(resolvedUserId, 'auto_apply')
   if (!limitCheck.allowed) {
     return rateLimited('auto-apply', LIMITS.auto_apply, 30)
@@ -130,16 +142,6 @@ export async function POST(request: Request): Promise<Response> {
     return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
   }
 
-  let body: { questions: Question[]; jobUrl?: string }
-  try {
-    body = await request.json()
-  } catch {
-    return serverError(new Error('Invalid request body'))
-  }
-
-  const questions = Array.isArray(body.questions) ? body.questions.slice(0, 50) : []
-  if (!questions.length) return ok({ fields: [] })
-
   // Split deterministic answers from questions that genuinely need the AI
   const resolved: FieldAnswer[] = []
   const aiQuestions: Question[] = []
@@ -154,6 +156,11 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (!aiQuestions.length) {
+    // Deterministic-only fill still delivers the full product value - charge it.
+    await Promise.all([
+      consumeLimit(resolvedUserId, 'auto_apply'),
+      recordRateLimitUse('extension-ai-fill', resolvedUserId),
+    ])
     return ok({ fields: resolved.filter(f => f.answer !== null) })
   }
 
@@ -216,9 +223,15 @@ Return one JSON entry per question, preserving each label exactly. Use null for 
     }
 
     const fields = [...resolved.filter(f => f.answer !== null), ...validated]
+    // Charge the credit only now that the fill actually succeeded.
+    await Promise.all([
+      consumeLimit(resolvedUserId, 'auto_apply'),
+      recordRateLimitUse('extension-ai-fill', resolvedUserId),
+    ])
     return ok({ fields })
   } catch (e) {
-    // AI failure shouldn't zero out the deterministic answers
+    // AI failure shouldn't zero out the deterministic answers. This degraded
+    // partial result is not charged - the AI part of the fill failed.
     const fields = resolved.filter(f => f.answer !== null)
     if (fields.length) return ok({ fields })
     return serverError(e)

@@ -3,7 +3,7 @@
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, err, notFound, rateLimited, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkLimit, LIMITS, checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
+import { checkLimit, consumeLimit, LIMITS, checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
 import { generateJSON, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
@@ -165,6 +165,11 @@ export async function POST(request: Request): Promise<Response> {
     supabase.from('events').insert({ user_id: user.id, event_name: 'interview_session_started', properties: { job_title: jobCtx.title } })
   ).catch(() => {})
 
-  await logRoute(ROUTE, user.id, Date.now() - start, 200)
+  // Charge the limits only now that the session was generated and saved.
+  await Promise.all([
+    consumeLimit(user.id, 'interview'),
+    recordRateLimitUse('interview-prep-generate', user.id),
+    logRoute(ROUTE, user.id, Date.now() - start, 200),
+  ])
   return ok({ session: savedRow })
 }

@@ -9,7 +9,7 @@ import { requireAuth } from '@/lib/requireAuth'
 import { validateBody } from '@/lib/validateRequest'
 import { ok, err, notFound, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
+import { checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
 import { generateText, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai'
 import { createClient } from '@/lib/supabase/server'
@@ -139,7 +139,11 @@ export async function POST(request: Request): Promise<Response> {
       await logRoute(ROUTE, user.id, Date.now() - start, 500)
       return err('Could not format the resume. Please try again.', 500)
     }
-    await logRoute(ROUTE, user.id, Date.now() - start, 200)
+    // Charge the limit only now that the AI render actually succeeded.
+    await Promise.all([
+      recordRateLimitUse('render-resume', user.id),
+      logRoute(ROUTE, user.id, Date.now() - start, 200),
+    ])
     return ok({
       html: linkifyResumeHtml(cleaned, knownLinks),
       method: 'ai',

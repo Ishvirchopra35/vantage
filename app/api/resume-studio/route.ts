@@ -8,7 +8,7 @@
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, err, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
-import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
+import { checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
 import { generateText, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai'
 import { extractResumeText, extractResumeLinks, isDocxFile } from '@/lib/extractResumeText'
@@ -97,12 +97,32 @@ export async function POST(request: Request): Promise<Response> {
 
   if (action !== 'generate' && action !== 'edit') return err('Invalid action', 400)
 
+  // Validate input before touching the limit - a bad request costs nothing.
+  let validText = ''
+  let validHtml = ''
+  let validInstruction = ''
+  if (action === 'generate') {
+    if (typeof text !== 'string' || !text.trim() || text.length > MAX_TEXT_CHARS) {
+      return err('Invalid resume text', 400)
+    }
+    validText = text
+  } else {
+    if (typeof html !== 'string' || !html.trim() || html.length > MAX_HTML_CHARS) {
+      return err('Invalid resume HTML', 400)
+    }
+    if (typeof instruction !== 'string' || !instruction.trim() || instruction.length > MAX_INSTRUCTION_CHARS) {
+      return err(`Instruction must be 1-${MAX_INSTRUCTION_CHARS} characters`, 400)
+    }
+    validHtml = html
+    validInstruction = instruction.trim()
+  }
+
   const rateLimit = await checkRateLimit({
     key: 'resume-studio',
     userId: user.id,
     devLimit: 10,
     freeLimit: 20,
-    proLimit: 60,
+    proLimit: 15,
     devWindowMinutes: 1440,
     freeWindowMinutes: 43200,
     proWindowMinutes: 1440,
@@ -116,9 +136,6 @@ export async function POST(request: Request): Promise<Response> {
   let userPrompt: string
 
   if (action === 'generate') {
-    if (typeof text !== 'string' || !text.trim() || text.length > MAX_TEXT_CHARS) {
-      return err('Invalid resume text', 400)
-    }
     systemPrompt = `You are a resume formatter. ${HTML_RULES} Preserve 100% of the original content - never add, remove, or invent anything.`
     const linksBlock = knownLinks.length
       ? `\n\nHYPERLINKS FROM THE ORIGINAL FILE (the PDF's link annotations - text extraction dropped them):\n` +
@@ -127,20 +144,14 @@ export async function POST(request: Request): Promise<Response> {
         `(e.g. "site.com") links to its full destination above; names like "LinkedIn" or "GitHub" ` +
         `link to the matching URL. Never attach a link to unrelated text and never invent URLs.`
       : ''
-    userPrompt = `Convert this resume to HTML:${linksBlock}\n\n${text}`
+    userPrompt = `Convert this resume to HTML:${linksBlock}\n\n${validText}`
   } else {
-    if (typeof html !== 'string' || !html.trim() || html.length > MAX_HTML_CHARS) {
-      return err('Invalid resume HTML', 400)
-    }
-    if (typeof instruction !== 'string' || !instruction.trim() || instruction.length > MAX_INSTRUCTION_CHARS) {
-      return err(`Instruction must be 1-${MAX_INSTRUCTION_CHARS} characters`, 400)
-    }
     systemPrompt =
       `You edit resumes. Apply the user's instruction to the resume HTML and return the FULL updated resume. ` +
       `${HTML_RULES} Keep everything the instruction does not ask to change, byte for byte where possible. ` +
       `Preserve every existing <a href> hyperlink exactly unless the instruction explicitly asks to change it. ` +
       `Never invent employers, roles, degrees, dates, or numbers that are not in the resume or the instruction.`
-    userPrompt = `CURRENT RESUME HTML:\n${html}\n\nINSTRUCTION: ${instruction.trim()}\n\nReturn the full updated resume HTML.`
+    userPrompt = `CURRENT RESUME HTML:\n${validHtml}\n\nINSTRUCTION: ${validInstruction}\n\nReturn the full updated resume HTML.`
   }
 
   try {
@@ -157,7 +168,11 @@ export async function POST(request: Request): Promise<Response> {
     // Deterministic safety net: even if the AI ignored the link instructions,
     // bare URLs/emails and known destinations still end up clickable.
     const linked = linkifyResumeHtml(cleaned, knownLinks)
-    await logRoute(ROUTE, user.id, Date.now() - start, 200)
+    // Charge the limit only now that the AI actually produced a usable result.
+    await Promise.all([
+      recordRateLimitUse('resume-studio', user.id),
+      logRoute(ROUTE, user.id, Date.now() - start, 200),
+    ])
     return ok({ html: linked })
   } catch (e) {
     if (isAiQuotaError(e)) {

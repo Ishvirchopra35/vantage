@@ -6,7 +6,7 @@ import { ok, err, notFound, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
 import { withTimeout } from '@/lib/withTimeout'
 import { generateJSON, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai'
-import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit'
+import { checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit'
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext'
 import { createClient } from '@/lib/supabase/server'
 
@@ -34,7 +34,7 @@ export async function POST(request: Request): Promise<Response> {
     userId: user.id,
     devLimit: 5,
     freeLimit: 15,
-    proLimit: 15,
+    proLimit: 10,
     devWindowMinutes: 1440,
     freeWindowMinutes: 43200,
     proWindowMinutes: 1440,
@@ -130,6 +130,10 @@ export async function POST(request: Request): Promise<Response> {
     return serverError(new Error('Failed to save assessment'))
   }
 
-  await logRoute(ROUTE, user.id, Date.now() - start, 200)
+  // Charge the limit only now that the assessment was generated and saved.
+  await Promise.all([
+    recordRateLimitUse('interview-prep-assess', user.id),
+    logRoute(ROUTE, user.id, Date.now() - start, 200),
+  ])
   return ok({ assessment })
 }

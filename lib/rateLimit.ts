@@ -3,6 +3,9 @@
 //      freemium gate. ENABLE_FREEMIUM=false short-circuits to unlimited.
 //   2. checkRateLimit(): sliding-window per-route limits (rate_limit_logs),
 //      applied even in dev to keep AI spend bounded.
+// Both checks are READ-ONLY: a request is charged only when the route calls
+// consumeLimit() / recordRateLimitUse() on its success path. Failed requests
+// (AI errors, timeouts, DB failures, bad input) never burn a use.
 // RATE_LIMIT_SPECS mirrors every route's numbers for the /limits page - keep
 // it in sync when a route's limits change.
 import { createClient as createServiceClient } from '@supabase/supabase-js';
@@ -103,30 +106,16 @@ async function resetMonthlyIfNeeded(
   }
 }
 
-async function incrementCounterAtomic(svc: ServiceClient, userId: string, column: string, limit: number) {
-  // Attempt read and conditional update with optimistic locking (retry few times)
-  const maxAttempts = 3;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      const { data } = await svc.from('subscriptions').select(column).eq('user_id', userId).limit(1).single();
-      const current = data ? Number(data[column]) || 0 : 0;
-      if (current >= limit) return { success: false, remaining: 0 };
-
-      const { data: updated } = await (svc.from('subscriptions') as any)
-        .update({ [column]: current + 1 })
-        .eq('user_id', userId)
-        .eq(column, current)
-        .select();
-
-      if (updated && updated.length) {
-        return { success: true, remaining: Math.max(0, limit - (current + 1)) };
-      }
-    } catch {
-      // Race condition or error, retry
-    }
-  }
-  return { success: false, remaining: 0 };
-}
+// Map features to subscription columns
+const FEATURE_COLUMNS: Record<Feature, string> = {
+  tailoring: 'tailoring_uses',
+  cover_letter: 'cover_letter_uses',
+  auto_apply: 'auto_apply_uses',
+  applications: 'applications',
+  strategy_feedback: 'strategy_uses',
+  networking: 'networking_uses',
+  interview: 'interview_uses',
+} as const;
 
 export async function checkLimit(userId: string, feature: Feature): Promise<{ allowed: boolean; remaining: number; resetDate: Date | null }> {
   // Dev/testing override
@@ -158,23 +147,57 @@ export async function checkLimit(userId: string, feature: Feature): Promise<{ al
     }
   }
 
-  // Map features to subscription columns
-  const map: Record<Feature, string> = {
-    tailoring: 'tailoring_uses',
-    cover_letter: 'cover_letter_uses',
-    auto_apply: 'auto_apply_uses',
-    applications: 'applications',
-    strategy_feedback: 'strategy_uses',
-    networking: 'networking_uses',
-    interview: 'interview_uses',
-  } as const;
-
-  const column = map[feature];
+  const column = FEATURE_COLUMNS[feature];
   const limit = LIMITS[feature];
 
-  // Atomically increment the counter (best-effort optimistic locking)
-  const result = await incrementCounterAtomic(svc, userId, column, limit);
-  return { allowed: result.success, remaining: result.remaining, resetDate: subRow?.monthly_reset_at ? new Date(subRow.monthly_reset_at) : null };
+  // Read-only: the counter moves in consumeLimit(), which routes call only
+  // after the feature actually delivered its result. A fresh read is needed
+  // here because resetMonthlyIfNeeded may have just zeroed the counters.
+  let used = 0;
+  try {
+    const { data } = await svc.from('subscriptions').select(column).eq('user_id', userId).limit(1).single();
+    used = data ? Number((data as Record<string, unknown>)[column]) || 0 : 0;
+  } catch {
+    // Fail open - don't block on a read error
+  }
+
+  return {
+    allowed: used < limit,
+    remaining: Math.max(0, limit - used),
+    resetDate: subRow?.monthly_reset_at ? new Date(subRow.monthly_reset_at) : null,
+  };
+}
+
+// Charge one monthly-quota use. Call ONLY on a route's success path, after
+// the feature delivered its result - never before the work runs. Fail-open:
+// a bookkeeping failure must never fail a request that already succeeded.
+export async function consumeLimit(userId: string, feature: Feature): Promise<void> {
+  if (ENABLE_FREEMIUM === 'false' || isAdminUser(userId)) return;
+  // The applications cap is enforced by counting rows, not a counter.
+  if (feature === 'applications') return;
+
+  try {
+    const svc = serviceClient();
+    const plan = await resolvePlan(svc, userId);
+    if (plan === 'pro') return;
+
+    const column = FEATURE_COLUMNS[feature];
+    // Optimistic-lock increment (retry a few times on races). No cap guard:
+    // the work already happened, so the counter must reflect it even if
+    // concurrent requests briefly pushed usage past the limit.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data } = await svc.from('subscriptions').select(column).eq('user_id', userId).limit(1).single();
+      const current = data ? Number((data as Record<string, unknown>)[column]) || 0 : 0;
+      const { data: updated } = await (svc.from('subscriptions') as any)
+        .update({ [column]: current + 1 })
+        .eq('user_id', userId)
+        .eq(column, current)
+        .select();
+      if (updated && updated.length) return;
+    }
+  } catch {
+    // Fail silently
+  }
 }
 
 export async function getRemainingLimits(userId: string): Promise<Record<string, number>> {
@@ -200,15 +223,7 @@ export async function getRemainingLimits(userId: string): Promise<Record<string,
         out[key] = LIMITS.applications;
       }
     } else {
-      const col = {
-        tailoring: 'tailoring_uses',
-        cover_letter: 'cover_letter_uses',
-        auto_apply: 'auto_apply_uses',
-        strategy_feedback: 'strategy_uses',
-        networking: 'networking_uses',
-        interview: 'interview_uses',
-        applications: 'applications',
-      }[key];
+      const col = FEATURE_COLUMNS[key];
       const used = Number(countsRow[col]) || 0;
       out[key] = Math.max(0, LIMITS[key] - used);
     }
@@ -319,13 +334,26 @@ export async function checkRateLimit(cfg: RateLimitConfig): Promise<RateLimitRes
       return { allowed: false, remaining: 0, resetAt, tier };
     }
 
-    // Log this request
-    await svc.from('rate_limit_logs').insert({ key, user_id: userId });
-
-    return { allowed: true, remaining: Math.max(0, maxRequests - used - 1), resetAt, tier };
+    // Read-only: the log row is written by recordRateLimitUse(), which
+    // routes call only on their success path.
+    return { allowed: true, remaining: Math.max(0, maxRequests - used), resetAt, tier };
   } catch {
     // Fail open
     return { allowed: true, remaining: maxRequests, resetAt, tier };
+  }
+}
+
+// Count one use against a sliding-window rate limit. Call ONLY on a route's
+// success path - failed requests never burn a use. Fail-silent: a missed log
+// must never fail a request that already succeeded.
+export async function recordRateLimitUse(key: string, userId: string): Promise<void> {
+  // Admin is never counted or logged (matches the checkRateLimit bypass).
+  if (isAdminUser(userId)) return;
+  try {
+    const svc = serviceClient();
+    await svc.from('rate_limit_logs').insert({ key, user_id: userId });
+  } catch {
+    // Fail silently
   }
 }
 
@@ -466,20 +494,20 @@ export const RATE_LIMIT_SPECS: RateLimitSpec[] = [
   { key: 'tailor-resume', label: 'Resume tailoring', devLimit: 1, freeLimit: 10, proLimit: 5 },
   { key: 'ats-score', label: 'ATS score checks', devLimit: 2, freeLimit: 10, proLimit: 7 },
   { key: 'cover-letter', label: 'Cover letters', devLimit: 1, freeLimit: 10, proLimit: 4 },
-  { key: 'parse-job', label: 'Job posting parses', devLimit: 5, freeLimit: 20, proLimit: 12 },
-  { key: 'answer-question', label: 'Application question answers', devLimit: 5, freeLimit: 15, proLimit: 20 },
+  { key: 'parse-job', label: 'Job posting parses', devLimit: 5, freeLimit: 20, proLimit: 10 },
+  { key: 'answer-question', label: 'Application question answers', devLimit: 5, freeLimit: 15, proLimit: 10 },
   { key: 'analyze-form', label: 'Application form analyses', devLimit: 2, freeLimit: 10, proLimit: 10 },
   { key: 'extension-ai-fill', label: 'Extension auto-fills', devLimit: 2, freeLimit: 20, proLimit: 10 },
   { key: 'interview-prep-generate', label: 'Interview practice sessions', devLimit: 1, freeLimit: 5, proLimit: 5 },
-  { key: 'interview-prep-assess', label: 'Interview answer feedback', devLimit: 5, freeLimit: 15, proLimit: 15 },
+  { key: 'interview-prep-assess', label: 'Interview answer feedback', devLimit: 5, freeLimit: 15, proLimit: 10 },
   { key: 'networking-outreach', label: 'Outreach message generations', devLimit: 2, freeLimit: 15, proLimit: 7 },
   { key: 'find-contacts', label: 'Contact searches', devLimit: 1, freeLimit: 3, proLimit: 1 },
   { key: 'discover-jobs-refresh', label: 'Job feed refreshes', devLimit: 1, freeLimit: 3, proLimit: 1 },
-  { key: 'strategy-feedback', label: 'Strategy feedback generations', devLimit: 2, freeLimit: 2, proLimit: 2, proUnlimited: true },
+  { key: 'strategy-feedback', label: 'Strategy feedback generations', devLimit: 2, freeLimit: 2, proLimit: 5, proUnlimited: true },
   { key: 'parse-resume', label: 'Resume uploads parsed', devLimit: 1, freeLimit: 3, proLimit: 1 },
   { key: 'parse-profile', label: 'Profile imports', devLimit: 1, freeLimit: 3, proLimit: 1 },
   { key: 'app-chat', label: 'Help chat messages', devLimit: 5, freeLimit: 50, proLimit: 10 },
-  { key: 'resume-studio', label: 'Resume Studio edits', devLimit: 10, freeLimit: 20, proLimit: 60 },
+  { key: 'resume-studio', label: 'Resume Studio edits', devLimit: 10, freeLimit: 20, proLimit: 15 },
   { key: 'render-resume', label: 'Full resume renders', devLimit: 5, freeLimit: 10, proLimit: 10 },
   { key: 'resume-pdf', label: 'Resume PDF downloads', devLimit: 20, freeLimit: 40, proLimit: 60 },
 ];
