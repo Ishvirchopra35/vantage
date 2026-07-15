@@ -84,10 +84,17 @@ export default function LoginPage() {
 
       if (signInError) {
         console.error('[login] sign-in failed:', signInError);
+        const message = signInError.message.toLowerCase();
+        const emailNotVerified =
+          signInError.code === 'email_not_confirmed' ||
+          message.includes('not confirmed') ||
+          message.includes('not verified');
         setError(
-          /invalid|credentials/i.test(signInError.message)
-            ? 'Incorrect email or password.'
-            : 'We could not sign you in. Please try again.'
+          emailNotVerified
+            ? 'Please verify your email first. We sent a confirmation link when you signed up - check your inbox, then sign in.'
+            : /invalid|credentials/i.test(signInError.message)
+              ? 'Incorrect email or password.'
+              : 'We could not sign you in. Please try again.'
         );
         setLoading(false);
         return;

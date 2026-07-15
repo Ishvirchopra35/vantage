@@ -1355,3 +1355,9 @@ title: Removed the 7-day free trial
 - app/(marketing)/terms/page.tsx, docs/legal-dossier.md: removed free-trial language
 - subscriptions.trial_end column is left in place but no longer written or read
 - no new env vars, no packages
+
+---
+date: 2026-07-15
+type: Fix
+title: Clearer login error when the email is not verified
+- app/(auth)/login/page.tsx: sign-in failures caused by an unverified email now show "Please verify your email first..." instead of the generic "We could not sign you in" message (detects Supabase's email_not_confirmed code)
