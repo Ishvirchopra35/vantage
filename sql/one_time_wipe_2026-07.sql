@@ -1,21 +1,3 @@
--- ============================================================================
--- ONE-TIME DATA WIPE - July 2026 relaunch
--- ============================================================================
--- Run this ONCE in the Supabase SQL editor when you are ready to give every
--- user a fresh start. It deletes all app data for ALL users but keeps:
---   * auth.users rows (nobody has to sign up again)
---   * profiles identity columns (full_name, email, phone, extension_token)
---   * subscriptions (deleting these would desync Stripe billing)
---   * platform_limits (global shared quotas, not user data)
---   * rate_limit_logs (wiping them would let users evade current limits)
---
--- AFTER running this, also do (SQL cannot safely empty storage):
---   1. Supabase dashboard -> Storage -> `resumes` bucket -> Empty bucket
---   2. Supabase dashboard -> Storage -> `pdfs` bucket -> Empty bucket
---
--- THIS IS IRREVERSIBLE. Take a backup first if in doubt
--- (Database -> Backups, or pg_dump).
--- ============================================================================
 
 BEGIN;
 
