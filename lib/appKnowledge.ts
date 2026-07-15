@@ -11,14 +11,15 @@ Vantage is an AI-powered job application platform for university students and ne
 MAIN PAGES (left sidebar in the app)
 - Dashboard: overview of applications, recent documents, and scores.
 - Jobs: a job discovery feed (powered by Adzuna). Save or dismiss jobs, filter by location and job type, and save filter presets.
-- Tailor + ATS: paste a job posting URL or text, and Vantage tailors your base resume to it and scores the result. The ATS score estimates how well a resume matches what the screening software companies use would look for: keywords, format, experience, and skills. Results show as a per-bullet diff so you can see exactly what changed.
+- Tailor + ATS: paste a job posting URL or text, and Vantage tailors your base resume to it and scores the result. The ATS score estimates how well a resume matches what the screening software companies use would look for: keywords, format, experience, and skills. The Tailored Resume tab has two views: "Bullet changes" shows a per-bullet diff you can copy from, and "Full resume" shows the complete updated resume with a Download PDF button (hyperlinks from your original resume are kept). Each results tab can run its own action in place - you never need to regenerate something you already made.
 - Applications: the tracker. Log applications with status (applied, interviewing, rejected, offer, ghosted), notes, and linked documents. You can also generate answers to application questions from here.
 - Strategy: AI feedback on your overall job search based on your application history and ATS performance.
 - Networking: find contacts at a company, generate LinkedIn connection requests, cold emails, and follow-ups, and track what you sent. After generating a message you can type an instruction (like "make it shorter") to rewrite it. Connection requests are kept under 280 characters.
 - Interview Prep: generates interview questions for a specific job; answer by voice or typing and get scored feedback with strengths and improvements.
-- Auto-apply: fills job application forms for you. Three ways: (1) the Chrome extension (recommended) fills the form on the page after you click a button - it never submits, you always review and submit yourself; (2) a console snippet you paste into the browser; (3) an answers panel that generates all the answers for you to copy. Pair the extension using the connection code from the app.
+- Auto-apply: fills job application forms for you. Three ways: (1) the Chrome extension (recommended) fills the form on the page after you click a button - it never submits, you always review and submit yourself; (2) a console snippet you paste into the browser; (3) an answers panel that generates all the answers for you to copy. Pair the extension using the connection code from the app. Each of the three ways uses one monthly auto-apply credit on the free plan.
+- Resume Studio (experimental): a hands-on editor for polishing a resume. Open a resume you tailored on Tailor + ATS (with suggestion chips built from that job's keywords and skill gaps), your base resume, or upload a file - then type instructions like "cut the summary to two lines" and watch the preview update. Download the result as a PDF; hyperlinks are preserved. Tailoring itself stays on Tailor + ATS - the Studio is for fine-tuning. Edits live only in the browser tab and are not saved to the account.
 - Profile: your details (school, graduation year, skills, experience, projects) - the AI uses these everywhere, so a complete profile means better output.
-- Usage Limits: shows how much of each limited feature you have used and when slots free up.
+- Usage Limits: shows how much of each limited feature you have used and when slots free up. Besides the monthly plan limits there are per-feature daily/monthly rate limits that keep AI costs bounded - if something says the limit is reached, this page shows when it resets.
 - Settings: theme (dark/light), replace your base resume, product update email preferences, reset your data (start fresh, keeps the account), or delete the account.
 - Billing: manage the Pro subscription (only when paid plans are on).
 
@@ -29,7 +30,8 @@ PRICING (when paid plans are enabled)
 
 RESUMES
 - Upload a PDF or Word resume (max 5MB) from Profile or Settings. Vantage extracts the text and uses it as your base resume for tailoring and scoring.
-- Tailored resumes can be downloaded as PDFs from the Documents section.
+- Tailored resumes can be downloaded as PDFs from the Tailor + ATS "Full resume" view, from Resume Studio, or from the Documents section.
+- Hyperlinks in the original resume (LinkedIn, GitHub, portfolio, email) are carried into generated previews and PDF downloads.
 
 FEEDBACK AND SUPPORT
 - The Feedback page (vantage /feedback, also linked in the sidebar footer) is the way to report bugs, request features, or ask anything. Messages go straight to the founder.

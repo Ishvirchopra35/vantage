@@ -1247,3 +1247,10 @@ title: Tailor + ATS results tabs no longer send you backwards to run the next ac
 - app/(dashboard)/tailor/page.tsx: the ATS Score tab's empty state now runs "Check ATS Score" in place (the tailored resume and cover letter stay put) instead of "Go back to check score", which stranded users on step 2 with no way to return to their results; the Tailored Resume tab's empty state got the same in-place "Tailor My Resume" treatment, and both show action errors inline
 - app/(dashboard)/tailor/page.tsx: step 2 now shows a "You already have results for this job - View results" banner whenever a tailored resume, ATS score, or cover letter exists, so stepping back is never a one-way door
 - no new DB columns, no new env vars, no new npm packages
+
+---
+date: 2026-07-14
+type: Update
+title: Help chat knowledge base caught up with today's features
+- lib/appKnowledge.ts: the chat widget now knows about the Tailor + ATS "Bullet changes"/"Full resume" views with PDF download, in-place tab actions, Resume Studio's tailoring-focused start sources and suggestion chips, hyperlink preservation in generated PDFs, auto-apply credits applying to all three fill tiers, and the per-feature rate limits shown on Usage Limits
+- no new DB columns, no new env vars, no new npm packages
