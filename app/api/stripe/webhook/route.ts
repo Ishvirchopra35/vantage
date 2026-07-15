@@ -59,17 +59,14 @@ export async function POST(request: Request): Promise<Response> {
 
       const periodEnd = sub.items.data[0]?.current_period_end
 
-      // Trialing subscriptions get pro access immediately; billing starts
-      // when the trial ends.
       const { error } = await supabaseAdmin.from('subscriptions').upsert(
         {
           user_id: userId,
           plan: 'pro',
-          status: sub.status === 'trialing' ? 'trialing' : 'active',
+          status: sub.status,
           stripe_subscription_id: subscriptionId,
           stripe_customer_id: customerId,
           current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-          trial_end: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
         },
         { onConflict: 'user_id' }
       )
@@ -83,10 +80,7 @@ export async function POST(request: Request): Promise<Response> {
       const sub = event.data.object as Stripe.Subscription
       const userId = sub.metadata?.supabase_user_id
       const periodEnd = sub.items.data[0]?.current_period_end
-      // 'trialing' must map to pro - trial users have full access until the
-      // trial ends (Stripe then flips the status to active or past_due).
-      const plan = sub.status === 'active' || sub.status === 'trialing' ? 'pro' : 'free'
-      const trialEnd = sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null
+      const plan = sub.status === 'active' ? 'pro' : 'free'
 
       console.log('[stripe/webhook] subscription.updated - userId:', userId, 'customer:', sub.customer, 'status:', sub.status)
 
@@ -99,7 +93,6 @@ export async function POST(request: Request): Promise<Response> {
             stripe_subscription_id: sub.id,
             stripe_customer_id: String(sub.customer),
             current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-            trial_end: trialEnd,
           },
           { onConflict: 'user_id' }
         )
@@ -113,7 +106,6 @@ export async function POST(request: Request): Promise<Response> {
             status: sub.status,
             stripe_subscription_id: sub.id,
             current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-            trial_end: trialEnd,
           })
           .eq('stripe_customer_id', String(sub.customer))
         if (error) console.error('[stripe/webhook] update error (updated, customer fallback):', error)

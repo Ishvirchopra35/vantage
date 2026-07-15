@@ -8,7 +8,6 @@ interface Subscription {
   plan: string
   status: string
   current_period_end: string | null
-  trial_end: string | null
 }
 
 function formatDate(iso: string | null): string {
@@ -26,14 +25,13 @@ export default async function BillingPage() {
   const supabase = await createClient()
   const { data: sub } = await supabase
     .from('subscriptions')
-    .select('plan, status, current_period_end, trial_end')
+    .select('plan, status, current_period_end')
     .eq('user_id', user.id)
     .single()
 
   const s = sub as Subscription | null
   const plan = s?.plan ?? 'free'
   const isPro = plan === 'pro'
-  const isTrialing = isPro && s?.status === 'trialing'
 
   return (
     <div className="dashboard-page">
@@ -57,15 +55,13 @@ export default async function BillingPage() {
                 borderRadius: '20px',
                 color: 'var(--muted)',
               }}>
-                {isTrialing ? 'Free trial' : isPro ? 'Active' : 'Free tier'}
+                {isPro ? 'Active' : 'Free tier'}
               </span>
             </div>
             <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
-              {isTrialing
-                ? `Trial ends ${formatDate(s?.trial_end ?? null)} - billing starts then. Cancel any time before that and you pay nothing.`
-                : isPro
-                  ? `Renews ${formatDate(s?.current_period_end ?? null)}`
-                  : 'Upgrade for unlimited access - $8/month CAD with a 7-day free trial'}
+              {isPro
+                ? `Renews ${formatDate(s?.current_period_end ?? null)}`
+                : 'Upgrade for unlimited access - $8/month CAD'}
             </div>
           </div>
           {isPro ? <ManageButton /> : <UpgradeButton />}

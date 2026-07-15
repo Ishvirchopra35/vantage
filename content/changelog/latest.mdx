@@ -1342,3 +1342,16 @@ title: Removed the self-serve refund feature
 - app/(marketing)/page.tsx, app/(marketing)/terms/page.tsx: pricing/terms copy no longer mentions a money-back guarantee; refund policy is now non-refundable, cancel-anytime with access to period end
 - docs/legal-dossier.md updated to match
 - no DB changes, no new env vars, no packages
+
+---
+date: 2026-07-15
+type: Update
+title: Removed the 7-day free trial
+- app/api/stripe/checkout/route.ts: dropped trial_period_days, so Pro billing starts immediately on upgrade
+- app/api/stripe/webhook/route.ts: no longer maps 'trialing' status to pro or writes trial_end; plan is pro only when the subscription is active
+- lib/rateLimit.ts: resolvePlan treats only 'active' pro subscriptions as pro (trialing removed)
+- app/(dashboard)/billing/page.tsx: removed the trial badge and trial copy from the plan card
+- app/(marketing)/page.tsx: Pro CTA is now "Upgrade to Pro" with "$8 CAD/month, cancel any time"
+- app/(marketing)/terms/page.tsx, docs/legal-dossier.md: removed free-trial language
+- subscriptions.trial_end column is left in place but no longer written or read
+- no new env vars, no packages

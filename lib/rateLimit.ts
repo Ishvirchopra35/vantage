@@ -272,8 +272,7 @@ async function resolvePlan(svc: ServiceClient, userId: string): Promise<'free' |
       .eq('user_id', userId)
       .limit(1)
       .single();
-    // Trialing users get full pro treatment until the trial ends.
-    if (data && data.plan === 'pro' && (data.status === 'active' || data.status === 'trialing')) return 'pro';
+    if (data && data.plan === 'pro' && data.status === 'active') return 'pro';
   } catch {
     // Fall through to free
   }

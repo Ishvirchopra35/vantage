@@ -31,9 +31,6 @@ export async function POST(request: Request): Promise<Response> {
       metadata: { supabase_user_id: user.id },
       subscription_data: {
         metadata: { supabase_user_id: user.id },
-        // 7-day free trial: the card is collected up front, billing starts
-        // when the trial ends, and it is cancellable any time via the portal.
-        trial_period_days: 7,
       },
     })
   } catch (e) {

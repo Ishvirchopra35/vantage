@@ -152,10 +152,6 @@ export default function TermsPage() {
             Refunds: payments are non-refundable, including for partial months. When you cancel,
             you keep Pro access until the end of the current billing period.
           </Bullet>
-          <Bullet>
-            If you are on a free trial, you are not charged until the trial ends, and cancelling
-            during the trial means you never pay.
-          </Bullet>
           <Bullet>We reserve the right to change pricing with 30 days notice.</Bullet>
         </ul>
       </section>

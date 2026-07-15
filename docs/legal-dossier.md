@@ -50,8 +50,7 @@ Requirements:
 - Pricing: Free tier with monthly usage limits; **Pro $8/month CAD** via
   Stripe. Cancel any time (access runs to period end). **Payments are
   non-refundable, including partial months.** Pricing changes with 30 days
-  notice. Trials may exist (treated as Pro while active; cancelling before
-  the first charge means you are never billed).
+  notice. No free trial - Pro billing starts immediately on upgrade.
 
 ## Features (what users do)
 
