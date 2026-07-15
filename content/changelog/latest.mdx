@@ -1323,3 +1323,11 @@ title: Pro pricing displayed as CAD instead of USD
 - CLAUDE.md and docs/legal-dossier.md updated to match
 - owner action still required: the Stripe Price behind STRIPE_PRO_PRICE_ID must itself be a CAD price for checkout to actually charge CAD - currency lives on the Stripe Price object, not in this codebase, and Stripe prices can't be edited in place, so a new CAD price must be created and the env var repointed to its id (in .env.local and Vercel)
 - no new DB columns, no new npm packages
+
+---
+date: 2026-07-15
+type: Improvement
+title: Loading status while your resume auto-fills your profile
+- components/ProfileForm.tsx: added a parsing state that shows a status banner ("Reading your resume and filling in your profile... please stay on this page") after a resume upload finishes, covering the gap while /api/parse-profile runs and the fields populate
+- no change to upload/parse functionality; purely a visible loading indicator during the existing buffer
+- no new DB columns, no new env vars, no new npm packages

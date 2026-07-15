@@ -1,5 +1,4 @@
-// Update this to match your NEXT_PUBLIC_APP_URL - no trailing slash
-const VANTAGE_URL = 'https://getvantageai.vercel.app';
+const VANTAGE_URL = 'https://vantage-ai.dev';
 
 let currentToken = null;
 let currentTabUrl = '';

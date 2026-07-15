@@ -77,6 +77,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [parsing, setParsing] = useState(false);
 
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -106,6 +107,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
 
   async function handleUploadComplete(rawText: string) {
     setError('');
+    setParsing(true);
     try {
       const res = await fetch('/api/parse-profile', {
         method: 'POST',
@@ -139,6 +141,8 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
       }
     } catch {
       setError('We could not read your profile because of a network error.');
+    } finally {
+      setParsing(false);
     }
   }
 
@@ -335,6 +339,36 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
           Resume
         </label>
         <ResumeUpload onUploadComplete={handleUploadComplete} />
+        {parsing && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              marginTop: '10px',
+              padding: '10px 14px',
+              background: 'var(--gold-dim)',
+              border: '1px solid var(--gold-border)',
+              borderRadius: '10px',
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-block',
+                width: '14px',
+                height: '14px',
+                border: '2px solid var(--gold)',
+                borderTopColor: 'transparent',
+                borderRadius: '50%',
+                animation: 'spin 0.6s linear infinite',
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ fontSize: '13px', color: 'var(--gold)', lineHeight: 1.5 }}>
+              Reading your resume and filling in your profile. This takes a few seconds, please stay on this page.
+            </span>
+          </div>
+        )}
       </div>
 
       <div style={{ borderTop: '1px solid var(--border)', marginBottom: '24px' }} />
