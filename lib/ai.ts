@@ -3,6 +3,7 @@
 // Provider: Gemini 2.5 Flash-Lite
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as Sentry from '@sentry/nextjs';
 import { checkSharedQuota, incrementSharedQuota } from '@/lib/rateLimit';
 
 const MODEL_NAME = 'gemini-2.5-flash-lite';
@@ -41,7 +42,15 @@ async function callGemini(
   // "quota" so isAiQuotaError() routes it to the friendly 429 path.
   const budget = await checkSharedQuota('gemini_monthly', PLATFORM_MONTHLY_CALL_BUDGET, 30);
   if (!budget.allowed) {
+    // Exhaustion is routed to a friendly 429 (never serverError), so without
+    // this explicit capture Sentry would never learn every AI feature is down.
+    Sentry.captureMessage('Platform AI quota exhausted - all AI features are blocked', 'error');
     throw new Error('Platform AI quota exhausted for this period');
+  }
+  if (budget.used >= budget.max * 0.8) {
+    // Early warning at 80% so exhaustion is never a surprise. Static message
+    // text so Sentry groups every occurrence into one alertable issue.
+    Sentry.captureMessage('Platform AI quota above 80% of monthly budget', 'warning');
   }
 
   const genAI = getGenAI();
