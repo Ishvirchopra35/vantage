@@ -1361,3 +1361,43 @@ date: 2026-07-15
 type: Fix
 title: Clearer login error when the email is not verified
 - app/(auth)/login/page.tsx: sign-in failures caused by an unverified email now show "Please verify your email first..." instead of the generic "We could not sign you in" message (detects Supabase's email_not_confirmed code)
+
+---
+date: 2026-07-16
+type: Fix
+title: Race-proof monthly quota counting
+- supabase/migrations/20260716_atomic_subscription_increment.sql: new increment_subscription_use() SQL function does the usage-counter increment atomically in one statement, with a column whitelist and service-role-only access; also locks down increment_platform_limit() so clients can no longer call it directly
+- lib/rateLimit.ts: consumeLimit() now calls the atomic SQL function first and only falls back to the old compare-and-swap loop while the function is missing from the database, so deploying before running the migration is safe
+- no new env vars, no packages
+
+---
+date: 2026-07-16
+type: Improvement
+title: Error monitoring with Sentry
+- Sentry wizard setup: sentry.server.config.ts, sentry.edge.config.ts, instrumentation.ts, instrumentation-client.ts, app/global-error.tsx, next.config.ts wrapped with withSentryConfig
+- lib/apiResponse.ts: serverError() now reports the caught exception to Sentry - routes catch all their own errors, so without this Sentry would never see API failures
+- lib/ai.ts: reports to Sentry when the platform AI budget passes 80% (warning) and when it is exhausted (error), so AI features going down is never silent
+- middleware.ts: matcher no longer intercepts /monitoring, the Sentry browser tunnel route
+- Sentry trace sampling reduced to 10% in production to protect the free-plan quota
+- removed the wizard's public example pages (app/sentry-example-page, app/api/sentry-example-api)
+- new package: @sentry/nextjs; auth token lives in .env.sentry-build-plugin (gitignored)
+
+---
+date: 2026-07-16
+type: Improvement
+title: Reorganized test suite with full unit coverage
+- all tests now live under tests/ (tests/lib, tests/components, tests/static) mirroring the source tree; the 21 old test files scattered through app/, components/, and lib/ are deleted
+- new coverage: lib/validateRequest, lib/withTimeout, lib/apiResponse (incl. the Sentry capture), lib/rateLimit (dev-mode short-circuits, admin bypass, pricing-contract limits), lib/rateLimitMessage, lib/ai (mocked Gemini: budget gate, 80% warning, JSON fence parsing), lib/resumeHtml (sanitizer XSS stripping, linkify, bullet tailoring)
+- lib/rateLimitMessage.ts: fixed a real bug the new tests caught - every rate-limit wait was reported in hours ("try again in 1 hour" for a 2-minute wait) because the minutes branch was unreachable
+- repaired the three previously-failing tests: invalid-date generator in the auto-apply property test, and stale design allowlists that predated the gold/glass landing redesign
+- vitest.config.ts: include pattern narrowed to tests/**; .gitignore: *.test.ts / *.test.tsx removed so the suite is version-controlled
+- 247 tests, all passing; no new env vars, no packages
+
+---
+date: 2026-07-16
+type: Improvement
+title: Codebase-wide comment audit
+- rewrote comments across app/, lib/, components/, and extension/ so they read as first-person developer notes: removed spec/requirement references (Requirement N.N, Property N, rule N), step-by-step plan narration, and redundant what-the-next-line-does comments
+- replaced them with comments that explain the non-obvious: why ATS scoring shares the tailoring quota, the apply-page id resolution order, particle recycling in the landing canvas, extension fill guarantees
+- comment-only change - verified with tsc, node --check on extension JS, and the full 247-test suite
+- no DB changes, no new env vars, no packages
