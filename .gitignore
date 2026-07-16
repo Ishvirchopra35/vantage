@@ -50,3 +50,9 @@ CLAUDE.md
 *.test.ts
 *.test.tsx
 .playwright-mcp/
+
+brag-output/
+brag-output-2026-07-15-210910/
+brag-output-2026-07-15-212831/
+instagram-carousel/
+supabase/
