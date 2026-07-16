@@ -182,9 +182,19 @@ export async function consumeLimit(userId: string, feature: Feature): Promise<vo
     if (plan === 'pro') return;
 
     const column = FEATURE_COLUMNS[feature];
-    // Optimistic-lock increment (retry a few times on races). No cap guard:
-    // the work already happened, so the counter must reflect it even if
-    // concurrent requests briefly pushed usage past the limit.
+    // Atomic counter = counter + 1 via a SQL function (see the
+    // 20260716_atomic_subscription_increment migration) - concurrent requests
+    // can never lose an increment. No cap guard: the work already happened,
+    // so the counter must reflect it even if concurrent requests briefly
+    // pushed usage past the limit.
+    const { error } = await svc.rpc('increment_subscription_use', {
+      p_user_id: userId,
+      p_column: column,
+    });
+    if (!error) return;
+
+    // Fallback while the SQL function is missing from the database:
+    // optimistic-lock increment (retry a few times on races).
     for (let attempt = 0; attempt < 3; attempt++) {
       const { data } = await svc.from('subscriptions').select(column).eq('user_id', userId).limit(1).single();
       const current = data ? Number((data as Record<string, unknown>)[column]) || 0 : 0;
