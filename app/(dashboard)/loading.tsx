@@ -9,9 +9,9 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader';
 // lack their own skeleton, letting them degrade gracefully.
 //
 // Intentionally generic: a header block + a 4-up card grid + one stacked list
-// card. No session / first-entry logic (Requirement 2.6) — the framework's
-// loading boundary drives everything. Decorative only: the wrapper is
-// aria-hidden and SkeletonLoader is already aria-hidden (Requirements 2.4, 3.4).
+// card. No session / first-entry logic — the framework's loading boundary
+// drives everything. Decorative only: the wrapper is aria-hidden and
+// SkeletonLoader is already aria-hidden.
 
 const cardGridStyle: CSSProperties = {
   display: 'grid',

@@ -227,7 +227,8 @@ export const Particles: React.FC<ParticlesProps> = ({
   const animate = () => {
     clearContext()
     circles.current.forEach((circle: Circle, i: number) => {
-      // Handle the alpha value
+      // Fade alpha by distance to the nearest canvas edge so dots dissolve
+      // at the borders instead of popping in and out.
       const edge = [
         circle.x + circle.translateX - circle.size, // distance from left edge
         canvasSize.current.w - circle.x - circle.translateX - circle.size, // distance from right edge
@@ -253,16 +254,15 @@ export const Particles: React.FC<ParticlesProps> = ({
 
       drawCircle(circle, true)
 
-      // circle gets out of the canvas
+      // Recycle circles that drift off-canvas: drop them and spawn a fresh
+      // one so the particle count stays constant.
       if (
         circle.x < -circle.size ||
         circle.x > canvasSize.current.w + circle.size ||
         circle.y < -circle.size ||
         circle.y > canvasSize.current.h + circle.size
       ) {
-        // remove the circle from the array
         circles.current.splice(i, 1)
-        // create a new circle
         const newCircle = circleParams()
         drawCircle(newCircle)
       }

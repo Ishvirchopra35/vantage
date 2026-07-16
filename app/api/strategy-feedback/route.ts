@@ -99,7 +99,8 @@ export async function GET(request: Request): Promise<Response> {
     return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
   }
 
-  // Fetch analytics data
+  // Everything the strategy analysis needs, in parallel: application history
+  // and ATS score history.
   const [appDataResult, atsDataResult] = await Promise.all([
     supabase
       .from('applications')
@@ -126,9 +127,9 @@ export async function GET(request: Request): Promise<Response> {
   const responseCount = breakdown.interviewing + breakdown.offer
   const responseRate = total > 0 ? Math.round((responseCount / total) * 1000) / 10 : 0
 
-  // Response rate grouped by role. Defensive guard: only group rows whose role
-  // is a real job title so a null/empty/whitespace/"Untitled" role can't surface
-  // in the strategy output grouping (Requirement 4.4).
+  // Response rate grouped by role. Only group rows whose role is a real job
+  // title - a null/empty/"Untitled" role must never surface as a "role" in
+  // the strategy output.
   const roleMap: Record<string, { total: number; successes: number }> = {}
   for (const app of apps) {
     if (!hasRealJobTitle(app.role)) continue

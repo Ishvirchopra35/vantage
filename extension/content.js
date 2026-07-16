@@ -218,7 +218,7 @@
     return landed;
   }
 
-  // Returns true only if the value was actually set (rule 15: count real fills).
+  // Returns true only if the value was actually set (only real fills get counted).
   async function setTextValue(el, value, platform) {
     if (!value || !isFillable(el) || filledEls.has(el)) return false;
     // Spinners are exempt from the keep-existing-value rule: a previous fill
@@ -353,7 +353,7 @@
     return el.placeholder?.trim() || el.name?.trim() || '';
   }
 
-  // Match-text sources in priority order (rule 11):
+  // Match-text sources in priority order :
   // 1. name/id/data-automation-id  2. label text  3. placeholder  4. aria-label
   function getMatchSources(el) {
     const sources = [];
@@ -464,7 +464,7 @@
     return TIER1_MATCHERS.some(([, p]) => p.test(l));
   }
 
-  // Anything here is never sent to the AI (rule 2: no factual data to AI).
+  // Anything here is never sent to the AI (factual data never goes to the AI).
   function isDeterministicLabel(label) {
     return isTier1Label(label) ||
       DEMOGRAPHIC_RE.test(label) ||
@@ -477,7 +477,7 @@
     return label.includes('?') || label.trim().split(/\s+/).length >= 5;
   }
 
-  // -- Date helpers (rule 13: MM/YYYY) -----------------------------------------
+  // -- Date helpers - forms want MM/YYYY --------------------------------------
 
   const MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
 
@@ -527,7 +527,7 @@
     // real user data from the kit, not AI generation.
     filled += fillSavedContent(kit);
 
-    // "How did you hear about us" - deterministic, never AI (rule 3)
+    // "How did you hear about us" - deterministic, never AI
     filled += fillHearAboutUs();
 
     // Consent checkboxes + "how did you hear" checkboxes
@@ -543,7 +543,7 @@
       }
     }
 
-    // Best-effort work experience section (rule 4 + 13)
+    // Best-effort work experience section (dates as MM/YYYY)
     filled += await fillExperienceSection(kit, platform);
 
     // Platform-specific extras
@@ -634,7 +634,7 @@
       // Never touch demographic or pronoun checkboxes (rules 7 + 8)
       if (DEMOGRAPHIC_RE.test(labelText)) continue;
 
-      // "How did you hear" checkbox groups → only the Job Board option (rule 3)
+      // "How did you hear" checkbox groups → only the Job Board option
       const groupText = (container?.parentElement?.textContent || '').toLowerCase();
       if (HEAR_ABOUT_RE.test(labelText) || HEAR_ABOUT_RE.test(groupText)) {
         const ownText = ((cb.value || '') + ' ' + (forLabel?.textContent || cb.closest('label')?.textContent || '')).toLowerCase();
@@ -676,7 +676,7 @@
           : toMonthYear(exp0.start_date);
         if (v && await setTextValue(el, v, platform)) filled++;
       } else if (/end[\s_-]?date|to[\s_-]?date|date[\s_-]?to/.test(sources)) {
-        if (exp0.current) continue; // current role: start date only (rule 13)
+        if (exp0.current) continue; // current role: start date only
         const v = el.type === 'month'
           ? toMonthYear(exp0.end_date).split('/').reverse().join('-')
           : toMonthYear(exp0.end_date);
@@ -821,7 +821,7 @@
     filled += await fillWorkdaySkills(kit);
     filled += await fillWorkdayWebsites(kit);
 
-    // "How did you hear about us" prompt → Job Board only (rule 3)
+    // "How did you hear about us" prompt → Job Board only
     if (await fillWorkdayDropdown('how did you hear', 'Job Board')) filled++;
 
     return filled;
@@ -1706,7 +1706,7 @@
       ['input[name="urls[LinkedIn]"]', values.linkedin],
       ['input[name="urls[GitHub]"], input[name="urls[Github]"]', values.github],
       ['input[name="urls[Portfolio]"]', values.portfolio],
-      // urls[Twitter], urls[Other] → intentionally never filled (rule 9)
+      // urls[Twitter], urls[Other] → intentionally never filled (never invent social handles)
       ['#location-input', values.location],
     ];
     for (const [sel, value] of targets) {
@@ -1720,7 +1720,7 @@
       if (fillNativeSelect(locationSelect, countryOf(values.location) || values.location)) filled++;
     }
 
-    // Pronouns: only if explicitly set in the kit (rule 7 - never default)
+    // Pronouns: only if explicitly set in the kit (never defaulted or guessed)
     if (kit.pronouns) {
       const pronounCb = document.querySelector(`input[name="pronouns"][value="${CSS.escape(kit.pronouns)}"]`);
       if (pronounCb && clickCheckbox(pronounCb)) filled++;
@@ -1770,7 +1770,7 @@
       if (await fillCombobox(locationInput, values.city, { waitMs: 1200, firstOption: true })) filled++;
     }
 
-    // Demographic React Selects → "I don't wish to answer" (rule 10, Greenhouse)
+    // Demographic React Selects → "I don't wish to answer" (Greenhouse)
     for (const input of document.querySelectorAll('input[role="combobox"]')) {
       if (filledEls.has(input)) continue;
       const label = getReadableLabel(input);

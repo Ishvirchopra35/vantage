@@ -184,7 +184,7 @@ function nextNonBlankIsDateKey(lines: string[], startIndex: number): boolean {
 function splitChangelogEntries(source: string): Array<{ frontmatter: string; content: string }> {
   const lines = source.replace(/\r\n/g, '\n').split('\n');
 
-  // 1 & 2. Locate entry boundaries. The file's leading `---` is the first one.
+  // Locate entry boundaries. The file's leading `---` is the first one.
   const boundaries: number[] = [];
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].trim() === '---' && nextNonBlankIsDateKey(lines, i + 1)) {
@@ -199,7 +199,7 @@ function splitChangelogEntries(source: string): Array<{ frontmatter: string; con
     const end = b + 1 < boundaries.length ? boundaries[b + 1] : lines.length;
     const chunk = lines.slice(start, end);
 
-    // 3. Separate frontmatter from body. The frontmatter is the leading run of
+    // Separate frontmatter from body. The frontmatter is the leading run of
     // key lines (blank lines allowed between keys). The run ends at the first
     // closing `---` fence (consumed) OR the first non-blank, non-key line
     // (not consumed — it begins the body).

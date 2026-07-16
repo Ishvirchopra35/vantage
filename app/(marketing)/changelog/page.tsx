@@ -24,7 +24,7 @@ function formatDate(dateStr: string): string {
  * aborts the static build with an acorn parse error. Inline code spans and
  * fenced code blocks are left untouched, since MDX already treats their
  * contents literally. Applied only at render time; the parsed `content` field
- * itself is preserved verbatim (Property 1 round-trip).
+ * itself is stored verbatim.
  */
 function escapeMdxProse(source: string): string {
   // Split into segments, isolating fenced code blocks and inline code spans so
@@ -44,8 +44,8 @@ function escapeMdxProse(source: string): string {
  * nodes with inline <ArrowIcon /> elements. `→` becomes a right-pointing icon
  * and `←` a left-pointing one; text segments are preserved and interleaved.
  * Non-string children (e.g. inline <code>) pass through unchanged, so arrows
- * inside code stay literal (documented exception). The icon's `verticalAlign`
- * keeps in-sentence arrows baseline-aligned (Req 1.7).
+ * inside code stay literal - that's deliberate. The icon's `verticalAlign`
+ * keeps in-sentence arrows baseline-aligned.
  */
 function renderArrows(children: ReactNode): ReactNode {
   return Children.map(children, (child, childIndex) => {

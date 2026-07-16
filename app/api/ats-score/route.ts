@@ -36,12 +36,13 @@ export async function POST(request: Request): Promise<Response> {
   if (!validation.valid) return err(validation.error, 400);
   const { jobId, resumeId, documentId } = validation.data;
 
-  // Validate that one of resumeId or documentId is provided
+  // Score either an uploaded resume or a tailored document - never neither.
   if (!resumeId && !documentId) {
     return err('One of resumeId or documentId is required', 400);
   }
 
-  // Check rate limit for 'tailoring' feature
+  // ATS scoring shares the tailoring quota - they're two halves of the same
+  // workflow, and a separate counter would just confuse the limits page.
   const limitCheck = await checkLimit(user.id, 'tailoring');
   if (!limitCheck.allowed) {
     await logRoute('/api/ats-score', user.id, Date.now() - start, 429);
@@ -65,7 +66,6 @@ export async function POST(request: Request): Promise<Response> {
 
   const supabase = await createClient();
 
-  // Step 1: Fetch job row
   const { data: job, error: jobError } = await supabase
     .from('jobs')
     .select('id, user_id, title, company, required_skills, years_experience_required, key_responsibilities, keywords')
@@ -77,13 +77,13 @@ export async function POST(request: Request): Promise<Response> {
     return notFound('Job');
   }
 
-  // Verify job.user_id === user.id
   if (job.user_id !== user.id) {
     await logRoute('/api/ats-score', user.id, Date.now() - start, 403);
     return err('Forbidden', 403);
   }
 
-  // Step 2: Fetch resume text
+  // Resolve the text to score: a tailored document takes priority over a raw
+  // uploaded resume when both ids are sent.
   let resumeText: string | null = null;
 
   if (documentId) {
@@ -119,16 +119,14 @@ export async function POST(request: Request): Promise<Response> {
     return err('Could not retrieve resume text', 400);
   }
 
-  // Step 3: Build user context
   let userContext: Awaited<ReturnType<typeof buildUserContext>> = {} as Awaited<ReturnType<typeof buildUserContext>>;
   try {
     userContext = await buildUserContext(user.id);
   } catch {
-    // Continue without context if it fails
+    // Context enriches the scoring but the score works without it.
   }
   const contextStr = formatContextForPrompt(userContext);
 
-  // Step 4: Call generateJSON with ATS scoring prompt
   const systemPrompt =
     'You are an expert ATS (Applicant Tracking System) analyst. Score resumes against job requirements. Return ONLY valid JSON.';
 
@@ -168,7 +166,6 @@ Return JSON with:
     return serverError(new Error('Could not generate ATS score'));
   }
 
-  // Step 5: Save to ats_scores table
   const { data: savedScore, error: saveError } = await supabase
     .from('ats_scores')
     .insert({
@@ -193,7 +190,7 @@ Return JSON with:
     return serverError(new Error(saveError?.message || 'Failed to save ATS score'));
   }
 
-  // Track analytics event
+  // Fire-and-forget analytics - a failed insert must not fail the score.
   void Promise.resolve(
     supabase.from('events').insert({
       user_id: user.id,

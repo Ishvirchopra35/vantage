@@ -1862,7 +1862,7 @@ a {
    ============================================================ */
 
 /* Hidden base state: invisible + transition definition.
-   0.5s ease-out per Requirement 1.2. --reveal-delay defaults to 0ms. */
+   --reveal-delay defaults to 0ms; Reveal sets it for staggered children. */
 .reveal {
   opacity: 0;
   transition:

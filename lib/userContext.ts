@@ -1,11 +1,16 @@
 // SERVER-SIDE ONLY - never import this in client components.
-// This file builds comprehensive user context for AI prompts, fetching from all relevant tables.
+// The intelligence layer behind every AI feature: pulls the user's profile,
+// resume, application history, and ATS track record into one context block
+// that gets injected into every prompt. Call buildUserContext() at the top
+// of every AI route.
 
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { getRemainingLimits } from './rateLimit';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// any: generated Supabase types aren't wired up, and these queries span half
+// the schema - typing the client properly is a future migration on its own.
 type ServiceClient = any;
 
 function serviceClient(): any {

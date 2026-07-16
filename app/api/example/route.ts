@@ -72,7 +72,6 @@ export async function POST(req: NextRequest) {
     return ok({ text });
   } catch (e) {
     const duration = Date.now() - start;
-    // Attempt to log server error
     logRoute('/api/example', null, duration, 500).catch(() => {});
     return serverError(e);
   }

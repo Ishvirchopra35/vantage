@@ -161,7 +161,7 @@ export default function ApplyPrepPage() {
       // documents/ats_scores are keyed by job_id; null for manual targets.
       let dataJobId: string | null = null
 
-      // Step 1: resolve the param as an application id.
+      // First: resolve the param as an application id.
       const appByIdRes = await supabase
         .from('applications')
         .select('id, status, company, role, applied_date, job_id')
@@ -195,7 +195,7 @@ export default function ApplyPrepPage() {
           resolvedJob = { id: null, title: app.role, company: app.company, required_skills: null, keywords: null }
         }
       } else {
-        // Step 2: legacy fallback — treat the param as a jobs.id deep link.
+        // Next: legacy fallback — treat the param as a jobs.id deep link.
         const jobRes = await supabase
           .from('jobs')
           .select('id, title, company, required_skills, keywords')
@@ -218,7 +218,7 @@ export default function ApplyPrepPage() {
         }
       }
 
-      // Step 3: neither an application nor a job resolved.
+      // Neither an application nor a job resolved.
       if (!resolvedJob) {
         setPageError('Job not found or you do not have access.')
         setPageLoading(false)
