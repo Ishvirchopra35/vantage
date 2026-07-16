@@ -366,12 +366,6 @@ export default function Sidebar({
           </div>
         </div>
 
-        {enableFreemium && plan === 'free' && (
-          <button type="button" className="ds-btn" style={{ marginTop: '12px', width: '100%', fontSize: '12px' }}>
-            Upgrade to Pro
-          </button>
-        )}
-
         <div style={{ display: 'flex', gap: '8px', marginTop: '10px', alignItems: 'center' }}>
           <button
             type="button"
