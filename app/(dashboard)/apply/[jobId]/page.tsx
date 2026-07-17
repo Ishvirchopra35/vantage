@@ -719,7 +719,7 @@ export default function ApplyPrepPage() {
             </div>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <a
-                href="https://chrome.google.com/webstore"
+                href="https://chromewebstore.google.com/detail/vantage-auto-fill/mgapanbbaplohlojbmghoglmpfpogook"
                 target="_blank"
                 rel="noreferrer"
                 style={primaryBtn}

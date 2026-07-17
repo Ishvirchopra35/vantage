@@ -11,10 +11,8 @@ export const metadata = {
   description: 'Pre-fill job applications automatically',
 };
 
-// The Chrome Web Store listing goes live when the extension ships. Until then this
-// points at the install guide so the button is never a dead end. Swap in the real
-// store URL here once the extension is published.
-const CHROME_EXTENSION_URL = '/docs/extension';
+const CHROME_EXTENSION_URL =
+  'https://chromewebstore.google.com/detail/vantage-auto-fill/mgapanbbaplohlojbmghoglmpfpogook';
 
 function formatDate(dateValue: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -180,18 +178,11 @@ export default async function AutoApplyIndexPage(): Promise<React.ReactElement> 
             step={1}
             done={false}
             title="Install the Vantage Chrome extension"
-            description={(
-              <>
-                Add it to Chrome, then pin the Vantage icon so it is one click away.
-                <span style={{ display: 'block', marginTop: '4px', fontSize: '12px' }}>
-                  Not on the Chrome Web Store yet - this opens the install guide for now.
-                </span>
-              </>
-            )}
+            description="Add it to Chrome from the Web Store, then pin the Vantage icon so it is one click away."
             action={(
-              <Link href={CHROME_EXTENSION_URL} style={goldButton}>
+              <a href={CHROME_EXTENSION_URL} target="_blank" rel="noreferrer" style={goldButton}>
                 Get the extension <ArrowIcon />
-              </Link>
+              </a>
             )}
           />
 

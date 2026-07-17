@@ -25,25 +25,11 @@ export default function ExtensionPage() {
 
         <section style={section}>
           <h2 style={h2}>Installing from the Chrome Web Store</h2>
-          <p style={p}>The Chrome Web Store listing is not live yet. Once it ships, installing will be a one-click process:</p>
           <ol style={ol}>
-            <li style={li}>Search for &quot;Vantage&quot; in the Chrome Web Store.</li>
+            <li style={li}>Open the <a href="https://chromewebstore.google.com/detail/vantage-auto-fill/mgapanbbaplohlojbmghoglmpfpogook" target="_blank" rel="noreferrer" style={link}>Vantage Auto-Fill listing</a> on the Chrome Web Store.</li>
             <li style={li}>Click <strong style={strong}>&quot;Add to Chrome.&quot;</strong></li>
             <li style={li}>Confirm the permissions prompt.</li>
-            <li style={li}>The Vantage icon appears in your browser toolbar.</li>
-          </ol>
-          <p style={p}>Until then, install it in developer mode using the steps below.</p>
-        </section>
-
-        <section style={section}>
-          <h2 style={h2}>Installing in developer mode (before Web Store)</h2>
-          <p style={p}>During early development, the extension may not be on the Web Store yet. To install manually:</p>
-          <ol style={ol}>
-            <li style={li}>Download the extension folder from the Vantage repository (the <code style={code}>/extension</code> directory).</li>
-            <li style={li}>Open Chrome and navigate to <code style={code}>chrome://extensions</code>.</li>
-            <li style={li}>Enable <strong style={strong}>&quot;Developer mode&quot;</strong> using the toggle in the top right.</li>
-            <li style={li}>Click <strong style={strong}>&quot;Load unpacked&quot;</strong> and select the extension folder.</li>
-            <li style={li}>The Vantage icon appears in your toolbar. Pin it for easy access.</li>
+            <li style={li}>The Vantage icon appears in your browser toolbar. Pin it for easy access.</li>
           </ol>
         </section>
 
@@ -86,7 +72,7 @@ export default function ExtensionPage() {
           </div>
         </section>
 
-        <p style={updated}>Last updated: July 8, 2026</p>
+        <p style={updated}>Last updated: July 17, 2026</p>
         <div style={nav}>
           <Link href="/docs/billing" style={navLink}><ArrowIcon direction="left" /> Billing</Link>
           <span />
@@ -106,7 +92,6 @@ const ul: React.CSSProperties = { listStyle: 'disc', paddingLeft: '20px', margin
 const li: React.CSSProperties = { color: 'var(--text)', lineHeight: 1.7, fontSize: '0.95rem', opacity: 0.85 };
 const strong: React.CSSProperties = { fontWeight: 600, color: 'var(--text)' };
 const link: React.CSSProperties = { color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: '3px' };
-const code: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '4px', padding: '2px 6px', fontSize: '0.88rem', fontFamily: 'monospace' };
 const faq: React.CSSProperties = { marginBottom: '24px' };
 const faqQ: React.CSSProperties = { fontWeight: 600, color: 'var(--text)', fontSize: '0.95rem', marginBottom: '6px' };
 const updated: React.CSSProperties = { fontSize: '0.82rem', color: 'var(--muted)', marginTop: '64px', marginBottom: '24px' };

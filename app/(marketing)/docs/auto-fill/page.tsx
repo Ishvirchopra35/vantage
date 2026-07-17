@@ -27,7 +27,7 @@ export default function AutoFillPage() {
           <h2 style={h2}>Set up the extension first</h2>
           <p style={p}>Form filling runs through the Vantage Chrome extension, so set it up before your first application.</p>
           <ol style={ol}>
-            <li style={li}>Install the Vantage extension (see the <Link href="/docs/extension" style={link}>browser extension</Link> guide - it is not on the Chrome Web Store yet, so use developer mode for now).</li>
+            <li style={li}>Install the Vantage extension from the <a href="https://chromewebstore.google.com/detail/vantage-auto-fill/mgapanbbaplohlojbmghoglmpfpogook" target="_blank" rel="noreferrer" style={link}>Chrome Web Store</a> (see the <Link href="/docs/extension" style={link}>browser extension</Link> guide for details).</li>
             <li style={li}>Go to <strong style={strong}>Profile <ArrowIcon /> Browser Extension <ArrowIcon /> Generate connection code</strong> in your Vantage dashboard.</li>
             <li style={li}>Open the extension popup and paste your connection code to link your account.</li>
           </ol>
