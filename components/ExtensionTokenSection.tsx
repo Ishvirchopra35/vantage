@@ -78,7 +78,8 @@ export default function ExtensionTokenSection({
     : null;
 
   const formattedDate = createdAt
-    ? new Date(createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    // timeZone UTC keeps the SSR and client render identical (hydration safety)
+    ? new Date(createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
     : null;
 
   return (
@@ -88,7 +89,16 @@ export default function ExtensionTokenSection({
           Browser Extension
         </h2>
         <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
-          Generate a connection code to link the Vantage Chrome Extension. The extension uses this code to fill job application forms with your profile.
+          Generate a connection code to link the Vantage Chrome Extension. The extension uses this code to fill job application forms with your profile. Don&apos;t have it yet?{' '}
+          <a
+            href="https://chromewebstore.google.com/detail/vantage-auto-fill/mgapanbbaplohlojbmghoglmpfpogook"
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: 'var(--text)', textDecoration: 'underline', textUnderlineOffset: '3px' }}
+          >
+            Get it from the Chrome Web Store
+          </a>
+          .
         </p>
       </div>
 

@@ -1,4 +1,7 @@
-const VANTAGE_URL = 'https://vantage-ai.dev';
+// Must be the www host: the apex domain 308-redirects to www, and browsers
+// strip the Authorization header on cross-origin redirects, so every API
+// call through the apex arrives unauthenticated and fails with 401.
+const VANTAGE_URL = 'https://www.vantage-ai.dev';
 
 let currentToken = null;
 let currentTabUrl = '';

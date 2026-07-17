@@ -1401,3 +1401,27 @@ title: Codebase-wide comment audit
 - replaced them with comments that explain the non-obvious: why ATS scoring shares the tailoring quota, the apply-page id resolution order, particle recycling in the landing canvas, extension fill guarantees
 - comment-only change - verified with tsc, node --check on extension JS, and the full 247-test suite
 - no DB changes, no new env vars, no packages
+
+---
+date: 2026-07-17
+type: Update
+title: Chrome extension is live on the Chrome Web Store
+- the Vantage Auto-Fill extension is published: https://chromewebstore.google.com/detail/vantage-auto-fill/mgapanbbaplohlojbmghoglmpfpogook
+- app/(dashboard)/apply/page.tsx: the "Get the extension" setup button now opens the store listing in a new tab (CHROME_EXTENSION_URL placeholder replaced); removed the "Not on the Chrome Web Store yet" note
+- app/(dashboard)/apply/[jobId]/page.tsx: the "Install extension" button in the Auto-fill card now points at the real listing instead of the generic Web Store homepage
+- app/(marketing)/docs/extension/page.tsx: install section now links the listing directly; removed the developer-mode install section; bumped Last updated to July 17, 2026
+- app/(marketing)/docs/auto-fill/page.tsx: setup step 1 links the store listing instead of saying developer mode is required
+- components/ExtensionTokenSection.tsx: Profile's Browser Extension card links the store listing for anyone who has not installed yet
+- lib/appKnowledge.ts: help chat now knows the extension is named "Vantage Auto-Fill" and installs from the Chrome Web Store, with the listing URL
+- content/blog/vantage-is-officially-live.mdx: the Chrome extension bullet now links to the listing
+- no new DB columns, no new env vars, no packages
+
+---
+date: 2026-07-17
+type: Fix
+title: Extension connect always failed with "Invalid token"; hydration errors on date labels
+- extension/popup.js: the popup called https://vantage-ai.dev, but the apex domain 308-redirects to www.vantage-ai.dev and browsers strip the Authorization header on cross-origin redirects - so every token verification and fill request arrived unauthenticated and got a 401, making valid connection codes look invalid. VANTAGE_URL now points at https://www.vantage-ai.dev directly; manifest version bumped to 1.1.1 (needs a re-upload to the Chrome Web Store)
+- components/ExtensionTokenSection.tsx: the "Created <date>" label formatted the timestamp in the viewer's local timezone, which can differ from the server-rendered UTC date and trigger React hydration error 418 on the Profile page (seen in Sentry). Now formats with timeZone UTC so server and client render identical text
+- components/DocumentsClient.tsx: document dates used the browser's default locale and timezone against server-rendered HTML - same hydration mismatch on the Documents page. Now en-US + UTC
+- components/ApplicationDetailModal.tsx: applied_date is a DATE column, so local-timezone formatting showed the day before in negative-offset timezones; now formatted in UTC (display fix, modal is client-only so no hydration risk)
+- no new DB columns, no new env vars, no packages

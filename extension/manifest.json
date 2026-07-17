@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vantage - Auto-fill",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Pre-fill job application forms with your Vantage profile.",
   "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["<all_urls>"],

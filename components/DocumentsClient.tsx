@@ -31,10 +31,12 @@ function docTypeLabel(type: DocumentRow['type']): string {
 }
 
 function formatDate(dateValue: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+  // Fixed locale + UTC so the SSR and client render identical text (hydration safety)
+  return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'UTC',
   }).format(new Date(dateValue))
 }
 

@@ -465,7 +465,8 @@ export default function ApplicationDetailModal({ applicationId, onClose, onUpdat
                     </span>
                     {data.application.applied_date && (
                       <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                        Applied {new Date(data.application.applied_date).toLocaleDateString()}
+                        {/* applied_date is a DATE column; format in UTC or it shows a day early in negative-offset timezones */}
+                        Applied {new Date(data.application.applied_date).toLocaleDateString('en-US', { timeZone: 'UTC' })}
                       </span>
                     )}
                   </div>
