@@ -505,7 +505,6 @@ export const RATE_LIMIT_SPECS: RateLimitSpec[] = [
   { key: 'cover-letter', label: 'Cover letters', devLimit: 1, freeLimit: 10, proLimit: 4 },
   { key: 'parse-job', label: 'Job posting parses', devLimit: 5, freeLimit: 20, proLimit: 10 },
   { key: 'answer-question', label: 'Application question answers', devLimit: 5, freeLimit: 15, proLimit: 10 },
-  { key: 'analyze-form', label: 'Application form analyses', devLimit: 2, freeLimit: 10, proLimit: 10 },
   { key: 'extension-ai-fill', label: 'Extension auto-fills', devLimit: 2, freeLimit: 20, proLimit: 10 },
   { key: 'interview-prep-generate', label: 'Interview practice sessions', devLimit: 1, freeLimit: 5, proLimit: 5 },
   { key: 'interview-prep-assess', label: 'Interview answer feedback', devLimit: 5, freeLimit: 15, proLimit: 10 },

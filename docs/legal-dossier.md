@@ -62,9 +62,8 @@ contacts the user chooses; AI interview practice with voice input; AI
 job-search strategy feedback; an in-app help chatbot (answers questions
 about the product only); an experimental "Resume Studio" (edit a resume via
 AI instructions - works entirely in the browser session, nothing stored
-server-side); form auto-fill via Chrome extension, console snippet, or a
-copy-paste answers panel - all requiring the user to review and submit
-manually.
+server-side); form auto-fill via the Chrome extension, which requires the
+user to review and submit manually.
 
 ## Personal data collected
 

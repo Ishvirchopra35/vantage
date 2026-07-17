@@ -20,7 +20,7 @@ export default function ExtensionPage() {
         <section style={section}>
           <h2 style={h2}>What the extension does</h2>
           <p style={p}>The Vantage Chrome extension reads job application forms in your browser and fills them with answers generated from your profile, resume, and the specific job listing. It uses the nativeSetter pattern to correctly set values in React-based ATS platforms (the software companies use to screen applications, such as Greenhouse, Lever, and Workday) that silently ignore standard JavaScript value assignments.</p>
-          <p style={p}>The extension never submits forms automatically. It fills the fields and waits for you to review and submit manually.</p>
+          <p style={p}>The extension is how Vantage auto-fill works - there is no separate fill method to set up. The extension never submits forms automatically. It fills the fields and waits for you to review and submit manually.</p>
         </section>
 
         <section style={section}>
@@ -61,6 +61,10 @@ export default function ExtensionPage() {
           <div style={faq}>
             <p style={faqQ}>The extension is not filling fields.</p>
             <p style={p}>Some ATS platforms use non-standard form elements the extension cannot detect. Fill those fields in manually, and use the <strong style={strong}>Application Questions</strong> answerer on the apply workspace to draft answers for any open-ended prompts.</p>
+          </div>
+          <div style={faq}>
+            <p style={faqQ}>My connection code is correct but the popup says it is invalid.</p>
+            <p style={p}>This usually means the extension is on an older version. Go to <strong style={strong}>chrome://extensions</strong>, turn on <strong style={strong}>Developer mode</strong> (top right), and click <strong style={strong}>Update</strong> - Chrome also picks up new versions automatically within a few hours. Then try connecting again. If it still fails, generate a fresh code from your Profile page.</p>
           </div>
           <div style={faq}>
             <p style={faqQ}>Connection code expired or connection lost.</p>

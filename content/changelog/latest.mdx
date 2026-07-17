@@ -1425,3 +1425,14 @@ title: Extension connect always failed with "Invalid token"; hydration errors on
 - components/DocumentsClient.tsx: document dates used the browser's default locale and timezone against server-rendered HTML - same hydration mismatch on the Documents page. Now en-US + UTC
 - components/ApplicationDetailModal.tsx: applied_date is a DATE column, so local-timezone formatting showed the day before in negative-offset timezones; now formatted in UTC (display fix, modal is client-only so no hydration risk)
 - no new DB columns, no new env vars, no packages
+
+---
+date: 2026-07-17
+type: Update
+title: Auto-fill is extension-only - console snippet and answers panel removed
+- deleted app/api/generate-fill-snippet/route.ts and app/api/analyze-form/route.ts: the old Tier 2 (paste-into-console snippet) and Tier 3 (copy-paste answers panel) auto-fill fallbacks had no UI entry points left and are gone for good; the Chrome extension is the one auto-fill path
+- lib/rateLimit.ts: removed the analyze-form rate-limit spec, so the Usage Limits page no longer lists "Application form analyses"
+- lib/appKnowledge.ts: help chat now describes auto-apply as extension-only instead of "three ways"
+- app/(marketing)/docs/extension/page.tsx: notes the extension is the only fill method; new troubleshooting entry for a valid connection code being rejected by an outdated extension version (update via chrome://extensions)
+- CLAUDE.md, README.md, docs/legal-dossier.md: auto-apply sections rewritten around the extension; tier language removed
+- no new DB columns, no new env vars, no packages

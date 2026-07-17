@@ -83,7 +83,7 @@ Generates questions from a specific job's real requirements. Answer by voice or 
 
 ### Auto-apply
 
-Fills application forms for you and **never submits** - you always review first. Three tiers, most-to-least seamless:
+Fills application forms for you and **never submits** - you always review first. Powered by the [Vantage Auto-Fill Chrome extension](https://chromewebstore.google.com/detail/vantage-auto-fill/mgapanbbaplohlojbmghoglmpfpogook):
 
 ![Auto-apply setup](docs/screenshots/auto-apply.png)
 
