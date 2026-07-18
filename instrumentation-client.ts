@@ -13,6 +13,14 @@ Sentry.init({
   // Full tracing in dev; 10% in production so real traffic doesn't burn the
   // free-plan transaction quota. Errors are always captured regardless.
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1,
+
+  // Noise thrown by scripts that in-app browsers (Instagram/Facebook iOS
+  // WebView) inject into every page — not Vantage code.
+  ignoreErrors: [
+    "window.webkit.messageHandlers",
+    "_AutofillCallbackHandler",
+    "instantSearchSDKJSBridgeClearHighlight",
+  ],
   // Enable logs to be sent to Sentry
   enableLogs: true,
 

@@ -1436,3 +1436,10 @@ title: Auto-fill is extension-only - console snippet and answers panel removed
 - app/(marketing)/docs/extension/page.tsx: notes the extension is the only fill method; new troubleshooting entry for a valid connection code being rejected by an outdated extension version (update via chrome://extensions)
 - CLAUDE.md, README.md, docs/legal-dossier.md: auto-apply sections rewritten around the extension; tier language removed
 - no new DB columns, no new env vars, no packages
+
+---
+date: 2026-07-18
+type: Fix
+title: Sentry no longer records errors thrown by in-app browser scripts
+- instrumentation-client.ts: added ignoreErrors for "window.webkit.messageHandlers", "_AutofillCallbackHandler", and "instantSearchSDKJSBridgeClearHighlight" - errors thrown by scripts that the Instagram/Facebook iOS in-app browsers inject into every page they open, not by Vantage code (seen in Sentry from a link-in-bio visitor)
+- no new DB columns, no new env vars, no packages
