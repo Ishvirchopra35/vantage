@@ -8,10 +8,17 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CustomSelect from '@/components/CustomSelect'
 import PageHeader from '@/components/ui/PageHeader'
 import ErrorNotice from '@/components/ui/ErrorNotice'
+import OutcomeInsights from '@/components/OutcomeInsights'
+import { createClient } from '@/lib/supabase/client'
 
 // --- Types --------------------------------------------------------------------
 
 type Status = ApplicationRow['status']
+
+interface ResumeOption {
+  id: string
+  label: string
+}
 
 // --- Status cycle -------------------------------------------------------------
 // Only the specific valid forward transitions - not an all-statuses cycle.
@@ -61,7 +68,11 @@ function daysSince(dateStr: string | null): string {
 }
 
 function avgAts(rows: ApplicationRow[]): string {
-  const scores = rows.map(r => r.overall_score).filter((s): s is number => s !== null)
+  // typeof rather than a null check: the POST response has no overall_score
+  // key at all (the score is joined in only by the GET handler), so a freshly
+  // logged row carries undefined and a `!== null` filter would let it through
+  // and turn the average into NaN.
+  const scores = rows.map(r => r.overall_score).filter((s): s is number => typeof s === 'number')
   if (!scores.length) return '-'
   return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length).toString()
 }
@@ -194,8 +205,18 @@ export default function TrackerPage() {
   const [logRole, setLogRole] = useState('')
   const [logStatus, setLogStatus] = useState<Status>('applied')
   const [logDate, setLogDate] = useState(new Date().toISOString().slice(0, 10))
+  const [logResumeDocId, setLogResumeDocId] = useState('')
   const [logSubmitting, setLogSubmitting] = useState(false)
   const [logError, setLogError] = useState<string | null>(null)
+
+  // Resumes available to attach to a manually logged application. Without this
+  // link there is no way to tell which resume produced which outcome, so
+  // manual entries would sit outside the response-rate analysis entirely.
+  const [resumeOptions, setResumeOptions] = useState<ResumeOption[]>([])
+
+  // Bumped whenever an application reaches a new outcome, so the insight panel
+  // refetches instead of showing a stale count.
+  const [outcomesKey, setOutcomesKey] = useState(0)
 
   // -- Fetch -----------------------------------------------------------------
 
@@ -212,6 +233,40 @@ export default function TrackerPage() {
       }
       setApplications(data.applications)
       setAtLimit(data.atLimit)
+    })()
+  }, [])
+
+  // Tailored resumes the user can attach when logging by hand. RLS scopes this
+  // to their own rows. Failure is silent - the picker just stays empty rather
+  // than blocking the log form.
+  useEffect(() => {
+    void (async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('documents')
+        .select('id, created_at, jobs(title, company)')
+        .eq('type', 'tailored_resume')
+        .order('created_at', { ascending: false })
+        .limit(30)
+
+      const rows = (data ?? []) as Array<{
+        id: string
+        created_at: string
+        jobs: { title: string | null; company: string | null } | Array<{ title: string | null; company: string | null }> | null
+      }>
+
+      setResumeOptions(
+        rows.map(row => {
+          const job = Array.isArray(row.jobs) ? row.jobs[0] : row.jobs
+          const parts = [job?.company, job?.title].filter(Boolean)
+          return {
+            id: row.id,
+            label: parts.length > 0
+              ? parts.join(' · ')
+              : `Resume from ${new Date(row.created_at).toLocaleDateString()}`,
+          }
+        })
+      )
     })()
   }, [])
 
@@ -250,6 +305,9 @@ export default function TrackerPage() {
     setApplications(prev =>
       prev.map(a => (a.id === row.id ? { ...a, status: newStatus } : a))
     )
+    // A status change is what turns an application into a decided outcome, so
+    // this is the moment the insight panel has something new to say.
+    setOutcomesKey(k => k + 1)
   }
 
   // -- Delete - remove row only after confirmed 204 --------------------------
@@ -288,7 +346,7 @@ export default function TrackerPage() {
       job_url: null,
       status: logStatus,
       applied_date: logDate || null,
-      resume_doc_id: null,
+      resume_doc_id: logResumeDocId || null,
       cover_letter_doc_id: null,
       ats_score_id: null,
       notes: null,
@@ -298,12 +356,15 @@ export default function TrackerPage() {
       overall_score: null,
     }
 
+    const submittedResumeDocId = logResumeDocId
+
     setApplications(prev => [optimisticRow, ...prev])
     setShowLogForm(false)
     setLogCompany('')
     setLogRole('')
     setLogStatus('applied')
     setLogDate(new Date().toISOString().slice(0, 10))
+    setLogResumeDocId('')
 
     const { data, error: postError } = await apiFetch<{ application: ApplicationRow }>(
       '/api/applications',
@@ -314,6 +375,7 @@ export default function TrackerPage() {
           role: optimisticRow.role,
           status: optimisticRow.status,
           applied_date: optimisticRow.applied_date,
+          ...(submittedResumeDocId ? { resume_doc_id: submittedResumeDocId } : {}),
         }),
       }
     )
@@ -326,14 +388,18 @@ export default function TrackerPage() {
       setShowLogForm(true)
       setLogCompany(optimisticRow.company)
       setLogRole(optimisticRow.role)
+      setLogResumeDocId(submittedResumeDocId)
       setLogError(postError ?? 'Failed to log application.')
       return
     }
 
-    // Replace temp row with real row from server
-    setApplications(prev =>
-      prev.map(a => (a.id === tempId ? data.application : a))
-    )
+    // Replace temp row with real row from server. The insert response has no
+    // joined score, so normalise it to null rather than leaving it undefined.
+    const savedRow: ApplicationRow = {
+      ...data.application,
+      overall_score: data.application.overall_score ?? null,
+    }
+    setApplications(prev => prev.map(a => (a.id === tempId ? savedRow : a)))
   }
 
   // --- Render ---------------------------------------------------------------
@@ -376,9 +442,14 @@ export default function TrackerPage() {
         {/* -- Log form ----------------------------------------------------- */}
         {showLogForm && (
           <div style={{ ...card, marginBottom: '20px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '14px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: resumeOptions.length > 0 ? '4px' : '14px' }}>
               Log an application
             </div>
+            {resumeOptions.length > 0 && (
+              <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '14px' }}>
+                Attaching the resume you used lets Vantage learn which of your resumes get replies.
+              </div>
+            )}
             <div className="tracker-log-form">
               <div style={{ flex: '1 1 160px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Company</div>
@@ -415,6 +486,22 @@ export default function TrackerPage() {
                   style={inputStyle}
                 />
               </div>
+              {resumeOptions.length > 0 && (
+                <div style={{ flex: '1 1 200px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>
+                    Resume used <span style={{ opacity: 0.7 }}>(optional)</span>
+                  </div>
+                  <CustomSelect
+                    value={logResumeDocId}
+                    onChange={setLogResumeDocId}
+                    placeholder="Not sure"
+                    options={[
+                      { value: '', label: 'Not sure' },
+                      ...resumeOptions.map(r => ({ value: r.id, label: r.label })),
+                    ]}
+                  />
+                </div>
+              )}
               <button
                 onClick={handleLogSubmit}
                 disabled={logSubmitting || !logCompany.trim() || !logRole.trim()}
@@ -448,6 +535,9 @@ export default function TrackerPage() {
             ))}
           </div>
         )}
+
+        {/* -- What is working ---------------------------------------------- */}
+        {!loading && applications.length > 0 && <OutcomeInsights refreshKey={outcomesKey} />}
 
         {/* -- Loading: skeleton mirrors stats grid + table ------------------ */}
         {loading && (

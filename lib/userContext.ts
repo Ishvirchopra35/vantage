@@ -6,6 +6,7 @@
 
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { getRemainingLimits } from './rateLimit';
+import { analyzeOutcomes, type OutcomeAnalysis } from './outcomes';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -71,6 +72,9 @@ export interface UserContext {
   avgKeywordScore?: number | null;
   commonMissingKeywords?: string[] | null; // top 8
   avgImprovement?: number | null; // points
+
+  // What actually correlates with getting a response
+  outcomes?: OutcomeAnalysis | null;
 
   // Subscription
   plan?: 'free' | 'pro' | null;
@@ -201,16 +205,17 @@ async function fetchSubscription(svc: ServiceClient, userId: string) {
 export async function buildUserContext(userId: string): Promise<UserContext> {
   const svc = serviceClient();
 
-  // All six sources are independent, so they load in parallel. Each one
+  // All seven sources are independent, so they load in parallel. Each one
   // degrades to null/{} on failure - a missing section should never take
   // down the AI route that needs the rest of the context.
-  const [profile, resume, appHistory, ats, subscription, limits] = await Promise.all([
+  const [profile, resume, appHistory, ats, subscription, limits, outcomes] = await Promise.all([
     fetchProfile(svc, userId).catch(() => null),
     fetchBaseResume(svc, userId).catch(() => null),
     fetchApplicationHistory(svc, userId).catch(() => null),
     fetchAtsPerformance(svc, userId).catch(() => null),
     fetchSubscription(svc, userId).catch(() => null),
     getRemainingLimits(userId).catch(() => ({} as Record<string, number>)),
+    analyzeOutcomes(userId).catch(() => null),
   ]);
 
   return {
@@ -238,6 +243,8 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
     avgKeywordScore: ats?.avgKeyword,
     commonMissingKeywords: ats?.missingKeywords,
     avgImprovement: ats?.avgImprovement,
+
+    outcomes,
 
     plan: subscription?.plan || 'free',
     remainingLimits: limits,
@@ -269,6 +276,24 @@ export function formatContextForPrompt(ctx: UserContext): string {
       }).join('\n\n')
     : 'None provided';
 
+  // Only stated as fact once there is enough decided history to back it. Below
+  // the floor the model is told the sample is thin so it does not present a
+  // coincidence from four applications as a proven pattern.
+  const outcomes = ctx.outcomes;
+  let outcomeStr: string;
+  if (!outcomes || outcomes.decidedApplications === 0) {
+    outcomeStr = 'No applications have reached a decision yet - nothing to learn from so far.';
+  } else if (!outcomes.confident) {
+    outcomeStr = `Only ${outcomes.decidedApplications} application(s) have reached a decision, which is too few to draw conclusions from. Do not claim to know what works for this candidate yet.`;
+  } else if (outcomes.signals.length === 0) {
+    outcomeStr = `${outcomes.decidedApplications} decided applications at a ${outcomes.overallResponseRate}% response rate. No single factor stands out yet.`;
+  } else {
+    const lines = outcomes.signals
+      .map((s) => `- ${s.factor}: ${s.respondedRate}% response rate vs ${s.comparisonRate}% for ${s.comparisonLabel} (n=${s.sampleSize})`)
+      .join('\n');
+    outcomeStr = `Based on ${outcomes.decidedApplications} decided applications (${outcomes.overallResponseRate}% overall response rate):\n${lines}`;
+  }
+
   return `CANDIDATE PROFILE:
 Name: ${ctx.fullName || 'Not provided'} | University: ${ctx.university || 'Not provided'}, graduating ${ctx.graduationYear || 'N/A'}
 Experience: ${ctx.yearsExperience ?? 'Not provided'} years | Target roles: ${targetStr}
@@ -282,6 +307,9 @@ Status: Applied ${breakdown.applied || 0} / Interviewing ${breakdown.interviewin
 ATS PERFORMANCE:
 Average ATS score: ${ctx.avgOverallScore ?? 'N/A'}/100 | Average improvement from tailoring: +${ctx.avgImprovement ?? 0} points
 Most common missing keywords: ${keywords}
+
+WHAT HAS ACTUALLY WORKED FOR THIS CANDIDATE:
+${outcomeStr}
 
 WORK EXPERIENCE:
 ${expStr}

@@ -121,9 +121,22 @@ export async function POST(request: Request): Promise<Response> {
     applied_date?: string;
     notes?: string;
     ats_score_id?: string;
+    resume_doc_id?: string;
+    cover_letter_doc_id?: string;
   }>(body, ['company', 'role', 'status']);
   if (!validation.valid) return err(validation.error, 400);
-  const { company, role, status, job_url, job_id, applied_date, notes, ats_score_id } = validation.data;
+  const {
+    company,
+    role,
+    status,
+    job_url,
+    job_id,
+    applied_date,
+    notes,
+    ats_score_id,
+    resume_doc_id,
+    cover_letter_doc_id,
+  } = validation.data;
 
   const supabase = await createClient();
 
@@ -144,6 +157,38 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
+  // The document and score foreign keys only check that the row exists, not
+  // that it belongs to this user - so a caller could otherwise link someone
+  // else's document and have it read back into their own outcome analysis.
+  // These selects run under RLS, so anything that isn't theirs comes back
+  // empty and the link is dropped rather than stored.
+  const claimedDocIds = [resume_doc_id, cover_letter_doc_id].filter(
+    (id): id is string => typeof id === 'string' && id.length > 0
+  );
+  let ownedDocIds = new Set<string>();
+  if (claimedDocIds.length > 0) {
+    const { data: ownedDocs } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('user_id', user.id)
+      .in('id', claimedDocIds);
+    ownedDocIds = new Set(((ownedDocs ?? []) as { id: string }[]).map((d) => d.id));
+  }
+  const safeResumeDocId = resume_doc_id && ownedDocIds.has(resume_doc_id) ? resume_doc_id : null;
+  const safeCoverDocId =
+    cover_letter_doc_id && ownedDocIds.has(cover_letter_doc_id) ? cover_letter_doc_id : null;
+
+  let safeAtsScoreId: string | null = null;
+  if (typeof ats_score_id === 'string' && ats_score_id) {
+    const { data: ownedScore } = await supabase
+      .from('ats_scores')
+      .select('id')
+      .eq('id', ats_score_id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (ownedScore) safeAtsScoreId = ats_score_id;
+  }
+
   try {
     const { data: newRow, error: insertError } = await supabase
       .from('applications')
@@ -156,7 +201,9 @@ export async function POST(request: Request): Promise<Response> {
         job_id: job_id ?? null,
         applied_date: applied_date ?? null,
         notes: notes ?? null,
-        ats_score_id: ats_score_id ?? null,
+        ats_score_id: safeAtsScoreId,
+        resume_doc_id: safeResumeDocId,
+        cover_letter_doc_id: safeCoverDocId,
       })
       .select(
         'id, user_id, job_id, job_title, company, role, job_url, status, applied_date, resume_doc_id, cover_letter_doc_id, ats_score_id, notes, deleted_at, created_at'

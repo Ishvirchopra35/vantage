@@ -88,6 +88,30 @@ export async function PATCH(
       }
     }
 
+    // Same for the document and score links. Their foreign keys only check
+    // that the row exists, not who owns it, so without this a caller could
+    // attach another user's document and have it read back into their own
+    // outcome analysis.
+    const linkChecks: Array<{ field: string; table: 'documents' | 'ats_scores'; label: string }> = [
+      { field: 'resume_doc_id', table: 'documents', label: 'Resume document' },
+      { field: 'cover_letter_doc_id', table: 'documents', label: 'Cover letter document' },
+      { field: 'ats_score_id', table: 'ats_scores', label: 'ATS score' },
+    ];
+    for (const { field, table, label } of linkChecks) {
+      const value = updates[field];
+      if (typeof value !== 'string' || !value) continue;
+      const { data: linkedRow } = await supabase
+        .from(table)
+        .select('id')
+        .eq('id', value)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!linkedRow) {
+        await logRoute('/api/applications/[id]', user.id, Date.now() - start, 404);
+        return notFound(label);
+      }
+    }
+
     const { data: updatedRow, error: updateError } = await supabase
       .from('applications')
       .update(updates)

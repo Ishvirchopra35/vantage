@@ -1471,3 +1471,18 @@ title: Every error box across the app now has a "Report this bug" link
 - components/ResumeUpload.tsx, ProfileForm.tsx, ExtensionTokenSection.tsx, SettingsClient.tsx, ResumeStudio.tsx: error displays converted to ErrorNotice
 - intentionally untouched: auth pages (wrong-credential errors are not bugs), admin components, and tiny inline span errors inside flex rows (networking log row, jobs preset row, application modal, help chat) where a block box would break the layout
 - no new DB columns, no new env vars, no packages
+
+---
+date: 2026-07-20
+type: Feature
+title: Vantage now learns which of your applications actually get replies
+- lib/outcomes.ts (new): the outcome loop - joins each application to the resume sent with it and the ATS score that resume earned, then compares response rates across those attributes. Purely statistical, no AI call, so the numbers shown to users and injected into prompts are derived from their data rather than inferred by a model. Only counts applications with a final outcome (interviewing, offer, rejected, ghosted); still-pending "applied" rows are excluded so they cannot be read as failures. Needs 15 decided applications before reporting anything, at least 5 on each side of a comparison, and a 1.4x difference before a factor is called a signal
+- lib/userContext.ts: outcome analysis added as a seventh parallel fetch and a new "WHAT HAS ACTUALLY WORKED FOR THIS CANDIDATE" prompt section, so every AI feature knows which resumes got replies rather than just the overall response rate. Below the threshold the prompt explicitly tells the model not to claim it knows what works yet. Env vars are now read per call instead of at module scope
+- app/api/outcomes/route.ts (new): read-only endpoint exposing the analysis to the tracker
+- components/OutcomeInsights.tsx (new): "What is working" panel on the tracker. Below the threshold it shows progress toward it, so the value is legible before there is enough data to prove it; above it, the factors that separate replies from silence
+- app/api/applications/route.ts: POST now accepts resume_doc_id and cover_letter_doc_id, verified under RLS to belong to the caller before insert (the FKs only check that a row exists, not who owns it). The same ownership check was added for ats_score_id, which was previously stored unverified
+- app/api/applications/[id]/route.ts: PATCH accepted resume_doc_id, cover_letter_doc_id, and ats_score_id with no ownership check at all, so a caller could attach another user's document or score to their own application and have it read back. All three are now verified against the caller, matching the check job_id already had
+- app/(dashboard)/tracker/page.tsx: manually logged applications can attach the resume used, which previously was always null and left manual entries outside the analysis entirely
+- app/(dashboard)/tracker/page.tsx: fixed "Avg ATS score" showing NaN after logging an application. The POST response has no overall_score key (the score is joined in only by the GET handler), and the average filtered on `!== null`, which let undefined through into the sum. Now filters on typeof number, and the saved row normalises overall_score to null
+- tests/lib/outcomes.test.ts, tests/lib/userContextPrompt.test.ts (new): 12 tests covering bucket thresholds, pending-application exclusion, unscored-row handling, and the prompt wording at each confidence level
+- no new DB columns, no new env vars, no packages
