@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import SkeletonLoader from '@/components/ui/SkeletonLoader';
 import CustomSelect from '@/components/CustomSelect';
 import PageHeader from '@/components/ui/PageHeader';
+import ErrorNotice from '@/components/ui/ErrorNotice';
+import { recordFeatureSuccess } from '@/components/FeatureFeedbackNudge';
 
 type ScoreColor = 'red' | 'amber' | 'green';
 
@@ -413,6 +415,7 @@ export default function AtsPage() {
       }
 
       setRunResult(json.score);
+      recordFeatureSuccess();
 
       // Refresh scores so history and insights stay current after inline run.
       const {
@@ -640,11 +643,7 @@ export default function AtsPage() {
           </button>
         </div>
 
-        {runError && (
-          <div style={{ marginTop: '12px', fontSize: '13px', color: 'var(--score-red)' }}>
-            {runError}
-          </div>
-        )}
+        {runError && <ErrorNotice message={runError} style={{ marginTop: '12px' }} />}
 
         {runResult && (
           <div

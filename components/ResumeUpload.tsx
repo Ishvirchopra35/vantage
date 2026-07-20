@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { rateLimitMessage } from '@/lib/rateLimitMessage'
 import { createClient } from '@/lib/supabase/client'
+import ErrorNotice from '@/components/ui/ErrorNotice'
 
 interface ResumeInfo {
   id: string
@@ -204,21 +205,7 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
         )}
       </button>
 
-      {error && (
-        <div
-          style={{
-            marginTop: '10px',
-            padding: '10px 14px',
-            background: 'rgba(239,68,68,0.08)',
-            border: '1px solid rgba(239,68,68,0.2)',
-            borderRadius: '10px',
-            color: 'var(--score-red)',
-            fontSize: '13px',
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {error && <ErrorNotice message={error} style={{ marginTop: '10px' }} />}
 
       {success && (
         <div

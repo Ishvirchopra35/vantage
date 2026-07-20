@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { StrategyFeedback } from '@/app/api/strategy-feedback/route'
 import { asArray } from '@/lib/asArray'
 import ArrowIcon from '@/components/ui/ArrowIcon'
+import { recordFeatureSuccess } from '@/components/FeatureFeedbackNudge'
 
 function Spinner() {
   return (
@@ -90,6 +91,8 @@ export default function StrategyReport() {
       }
       setFeedback(json.feedback ?? null)
       setGeneratedAt(json.generatedAt ?? null)
+      // Only a forced run generates a fresh report; cached loads don't count.
+      if (force && json.feedback) recordFeatureSuccess()
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -133,7 +136,15 @@ export default function StrategyReport() {
         alignItems: 'center',
         gap: '16px',
       }}>
-        <span>{error}</span>
+        <span>
+          {error}{' '}
+          <Link
+            href="/feedback?type=bug"
+            style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'underline', textUnderlineOffset: '3px', whiteSpace: 'nowrap' }}
+          >
+            Report this bug
+          </Link>
+        </span>
         <button
           type="button"
           onClick={() => void load()}

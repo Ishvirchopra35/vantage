@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import Spinner from '@/components/ui/Spinner';
 import CustomSelect from '@/components/CustomSelect';
 
@@ -56,6 +56,16 @@ export default function FeedbackForm(): React.ReactElement {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+
+  // Preselect the subject from a ?type= query param (e.g. error boxes link
+  // to /feedback?type=bug). Read via window.location instead of
+  // useSearchParams so the page can stay statically rendered.
+  useEffect(() => {
+    const type = new URLSearchParams(window.location.search).get('type');
+    if (type && SUBJECT_OPTIONS.some((o) => o.value === type)) {
+      setSubject(type as SubjectValue);
+    }
+  }, []);
 
   async function handleSend(): Promise<void> {
     if (sending) return;

@@ -9,6 +9,8 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CustomSelect from '@/components/CustomSelect'
 import PageHeader from '@/components/ui/PageHeader'
 import ExternalLinkIcon from '@/components/ui/ExternalLinkIcon'
+import ErrorNotice from '@/components/ui/ErrorNotice'
+import { recordFeatureSuccess } from '@/components/FeatureFeedbackNudge'
 
 // --- Types --------------------------------------------------------------------
 
@@ -338,6 +340,7 @@ export default function NetworkingPage() {
       setEditedText(msg.generated_message ?? '')
       setSavedRow(msg)
       setMessages(prev => [msg, ...prev])
+      recordFeatureSuccess()
     }
     setGenerating(false)
   }
@@ -581,9 +584,7 @@ export default function NetworkingPage() {
           {searching ? 'Searching…' : 'Find contacts'}
         </button>
 
-        {searchError && (
-          <div style={{ marginTop: '12px', fontSize: '12px', color: '#ef4444' }}>{searchError}</div>
-        )}
+        {searchError && <ErrorNotice message={searchError} style={{ marginTop: '12px' }} />}
 
         {searchDone && contacts.length === 0 && (
           <div style={{ marginTop: '16px', fontSize: '13px', color: 'var(--muted)' }}>
@@ -659,9 +660,7 @@ export default function NetworkingPage() {
           {generating ? 'Generating…' : 'Generate'}
         </button>
 
-        {generateError && (
-          <div style={{ marginTop: '12px', fontSize: '12px', color: '#ef4444' }}>{generateError}</div>
-        )}
+        {generateError && <ErrorNotice message={generateError} style={{ marginTop: '12px' }} />}
 
         {editedText && (
           <div style={{ marginTop: '18px' }}>

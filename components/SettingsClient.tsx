@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import Spinner from '@/components/ui/Spinner'
 import ResumeUpload from '@/components/ResumeUpload'
 import PageHeader from '@/components/ui/PageHeader'
+import ErrorNotice from '@/components/ui/ErrorNotice'
 
 interface Props {
   userId: string
@@ -387,9 +388,7 @@ export default function SettingsClient({ userId, email, marketingEmailsEnabled }
               }} />
             </button>
           </div>
-          {marketingError && (
-            <div style={{ fontSize: '12px', color: 'var(--score-red)', marginTop: '10px' }}>{marketingError}</div>
-          )}
+          {marketingError && <ErrorNotice message={marketingError} style={{ marginTop: '10px' }} />}
         </div>
 
         {/* -- Resume -------------------------------------------------- */}
@@ -474,12 +473,8 @@ export default function SettingsClient({ userId, email, marketingEmailsEnabled }
             fresh while keeping your account. Delete removes everything including the account.
             Neither can be undone.
           </div>
-          {resetError && (
-            <div style={{ fontSize: '12px', color: 'var(--score-red)', marginBottom: '12px' }}>{resetError}</div>
-          )}
-          {deleteError && (
-            <div style={{ fontSize: '12px', color: 'var(--score-red)', marginBottom: '12px' }}>{deleteError}</div>
-          )}
+          {resetError && <ErrorNotice message={resetError} style={{ marginBottom: '12px' }} />}
+          {deleteError && <ErrorNotice message={deleteError} style={{ marginBottom: '12px' }} />}
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
               type="button"

@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react'
 import Spinner from '@/components/ui/Spinner'
 import { createClient } from '@/lib/supabase/client'
 import { RESUME_CSS } from '@/lib/resumeCss'
+import ErrorNotice from '@/components/ui/ErrorNotice'
 
 const STORAGE_KEY = 'vantage-resume-studio-html'
 const MAX_FILE_BYTES = 5 * 1024 * 1024
@@ -395,9 +396,7 @@ export default function ResumeStudio(): React.ReactElement {
               <Spinner size="sm" /> Looking for your tailored resumes…
             </div>
           )}
-          {error && (
-            <div style={{ marginTop: '14px', fontSize: '12px', color: '#ef4444', textAlign: 'center' }}>{error}</div>
-          )}
+          {error && <ErrorNotice message={error} style={{ marginTop: '14px' }} />}
         </div>
       </div>
     )
@@ -464,9 +463,7 @@ export default function ResumeStudio(): React.ReactElement {
         </div>
 
         <div style={{ padding: '14px 16px', borderTop: '1px solid var(--border)' }}>
-          {error && (
-            <div style={{ fontSize: '12px', color: '#ef4444', marginBottom: '10px' }}>{error}</div>
-          )}
+          {error && <ErrorNotice message={error} style={{ marginBottom: '10px' }} />}
           {suggestionChips.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
               {suggestionChips.map(chip => (

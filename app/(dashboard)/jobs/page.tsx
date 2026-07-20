@@ -9,6 +9,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CustomSelect from '@/components/CustomSelect'
 import PageHeader from '@/components/ui/PageHeader'
 import ExternalLinkIcon from '@/components/ui/ExternalLinkIcon'
+import ErrorNotice from '@/components/ui/ErrorNotice'
 import { track } from '@/lib/analytics'
 import { rateLimitMessage } from '@/lib/rateLimitMessage'
 import { createClient } from '@/lib/supabase/client'
@@ -541,19 +542,7 @@ export default function JobsPage() {
   return (
     <div className="dashboard-page">
 
-      {error && (
-        <div style={{
-          marginBottom: '16px',
-          padding: '12px 14px',
-          borderRadius: '10px',
-          background: 'rgba(239,68,68,0.08)',
-          border: '1px solid rgba(239,68,68,0.2)',
-          fontSize: '13px',
-          color: 'var(--score-red)',
-        }}>
-          {error}
-        </div>
-      )}
+      {error && <ErrorNotice message={error} style={{ marginBottom: '16px' }} />}
 
       {/* -- Header -------------------------------------------------------- */}
       <PageHeader

@@ -8,6 +8,7 @@ import { updateProfile } from '@/app/(dashboard)/actions';
 import { track } from '@/lib/analytics';
 import ResumeUpload from '@/components/ResumeUpload';
 import CustomSelect from '@/components/CustomSelect';
+import ErrorNotice from '@/components/ui/ErrorNotice';
 
 export interface WorkExperience {
   company: string;
@@ -1068,19 +1069,7 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
       )}
 
       {error && (
-        <div
-          style={{
-            marginTop: '16px',
-            borderRadius: 'var(--radius)',
-            border: '1px solid rgba(239,68,68,0.3)',
-            background: 'rgba(239,68,68,0.08)',
-            padding: '12px 16px',
-            color: '#ef4444',
-            fontSize: '13px',
-          }}
-        >
-          {error}
-        </div>
+        <ErrorNotice message={error} style={{ marginTop: '16px', borderRadius: 'var(--radius)', padding: '12px 16px' }} />
       )}
     </div>
   );

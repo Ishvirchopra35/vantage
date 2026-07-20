@@ -7,6 +7,7 @@ import ApplicationDetailModal from '@/components/ApplicationDetailModal'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CustomSelect from '@/components/CustomSelect'
 import PageHeader from '@/components/ui/PageHeader'
+import ErrorNotice from '@/components/ui/ErrorNotice'
 
 // --- Types --------------------------------------------------------------------
 
@@ -427,19 +428,7 @@ export default function TrackerPage() {
                 {logSubmitting ? <Spinner /> : 'Log'}
               </button>
             </div>
-            {logError && (
-              <div style={{
-                marginTop: '12px',
-                padding: '10px 14px',
-                background: 'rgba(239,68,68,0.08)',
-                border: '1px solid rgba(239,68,68,0.2)',
-                borderRadius: '10px',
-                color: '#ef4444',
-                fontSize: '13px',
-              }}>
-                {logError}
-              </div>
-            )}
+            {logError && <ErrorNotice message={logError} style={{ marginTop: '12px' }} />}
           </div>
         )}
 
@@ -477,18 +466,7 @@ export default function TrackerPage() {
         )}
 
         {/* -- Error -------------------------------------------------------- */}
-        {error && (
-          <div style={{
-            padding: '16px',
-            background: 'rgba(239,68,68,0.08)',
-            border: '1px solid rgba(239,68,68,0.2)',
-            borderRadius: 'var(--radius)',
-            color: '#ef4444',
-            fontSize: '14px',
-          }}>
-            {error}
-          </div>
-        )}
+        {error && <ErrorNotice message={error} style={{ padding: '16px', borderRadius: 'var(--radius)' }} />}
 
         {/* -- Empty state -------------------------------------------------- */}
         {!loading && !error && applications.length === 0 && (
@@ -516,19 +494,7 @@ export default function TrackerPage() {
         )}
 
         {/* -- Row-level error ---------------------------------------------- */}
-        {rowError && (
-          <div style={{
-            padding: '10px 14px',
-            background: 'rgba(239,68,68,0.08)',
-            border: '1px solid rgba(239,68,68,0.2)',
-            borderRadius: '10px',
-            color: '#ef4444',
-            fontSize: '13px',
-            marginBottom: '12px',
-          }}>
-            {rowError}
-          </div>
-        )}
+        {rowError && <ErrorNotice message={rowError} style={{ marginBottom: '12px' }} />}
 
         {/* -- Table -------------------------------------------------------- */}
         {!loading && applications.length > 0 && (

@@ -9,6 +9,8 @@ import CustomSelect from '@/components/CustomSelect'
 import ArrowIcon from '@/components/ui/ArrowIcon'
 import PageHeader from '@/components/ui/PageHeader'
 import { sessionProgress } from '@/lib/interviewProgress'
+import ErrorNotice from '@/components/ui/ErrorNotice'
+import { recordFeatureSuccess } from '@/components/FeatureFeedbackNudge'
 
 // --- Types --------------------------------------------------------------------
 
@@ -359,6 +361,7 @@ export default function InterviewPage() {
       }
       setSessions(prev => [json.session!, ...prev])
       setActiveSession(json.session!)
+      recordFeatureSuccess()
     } catch (e) {
       console.error('[interview] start session request failed:', e)
       setError('Network error. Please try again.')
@@ -475,11 +478,7 @@ export default function InterviewPage() {
             {useManual ? <><ArrowIcon direction="left" /> Select from tracker instead</> : "Don't see your job? Enter it manually"}
           </button>
 
-          {error && (
-            <div style={{ marginTop: '14px', padding: '12px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '13px', color: '#ef4444' }}>
-              {error}
-            </div>
-          )}
+          {error && <ErrorNotice message={error} style={{ marginTop: '14px' }} />}
         </div>
 
         {/* How practice works */}
@@ -628,12 +627,7 @@ export default function InterviewPage() {
         </button>
       </div>
 
-      {error && (
-        <div style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '13px', color: '#ef4444' }}>
-          {error}
-          <button type="button" onClick={() => setError(null)} style={{ marginLeft: '12px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>Dismiss</button>
-        </div>
-      )}
+      {error && <ErrorNotice message={error} style={{ marginBottom: '16px' }} onDismiss={() => setError(null)} />}
 
       {!supportsSpeech() && (
         <div style={{ marginBottom: '16px', padding: '10px 14px', borderRadius: '8px', background: 'var(--card)', fontSize: '12px', color: 'var(--muted)' }}>

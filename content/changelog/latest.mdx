@@ -1443,3 +1443,31 @@ type: Fix
 title: Sentry no longer records errors thrown by in-app browser scripts
 - instrumentation-client.ts: added ignoreErrors for "window.webkit.messageHandlers", "_AutofillCallbackHandler", and "instantSearchSDKJSBridgeClearHighlight" - errors thrown by scripts that the Instagram/Facebook iOS in-app browsers inject into every page they open, not by Vantage code (seen in Sentry from a link-in-bio visitor)
 - no new DB columns, no new env vars, no packages
+
+---
+date: 2026-07-18
+type: Update
+title: Vantage now has a Discord community
+- components/marketing/MarketingFooter.tsx: Discord icon added to the footer social row and a "Discord" text link added to the Resources column (both open https://discord.gg/GqHryVbKyc in a new tab); footer link columns now support external links
+- no new DB columns, no new env vars, no packages
+
+---
+date: 2026-07-18
+type: Improvement
+title: Feedback is easier to reach at the moment it matters
+- components/ui/ErrorNotice.tsx (new): shared inline error box with a "Report this bug" link to /feedback?type=bug, so failures can be reported the moment they happen
+- components/FeatureFeedbackNudge.tsx (new): small dismissible "How did that go?" line shown after successful actions, heavily rate limited - only after 3 lifetime successes, at most once every 14 days, and it shares the dismissed-at localStorage key with the dashboard feedback card so the two prompts never stack; dismissing either silences both
+- app/(dashboard)/tailor/page.tsx: all five inline error boxes replaced with ErrorNotice; job parse, ATS score, resume tailoring, and cover letter successes now count toward the nudge, which renders at the bottom of step 3
+- app/(marketing)/feedback/FeedbackForm.tsx: subject dropdown preselects from a ?type= query param (reads window.location so the page stays static)
+- no new DB columns, no new env vars, no packages
+
+---
+date: 2026-07-18
+type: Improvement
+title: Every error box across the app now has a "Report this bug" link
+- components/ui/ErrorNotice.tsx: gained an optional onDismiss prop for error boxes that had their own dismiss button
+- app/(dashboard)/networking/page.tsx, interview/page.tsx, ats/page.tsx, tracker/page.tsx, jobs/page.tsx, apply/[jobId]/page.tsx: inline error boxes replaced with the shared ErrorNotice (report link included); AI successes on networking, interview, ATS, apply, and strategy now count toward the rate-limited feedback nudge
+- app/(dashboard)/strategy/StrategyReport.tsx: the error banner keeps its Retry button and adds a report link; a forced report refresh counts as a feature success
+- components/ResumeUpload.tsx, ProfileForm.tsx, ExtensionTokenSection.tsx, SettingsClient.tsx, ResumeStudio.tsx: error displays converted to ErrorNotice
+- intentionally untouched: auth pages (wrong-credential errors are not bugs), admin components, and tiny inline span errors inside flex rows (networking log row, jobs preset row, application modal, help chat) where a block box would break the layout
+- no new DB columns, no new env vars, no packages

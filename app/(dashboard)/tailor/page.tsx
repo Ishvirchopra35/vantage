@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import ArrowIcon from '@/components/ui/ArrowIcon'
 import PageHeader from '@/components/ui/PageHeader'
 import TailorDiff, { formatTailoredBullets, type TailorChange } from '@/components/TailorDiff'
+import ErrorNotice from '@/components/ui/ErrorNotice'
+import FeatureFeedbackNudge, { recordFeatureSuccess } from '@/components/FeatureFeedbackNudge'
 import { rateLimitMessage } from '@/lib/rateLimitMessage'
 import { RESUME_CSS } from '@/lib/resumeCss'
 
@@ -278,6 +280,7 @@ export default function TailorPage() {
       return
     }
     setParsedJob(data.job)
+    recordFeatureSuccess()
   }
 
   async function loadJobById(id: string) {
@@ -354,6 +357,7 @@ export default function TailorPage() {
       return
     }
     setBaseAtsScore(data.score)
+    recordFeatureSuccess()
   }
 
   async function tailorResume() {
@@ -379,6 +383,7 @@ export default function TailorPage() {
       return
     }
     setTailoredDoc(data.document)
+    recordFeatureSuccess()
     setTailorChanges(data.changes ?? [])
     if (data.atsScore) setTailoredAtsScore(data.atsScore)
     // New tailoring invalidates any previously rendered full resume.
@@ -455,6 +460,7 @@ export default function TailorPage() {
       return
     }
     setCoverDoc(data.document)
+    recordFeatureSuccess()
     setStep(3)
     setActiveTab('cover')
   }
@@ -688,19 +694,7 @@ export default function TailorPage() {
             )}
 
             {/* Parse error */}
-            {parseError && (
-              <div style={{
-                marginTop: '12px',
-                padding: '10px 14px',
-                background: 'rgba(239,68,68,0.08)',
-                border: '1px solid rgba(239,68,68,0.2)',
-                borderRadius: '10px',
-                color: 'var(--score-red)',
-                fontSize: '13px',
-              }}>
-                {parseError}
-              </div>
-            )}
+            {parseError && <ErrorNotice message={parseError} style={{ marginTop: '12px' }} />}
 
             {/* Placeholder before a job is parsed */}
             {!parsedJob && !autoLoading && (
@@ -849,19 +843,7 @@ export default function TailorPage() {
             </div>
 
             {/* Action error */}
-            {actionError && (
-              <div style={{
-                marginTop: '12px',
-                padding: '10px 14px',
-                background: 'rgba(239,68,68,0.08)',
-                border: '1px solid rgba(239,68,68,0.2)',
-                borderRadius: '10px',
-                color: 'var(--score-red)',
-                fontSize: '13px',
-              }}>
-                {actionError}
-              </div>
-            )}
+            {actionError && <ErrorNotice message={actionError} style={{ marginTop: '12px' }} />}
 
             {/* Inline base ATS score preview */}
             {baseAtsScore && (
@@ -1046,18 +1028,7 @@ export default function TailorPage() {
                   <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--muted)', fontSize: '14px' }}>
                     <div style={{ marginBottom: '16px' }}>No ATS score yet.</div>
                     {actionError && (
-                      <div style={{
-                        maxWidth: '420px',
-                        margin: '0 auto 14px',
-                        padding: '10px 14px',
-                        background: 'rgba(239,68,68,0.08)',
-                        border: '1px solid rgba(239,68,68,0.2)',
-                        borderRadius: '10px',
-                        color: 'var(--score-red)',
-                        fontSize: '13px',
-                      }}>
-                        {actionError}
-                      </div>
+                      <ErrorNotice message={actionError} style={{ maxWidth: '420px', margin: '0 auto 14px' }} />
                     )}
                     {/* Runs in place - the tailored resume and cover letter stay put. */}
                     <button
@@ -1146,19 +1117,7 @@ export default function TailorPage() {
                       )
                     ) : (
                       <>
-                        {fullHtmlError && (
-                          <div style={{
-                            marginBottom: '12px',
-                            padding: '10px 14px',
-                            background: 'rgba(239,68,68,0.08)',
-                            border: '1px solid rgba(239,68,68,0.2)',
-                            borderRadius: '10px',
-                            color: 'var(--score-red)',
-                            fontSize: '13px',
-                          }}>
-                            {fullHtmlError}
-                          </div>
-                        )}
+                        {fullHtmlError && <ErrorNotice message={fullHtmlError} style={{ marginBottom: '12px' }} />}
                         {loadingFull ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '48px 0', justifyContent: 'center', color: 'var(--muted)', fontSize: '14px' }}>
                             <Spinner /> Building your full resume…
@@ -1196,18 +1155,7 @@ export default function TailorPage() {
                   <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--muted)', fontSize: '14px' }}>
                     <div style={{ marginBottom: '16px' }}>No tailored resume yet.</div>
                     {actionError && (
-                      <div style={{
-                        maxWidth: '420px',
-                        margin: '0 auto 14px',
-                        padding: '10px 14px',
-                        background: 'rgba(239,68,68,0.08)',
-                        border: '1px solid rgba(239,68,68,0.2)',
-                        borderRadius: '10px',
-                        color: 'var(--score-red)',
-                        fontSize: '13px',
-                      }}>
-                        {actionError}
-                      </div>
+                      <ErrorNotice message={actionError} style={{ maxWidth: '420px', margin: '0 auto 14px' }} />
                     )}
                     {/* Runs in place - the ATS score and cover letter stay put. */}
                     <button
@@ -1313,6 +1261,9 @@ export default function TailorPage() {
                 </div>
               )}
             </div>
+
+            {/* Rate-limited feedback prompt - see FeatureFeedbackNudge for the caps */}
+            <FeatureFeedbackNudge />
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@
 
 // Profile section that issues and displays the extension connection code.
 import { useState } from 'react';
+import ErrorNotice from '@/components/ui/ErrorNotice';
 
 interface ExtensionTokenSectionProps {
   initialToken: string | null;
@@ -186,21 +187,7 @@ export default function ExtensionTokenSection({
         </div>
       ) : null}
 
-      {error && (
-        <div
-          style={{
-            fontSize: '12px',
-            color: '#ef4444',
-            background: 'rgba(239,68,68,0.08)',
-            border: '1px solid rgba(239,68,68,0.2)',
-            borderRadius: '8px',
-            padding: '10px 12px',
-            marginBottom: '12px',
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {error && <ErrorNotice message={error} style={{ marginBottom: '12px' }} />}
 
       <button
         onClick={handleGenerate}

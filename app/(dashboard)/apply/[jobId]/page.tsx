@@ -10,6 +10,8 @@ import Spinner from '@/components/ui/Spinner'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import ArrowIcon from '@/components/ui/ArrowIcon'
 import TailorDiff, { formatTailoredBullets, type TailorChange } from '@/components/TailorDiff'
+import ErrorNotice from '@/components/ui/ErrorNotice'
+import { recordFeatureSuccess } from '@/components/FeatureFeedbackNudge'
 
 // --- Types --------------------------------------------------------------------
 
@@ -314,6 +316,7 @@ export default function ApplyPrepPage() {
       if (!res.ok) { setGenerateError(json.error ?? 'Failed to generate answer.'); return }
       const newRow = json.question as Omit<QuestionRow, 'localAnswer'>
       setQuestions(prev => [...prev, { ...newRow, localAnswer: newRow.generated_answer }])
+      recordFeatureSuccess()
       setQuestionInput('')
     } catch {
       setGenerateError('Network error. Please try again.')
@@ -659,9 +662,7 @@ export default function ApplyPrepPage() {
           />
         </div>
 
-        {generateError && (
-          <div style={{ fontSize: '12px', color: '#ef4444', marginBottom: '12px' }}>{generateError}</div>
-        )}
+        {generateError && <ErrorNotice message={generateError} style={{ marginBottom: '12px' }} />}
 
         <button
           type="button"
