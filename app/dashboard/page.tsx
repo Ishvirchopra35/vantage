@@ -8,7 +8,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import FeedbackNudge from '@/components/FeedbackNudge';
 
 export const metadata = {
-  title: 'Dashboard - Vantage',
+  title: 'Dashboard',
   description: 'Your job search overview',
 };
 
