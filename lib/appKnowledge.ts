@@ -39,7 +39,8 @@ FEEDBACK AND SUPPORT
 - Docs live at /docs with guides for every feature (getting started, resume tailoring, ATS scoring, cover letters, auto-fill, extension, application tracking, networking, interview prep, strategy feedback, billing).
 
 ACCOUNT
-- Sign in with email/password or Google.
+- Sign in with email/password or Google. If you first signed up with Google, keep using "Continue with Google" - creating a separate email/password account with the same address won't work. To add a password to a Google account, use "Forgot password?" on the login page to set one.
+- Forgot password: click "Forgot password?" on the login page, enter your email, and we send a reset link. Open the link on the same device to set a new password.
 - Reset my data (Settings): wipes resumes, jobs, documents, applications, and history so you can start over; keeps your account and subscription.
 - Delete account (Settings): permanently removes everything.
 `

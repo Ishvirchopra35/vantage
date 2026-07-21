@@ -93,7 +93,7 @@ export default function LoginPage() {
           emailNotVerified
             ? 'Please verify your email first. We sent a confirmation link when you signed up - check your inbox, then sign in.'
             : /invalid|credentials/i.test(signInError.message)
-              ? 'Incorrect email or password.'
+              ? 'Incorrect email or password. If you signed up with Google, use "Continue with Google" below. You can also reset your password.'
               : 'We could not sign you in. Please try again.'
         );
         setLoading(false);
@@ -218,6 +218,16 @@ export default function LoginPage() {
           >
             <EyeIcon open={showPassword} />
           </button>
+        </div>
+
+        {/* Forgot password */}
+        <div style={{ textAlign: 'right', marginTop: 8, marginBottom: 4 }}>
+          <Link
+            href="/forgot-password"
+            style={{ fontSize: 13, color: 'var(--muted)', textDecoration: 'none' }}
+          >
+            Forgot password?
+          </Link>
         </div>
 
         {/* Submit */}

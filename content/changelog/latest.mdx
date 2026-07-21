@@ -1486,3 +1486,16 @@ title: Vantage now learns which of your applications actually get replies
 - app/(dashboard)/tracker/page.tsx: fixed "Avg ATS score" showing NaN after logging an application. The POST response has no overall_score key (the score is joined in only by the GET handler), and the average filtered on `!== null`, which let undefined through into the sum. Now filters on typeof number, and the saved row normalises overall_score to null
 - tests/lib/outcomes.test.ts, tests/lib/userContextPrompt.test.ts (new): 12 tests covering bucket thresholds, pending-application exclusion, unscored-row handling, and the prompt wording at each confidence level
 - no new DB columns, no new env vars, no packages
+
+---
+date: 2026-07-21
+type: Fix
+title: Password reset, plus a fix for the "I signed up but it says wrong password" bug
+- app/(auth)/signup/page.tsx: signing up with an email that already has an account no longer silently sends you to onboarding for an account you can't log into. Supabase returns a fake user with an empty identities array in that case (to prevent email enumeration) and never sets a password - we now detect that and explain the email is taken, pointing Google users to "Continue with Google". This was the root of a report where a Google user tried an email/password signup with the same address and then got "incorrect password" on login
+- app/(auth)/forgot-password/page.tsx (new): request a password reset link by email. Always shows the same confirmation regardless of whether the email has an account, so it can't be used to probe for registered emails
+- app/(auth)/reset-password/page.tsx (new): where the reset link lands - set a new password (session already established by the callback). Shows a "link expired" state with a re-request button when there is no recovery session. Works for Google-only accounts too: setting a password adds a password identity so they gain a second way to sign in
+- app/auth/callback/route.ts: honours a same-origin ?next= param (validated against open redirects) so the reset link can reuse the existing PKCE code exchange, then forward to /reset-password. Also now reports OAuth code-exchange failures to Sentry instead of silently redirecting to /login?error=oauth - "Continue with Google didn't work" reports were previously undebuggable
+- components/GoogleSignInButton.tsx: the swallowed signInWithOAuth error is now captured to Sentry
+- app/(auth)/login/page.tsx: added a "Forgot password?" link; the wrong-password message now suggests Google sign-in and password reset
+- lib/appKnowledge.ts: help chat now knows about password reset and the Google-vs-email-account distinction
+- no new DB columns, no new env vars, no packages

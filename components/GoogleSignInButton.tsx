@@ -4,6 +4,7 @@
 // Kicks off the Supabase OAuth flow; Supabase redirects back to
 // /auth/callback which exchanges the code for a session.
 import { useState } from 'react';
+import * as Sentry from '@sentry/nextjs';
 import { createClient } from '@/lib/supabase/client';
 
 export default function GoogleSignInButton(): React.ReactElement {
@@ -20,6 +21,11 @@ export default function GoogleSignInButton(): React.ReactElement {
     });
     // On success the browser navigates to Google, so only errors reach here.
     if (oauthError) {
+      // Capture the real cause - this branch was previously swallowed with no
+      // logging, so "Continue with Google didn't work" reports were undebuggable.
+      Sentry.captureException(oauthError, {
+        tags: { area: 'auth', flow: 'google-oauth-start' },
+      });
       setError('Could not start Google sign-in. Please try again.');
       setLoading(false);
     }

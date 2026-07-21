@@ -111,7 +111,7 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -131,8 +131,24 @@ export default function SignupPage() {
         console.error('[signup] sign-up failed:', signUpError);
         setError(
           /already|registered|exists/i.test(signUpError.message)
-            ? 'An account with this email already exists. Try signing in instead.'
+            ? 'An account with this email already exists. If you signed up with Google, use "Continue with Google" below. Otherwise sign in, or reset your password from the login page.'
             : 'We could not create your account. Please try again.'
+        );
+        setLoading(false);
+        return;
+      }
+
+      // When the email is already registered, Supabase does NOT error - to
+      // prevent email enumeration it returns a fake user with an empty
+      // identities array and no new password is set. Without this check we'd
+      // send the user to onboarding for an account they can't actually log
+      // into (the "I signed up but it says wrong password" bug). This also
+      // catches the Google-only account whose owner tried an email signup.
+      const alreadyRegistered =
+        !!data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0;
+      if (alreadyRegistered) {
+        setError(
+          'An account with this email already exists. If you signed up with Google, use "Continue with Google" below. Otherwise sign in, or reset your password from the login page.'
         );
         setLoading(false);
         return;
