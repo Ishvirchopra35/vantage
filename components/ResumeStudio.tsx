@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Spinner from '@/components/ui/Spinner'
 import { createClient } from '@/lib/supabase/client'
+import { isDocxFile } from '@/lib/docx/fileType'
 import ErrorNotice from '@/components/ui/ErrorNotice'
 import ResumePreview from '@/components/resume/ResumePreview'
 import DismissibleNote from '@/components/ui/DismissibleNote'
@@ -21,6 +22,8 @@ import WordResumeNudge from '@/components/WordResumeNudge'
 import type { ResumeDoc } from '@/lib/tagged/schema'
 import { readStoredDoc } from '@/lib/tagged/validate'
 import { useDocHistory } from '@/components/resume/useDocHistory'
+import SlowProgress, { type LoadStage } from '@/components/ui/SlowProgress'
+import { debugSlow } from '@/lib/debugSlow'
 
 const STORAGE_KEY = 'vantage-resume-studio-doc'
 // Explicit saves go to localStorage, which outlives the tab. The draft above
@@ -42,6 +45,36 @@ interface TailoredSource {
   skillGaps: string[]
   keywords: string[]
 }
+
+// What each wait is actually doing, in the order the route does it. Labels for
+// a time estimate rather than progress the server reports - see
+// components/ui/SlowProgress.tsx.
+
+// A Word upload is READ, not transcribed: its own paragraphs are the lines, so
+// the only model call is the small one asking which lines are headings.
+const READ_DOCX_STAGES: LoadStage[] = [
+  { label: 'Opening your Word file', seconds: 3 },
+  { label: 'Reading its paragraphs', seconds: 4 },
+  { label: 'Working out where each section starts', seconds: 8 },
+]
+
+// A PDF has no structure to read, so the whole resume has to be transcribed,
+// and a transcription that drops a line is retried.
+const READ_PDF_STAGES: LoadStage[] = [
+  { label: 'Extracting the text', seconds: 5 },
+  { label: 'Reading your resume line by line', seconds: 20 },
+  { label: 'Checking nothing was left out', seconds: 8 },
+]
+
+const EDIT_STAGES: LoadStage[] = [
+  { label: 'Applying your change', seconds: 18 },
+  { label: 'Checking the result is still a valid resume', seconds: 6 },
+]
+
+const DOWNLOAD_STAGES: LoadStage[] = [
+  { label: 'Opening your original file', seconds: 3 },
+  { label: 'Writing the new wording into it', seconds: 6 },
+]
 
 /** Compares documents by value, which is what "unsaved changes" means here. */
 function fingerprint(doc: ResumeDoc | null): string {
@@ -107,6 +140,9 @@ export default function ResumeStudio(): React.ReactElement {
   const [sourcesLoading, setSourcesLoading] = useState(true)
   // Chips shown above the instruction box after seeding from a tailored doc.
   const [suggestionChips, setSuggestionChips] = useState<string[]>([])
+  // Which steps this upload is going through. A Word file is read; a PDF has
+  // to be transcribed, which is slower and a different list of steps.
+  const [uploadStages, setUploadStages] = useState<LoadStage[]>(READ_DOCX_STAGES)
 
   // Reopen whatever the user left behind: this tab's draft first, then the
   // last explicit save, which is the one that survives closing the tab.
@@ -294,6 +330,7 @@ export default function ResumeStudio(): React.ReactElement {
       return
     }
 
+    setUploadStages(isDocxFile(file.name, file.type) ? READ_DOCX_STAGES : READ_PDF_STAGES)
     setPhase('reading')
     try {
       const formData = new FormData()
@@ -330,6 +367,7 @@ export default function ResumeStudio(): React.ReactElement {
         return
       }
 
+      await debugSlow()
       setSuggestionChips([])
       openDoc(parsed)
       setTurns([])
@@ -375,6 +413,7 @@ export default function ResumeStudio(): React.ReactElement {
         setTurns(prev => [...prev, { instruction: text, status: 'failed', note: json.error }])
         return
       }
+      await debugSlow()
       saveDoc(json.doc as ResumeDoc)
       setTurns(prev => [...prev, { instruction: text, status: 'applied' }])
     } catch {
@@ -513,6 +552,13 @@ export default function ResumeStudio(): React.ReactElement {
                 PDF or Word, up to 5MB. Read once, never stored.
               </div>
             </button>
+            {/* Reading a PDF means transcribing the whole resume, which is the
+                longest wait in the Studio by some way. */}
+            <SlowProgress
+              active={phase === 'reading' || phase === 'formatting'}
+              stages={uploadStages}
+              style={{ marginTop: '12px' }}
+            />
           </div>
 
           {sourcesLoading && tailoredSources.length === 0 && !baseResumeDoc && (
@@ -579,9 +625,12 @@ export default function ResumeStudio(): React.ReactElement {
                 </div>
               ))}
               {phase === 'editing' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--muted)' }}>
-                  <Spinner size="sm" /> Applying change…
-                </div>
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--muted)' }}>
+                    <Spinner size="sm" /> Applying change…
+                  </div>
+                  <SlowProgress active stages={EDIT_STAGES} style={{ marginTop: '4px' }} />
+                </>
               )}
             </div>
           )}
@@ -702,6 +751,13 @@ export default function ResumeStudio(): React.ReactElement {
               </button>
             ))}
           </div>
+          {/* No AI in a download, so this rarely appears - but a cold start or
+              a large template can still outlast a spinner's credibility. */}
+          <SlowProgress
+            active={downloadFormat !== null}
+            stages={DOWNLOAD_STAGES}
+            style={{ marginTop: '12px' }}
+          />
         </div>
       </div>
 

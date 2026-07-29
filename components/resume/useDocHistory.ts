@@ -10,7 +10,7 @@
 // Snapshots are whole documents. A resume is a few kilobytes of JSON and the
 // stack is capped, so the memory is not worth the complexity of a diff.
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ResumeDoc } from '@/lib/tagged/schema';
 
 /**
@@ -43,11 +43,6 @@ export function useDocHistory(initial: ResumeDoc | null = null): DocHistory {
     present: initial,
     future: [],
   });
-
-  // Read inside callbacks so they never need to be rebuilt, which keeps the
-  // keyboard handler that closes over them stable.
-  const latest = useRef(timeline);
-  latest.current = timeline;
 
   const set = useCallback((next: ResumeDoc | null, options?: { replace?: boolean }) => {
     setTimeline((current) => {

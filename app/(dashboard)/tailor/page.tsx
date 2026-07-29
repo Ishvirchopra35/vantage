@@ -10,6 +10,8 @@ import FeatureFeedbackNudge, { recordFeatureSuccess } from '@/components/Feature
 import { rateLimitMessage } from '@/lib/rateLimitMessage'
 import ResumePreview from '@/components/resume/ResumePreview'
 import DismissibleNote from '@/components/ui/DismissibleNote'
+import SlowProgress, { type LoadStage } from '@/components/ui/SlowProgress'
+import { debugSlow } from '@/lib/debugSlow'
 import WordResumeNudge from '@/components/WordResumeNudge'
 import type { ResumeDoc } from '@/lib/tagged/schema'
 import { readStoredDoc } from '@/lib/tagged/validate'
@@ -203,6 +205,32 @@ const smallSecondaryBtn = {
   gap: '8px',
 }
 
+// --- What the long routes are actually doing -----------------------------------
+//
+// Each list mirrors the awaits in its route handler, in order, with roughly
+// how long that step takes. They are labels for a time estimate, not progress
+// the server reports - see components/ui/SlowProgress.tsx.
+
+// app/api/parse-job: fetches the posting through Jina, then parses it.
+const PARSE_JOB_STAGES: LoadStage[] = [
+  { label: 'Fetching the job posting', seconds: 6 },
+  { label: 'Pulling out the requirements and keywords', seconds: 10 },
+]
+
+// app/api/tailor-resume: resolveBaseResume, then tailorTagged, then the
+// inline ATS scoring pass.
+const TAILOR_STAGES: LoadStage[] = [
+  { label: 'Reading your resume', seconds: 5 },
+  { label: 'Rewriting your bullet points for this job', seconds: 20 },
+  { label: 'Scoring the result against ATS screening', seconds: 10 },
+]
+
+// app/api/generate-cover-letter.
+const COVER_STAGES: LoadStage[] = [
+  { label: 'Reading your resume and the job', seconds: 5 },
+  { label: 'Writing your cover letter', seconds: 18 },
+]
+
 // --- Page ---------------------------------------------------------------------
 
 export default function TailorPage() {
@@ -280,6 +308,7 @@ export default function TailorPage() {
       body: JSON.stringify(body),
     })
 
+    await debugSlow()
     setLoading(l => ({ ...l, parse: false }))
 
     if (error || !data?.job) {
@@ -385,6 +414,7 @@ export default function TailorPage() {
       method: 'POST',
       body: JSON.stringify({ jobId: parsedJob.id }),
     })
+    await debugSlow()
     setLoading(l => ({ ...l, tailor: false }))
     if (error || !data?.document) {
       setActionError(error || 'Could not tailor resume. Please try again.')
@@ -452,6 +482,7 @@ export default function TailorPage() {
       method: 'POST',
       body: JSON.stringify({ jobId: parsedJob.id }),
     })
+    await debugSlow()
     setLoading(l => ({ ...l, cover: false }))
     if (error || !data?.document) {
       setActionError(error || 'Could not generate cover letter. Please try again.')
@@ -640,6 +671,11 @@ export default function TailorPage() {
               >
                 {loading.parse ? <Spinner /> : 'Analyze job'}
               </button>
+              <SlowProgress
+                active={loading.parse}
+                stages={PARSE_JOB_STAGES}
+                style={{ marginTop: '16px' }}
+              />
             </div>
 
             {/* LinkedIn / Google Jobs hint */}
@@ -839,6 +875,19 @@ export default function TailorPage() {
                 {loading.cover ? <Spinner /> : 'Generate Cover Letter'}
               </button>
             </div>
+
+            {/* Past a few seconds a spinner stops reassuring anyone, so it is
+                replaced by what the server is actually doing. */}
+            <SlowProgress
+              active={loading.tailor}
+              stages={TAILOR_STAGES}
+              style={{ marginTop: '16px' }}
+            />
+            <SlowProgress
+              active={loading.cover}
+              stages={COVER_STAGES}
+              style={{ marginTop: '16px' }}
+            />
 
             {/* Action error */}
             {actionError && <ErrorNotice message={actionError} style={{ marginTop: '12px' }} />}
@@ -1184,6 +1233,11 @@ export default function TailorPage() {
                     >
                       {loading.tailor ? <Spinner /> : 'Tailor My Resume'}
                     </button>
+                    <SlowProgress
+                      active={loading.tailor}
+                      stages={TAILOR_STAGES}
+                      style={{ marginTop: '16px' }}
+                    />
                   </div>
                 )}
               </div>
@@ -1239,6 +1293,11 @@ export default function TailorPage() {
                     >
                       {loading.cover ? <Spinner /> : 'Generate Cover Letter'}
                     </button>
+                    <SlowProgress
+                      active={loading.cover}
+                      stages={COVER_STAGES}
+                      style={{ marginTop: '16px' }}
+                    />
                   </div>
                 )}
               </div>

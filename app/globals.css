@@ -3195,3 +3195,48 @@ html[data-theme="light"] .lph-lit {
     display: none;
   }
 }
+
+/* -- long-wait progress ----------------------------------------------------
+   Shown only once a wait has outlasted a spinner's credibility. The bar is a
+   time estimate, so it is quiet: no number, no colour, and it stops short of
+   the end rather than filling while the request is still running. */
+
+.slow-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 380px;
+}
+
+.slow-progress-label {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.slow-progress-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--card-raised);
+  overflow: hidden;
+}
+
+.slow-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--text);
+  /* Matches the tick, so the bar glides rather than stepping. */
+  transition: width 250ms linear;
+}
+
+/* Past the estimate the bar stops advancing, so it pulses instead - still
+   alive, no longer pretending to know how much is left. */
+.slow-progress-bar-waiting {
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+.slow-progress-steps {
+  font-size: 11px;
+  color: var(--muted);
+}

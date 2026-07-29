@@ -1852,3 +1852,16 @@ title: The upload-your-Word-resume card fills the width it is given
 - the text carried a max-width meant to keep a comfortable reading measure, but the card is as wide as the dashboard - so the words wrapped in a narrow column with two thirds of a white box empty beside them
 - the buttons moved out of the body and became its sibling, so they sit at the right of a wide card and fill it. Below 860px they wrap underneath instead
 - and it had no bottom margin, so the stats row sat flush against it
+
+---
+date: 2026-07-29
+type: Feature
+title: Long waits say what is happening instead of spinning
+- a spinner says "something is happening" for about five seconds. After that it stops saying that and starts looking like something has hung, because a spinner that has turned for thirty seconds is indistinguishable from one that will turn forever
+- components/ui/SlowProgress.tsx (new): past a threshold the spinner is joined by the step the server is actually on, and a bar showing roughly how much of the wait is left. Under the threshold nothing appears, because an operation that was about to finish does not need a progress bar
+- the step labels are accurate. Each list mirrors the awaits in its own route handler, in order: tailoring reads your resume, rewrites your bullets, then scores the result against ATS screening, because that is what app/api/tailor-resume/route.ts does. A Word upload in the Studio gets a different list from a PDF, because a Word file is read and a PDF has to be transcribed
+- **the bar is a time estimate, not progress the server reports**, and the UI is built so it cannot pretend otherwise. No percentage is ever shown, since a number invites the reader to treat it as measured. The bar stops short of the end and pulses rather than filling, because a progress bar that reaches 100% while the request is still running is the one thing it must never do. Once it overruns its own estimate it says so
+- wired into the tailor, cover letter and job-parsing actions, and into the Studio's upload, AI edit and download
+- lib/debugSlow.ts (new): `localStorage.setItem('vantage-slow', '25000')` makes the client hold every tracked response for that long, so the long-wait UI can be seen on demand rather than by clicking buttons hoping to catch a slow request. The request really was made and really did return, so the UI goes through exactly the states it would on a slow day. Capped at two minutes, and inert unless set
+- tests: 16 new. The component is a pure function of elapsed time, so fake timers cover all of it - that it stays hidden while a spinner is still convincing, names the right step at each point, advances, never fills while running, admits an overrun, never prints a percentage, and starts from zero on the next request rather than resuming
+- also removed a ref in useDocHistory that was assigned during render and never read
