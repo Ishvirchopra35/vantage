@@ -33,6 +33,7 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
   const [fetching, setFetching] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -75,6 +76,7 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
     }
 
     setError(null)
+    setWarning(null)
     setSuccess(false)
     setLoading(true)
 
@@ -117,16 +119,29 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
       if (parseRes.status === 429) { setError(parseJson.error || rateLimitMessage(parseJson.retryAfter)); return }
       if (!parseRes.ok) throw new Error(parseJson.error || 'Failed to extract text from the document')
 
+      // `doc` is the tagged resume - the structured form everything downstream
+      // works from. It rides along with the save so the row is complete in one
+      // round trip; a save without it still works, and the first tailoring
+      // fills it in.
       const saveRes = await fetch('/api/save-resume', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileUrl: path, fileName: file.name, rawText: parseJson.text }),
+        body: JSON.stringify({
+          fileUrl: path,
+          fileName: file.name,
+          rawText: parseJson.text,
+          doc: parseJson.doc,
+        }),
       })
       const saveJson = await saveRes.json()
       if (!saveRes.ok) throw new Error(saveJson.error || 'Failed to save resume')
 
       setCurrent({ id: saveJson.resume.id, file_name: file.name, created_at: new Date().toISOString() })
       if (onUploadComplete) onUploadComplete(parseJson.text as string)
+      // The resume saved either way - a warning means we read the file but did
+      // not find a name or any work history in it, which usually means the
+      // wrong file was picked.
+      setWarning(typeof parseJson.warning === 'string' ? parseJson.warning : null)
       setSuccess(true)
     } catch (e) {
       console.error('[ResumeUpload] upload failed:', e)
@@ -177,6 +192,15 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
         }}
       />
 
+      {/* The single most useful thing a user can know before picking a file:
+          uploading Word is what makes their tailored resumes come back looking
+          like their own resume. A PDF still works for everything else. */}
+      <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '0 0 12px', lineHeight: 1.6 }}>
+        Upload a Word file (.docx) if you have one. Your tailored resumes are then built from
+        it, so they keep your exact fonts, spacing and layout. A PDF works too, but tailored
+        downloads will use a clean Vantage layout instead of your own design.
+      </p>
+
       <button
         onClick={() => fileRef.current?.click()}
         disabled={loading}
@@ -207,7 +231,7 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
 
       {error && <ErrorNotice message={error} style={{ marginTop: '10px' }} />}
 
-      {success && (
+      {success && !warning && (
         <div
           style={{
             marginTop: '10px',
@@ -220,6 +244,22 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
           }}
         >
           Resume uploaded successfully.
+        </div>
+      )}
+
+      {warning && (
+        <div
+          style={{
+            marginTop: '10px',
+            padding: '10px 14px',
+            background: 'rgba(245,158,11,0.08)',
+            border: '1px solid rgba(245,158,11,0.2)',
+            borderRadius: '10px',
+            color: 'var(--text)',
+            fontSize: '13px',
+          }}
+        >
+          {warning}
         </div>
       )}
     </>

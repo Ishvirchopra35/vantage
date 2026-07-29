@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Cover Letters Â· Docs',
+  title: 'Cover Letters · Docs',
   description: 'Generate keyword-driven cover letters that sound like you, not a template.',
   alternates: { canonical: '/docs/cover-letters' },
 };

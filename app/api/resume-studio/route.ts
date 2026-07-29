@@ -1,34 +1,33 @@
 // Resume Studio (experimental) backend. Three actions on one route:
-//   extract  - multipart upload -> plain text (in memory only, no storage)
-//   generate - plain text -> whitelist-tag resume HTML
-//   edit     - current HTML + instruction -> full updated HTML
-// The HTML itself carries all editing state, so edits are single-turn AI
-// calls - no chat history needed. Nothing is persisted server-side; the
-// client keeps the HTML in sessionStorage.
+//   extract  - multipart upload -> a ResumeDoc, or plain text when the file has
+//              no structure to read (in memory only, nothing is stored)
+//   generate - plain text -> a tagged ResumeDoc
+//   edit     - current doc + instruction -> updated doc
+//
+// The document itself carries all editing state, so edits are single-turn AI
+// calls - no chat history needed. Nothing is persisted server-side; the client
+// keeps the document in sessionStorage.
 import { requireAuth } from '@/lib/requireAuth'
 import { ok, err, serverError } from '@/lib/apiResponse'
 import { logRoute } from '@/lib/logger'
 import { checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit'
 import { withTimeout } from '@/lib/withTimeout'
-import { generateText, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai'
-import { extractResumeText, extractResumeLinks, isDocxFile } from '@/lib/extractResumeText'
-import {
-  RESUME_HTML_RULES as HTML_RULES,
-  MAX_RESUME_HTML_CHARS as MAX_HTML_CHARS,
-  sanitizeResumeHtml,
-  linkifyResumeHtml,
-} from '@/lib/resumeHtml'
+import { isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai'
+import { extractResumeText, isDocxFile } from '@/lib/docx/extractText'
+import { parseResumeFile, parseResumeText } from '@/lib/tagged/parseResume'
+import { editTagged } from '@/lib/tagged/edit'
+import { carrySources } from '@/lib/tagged/sources'
+import { isResumeDoc, isReasonableSize } from '@/lib/tagged/validate'
+import type { ResumeDoc } from '@/lib/tagged/schema'
 
 const ROUTE = '/api/resume-studio'
 
-// AI generation over long resumes can exceed Vercel's default budget.
+// AI work over long resumes can exceed Vercel's default budget.
 export const maxDuration = 60
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024
 const MAX_TEXT_CHARS = 50_000
 const MAX_INSTRUCTION_CHARS = 500
-const MAX_LINKS = 30
-const MAX_LINK_CHARS = 500
 
 const ALLOWED_MIME = [
   'application/pdf',
@@ -49,17 +48,30 @@ async function handleExtract(request: Request, userId: string, start: number): P
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer())
-    // Text and link annotations extracted together: pdf text extraction
-    // drops link destinations, so they ride along as a separate list.
-    const [text, links] = await Promise.all([
-      extractResumeText(buffer, isDocx),
-      extractResumeLinks(buffer, isDocx),
-    ])
+
+    // A Word file is read rather than transcribed: its own paragraphs are the
+    // resume's lines, so nothing is retyped and each line keeps a reference to
+    // the paragraph it came from. That reference is what lets the download
+    // write into the user's document instead of rebuilding it, which is the
+    // only way the Studio can match what Tailor produces.
+    if (isDocx) {
+      const parsed = await parseResumeFile(buffer, true)
+      if (parsed.doc.sections.length > 0) {
+        await logRoute(ROUTE, userId, Date.now() - start, 200)
+        return ok({ doc: parsed.doc })
+      }
+    }
+
+    // extractResumeText writes hyperlink destinations into the text itself, so
+    // there is no separate link list to carry around any more - the address is
+    // in the words the AI tags, and lib/docx/links.ts finds it again on the
+    // way out.
+    const text = await extractResumeText(buffer, isDocx)
     if (!text.trim()) return err('Could not read any text from that file', 400)
     await logRoute(ROUTE, userId, Date.now() - start, 200)
-    return ok({ text: text.slice(0, MAX_TEXT_CHARS), links })
+    return ok({ text: text.slice(0, MAX_TEXT_CHARS) })
   } catch {
-    await logRoute(ROUTE, userId, Date.now() - start, 500)
+    await logRoute(ROUTE, userId, Date.now() - start, 400)
     return err('Could not read that file. Try re-exporting it as a PDF.', 400)
   }
 }
@@ -80,40 +92,36 @@ export async function POST(request: Request): Promise<Response> {
 
   const body = await request.json().catch(() => null)
   if (!body || typeof body !== 'object') return err('Invalid request body', 400)
-  const { action, text, html, instruction, links } = body as {
+  const { action, text, doc, instruction } = body as {
     action?: string
     text?: string
-    html?: string
+    doc?: unknown
     instruction?: string
-    links?: unknown
   }
-
-  // Hyperlink destinations from the original file, echoed back by the client
-  // after extraction so the generated HTML can restore them.
-  const knownLinks = (Array.isArray(links) ? links : [])
-    .filter((l): l is string => typeof l === 'string' && l.length <= MAX_LINK_CHARS)
-    .filter((l) => /^(https?:\/\/|mailto:)/i.test(l.trim()))
-    .slice(0, MAX_LINKS)
 
   if (action !== 'generate' && action !== 'edit') return err('Invalid action', 400)
 
   // Validate input before touching the limit - a bad request costs nothing.
   let validText = ''
-  let validHtml = ''
   let validInstruction = ''
+  let validDoc: ResumeDoc | null = null
   if (action === 'generate') {
     if (typeof text !== 'string' || !text.trim() || text.length > MAX_TEXT_CHARS) {
       return err('Invalid resume text', 400)
     }
     validText = text
   } else {
-    if (typeof html !== 'string' || !html.trim() || html.length > MAX_HTML_CHARS) {
-      return err('Invalid resume HTML', 400)
+    if (!isResumeDoc(doc) || !isReasonableSize(doc)) {
+      return err('Invalid resume document', 400)
     }
-    if (typeof instruction !== 'string' || !instruction.trim() || instruction.length > MAX_INSTRUCTION_CHARS) {
+    validDoc = doc
+    if (
+      typeof instruction !== 'string' ||
+      !instruction.trim() ||
+      instruction.length > MAX_INSTRUCTION_CHARS
+    ) {
       return err(`Instruction must be 1-${MAX_INSTRUCTION_CHARS} characters`, 400)
     }
-    validHtml = html
     validInstruction = instruction.trim()
   }
 
@@ -132,52 +140,52 @@ export async function POST(request: Request): Promise<Response> {
     return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier)
   }
 
-  let systemPrompt: string
-  let userPrompt: string
-
-  if (action === 'generate') {
-    systemPrompt = `You are a resume formatter. ${HTML_RULES} Preserve 100% of the original content - never add, remove, or invent anything.`
-    const linksBlock = knownLinks.length
-      ? `\n\nHYPERLINKS FROM THE ORIGINAL FILE (the PDF's link annotations - text extraction dropped them):\n` +
-        knownLinks.map((l) => `- ${l}`).join('\n') +
-        `\nAttach each to its matching visible text with <a href="...">. A URL shown as text ` +
-        `(e.g. "site.com") links to its full destination above; names like "LinkedIn" or "GitHub" ` +
-        `link to the matching URL. Never attach a link to unrelated text and never invent URLs.`
-      : ''
-    userPrompt = `Convert this resume to HTML:${linksBlock}\n\n${validText}`
-  } else {
-    systemPrompt =
-      `You edit resumes. Apply the user's instruction to the resume HTML and return the FULL updated resume. ` +
-      `${HTML_RULES} Keep everything the instruction does not ask to change, byte for byte where possible. ` +
-      `Preserve every existing <a href> hyperlink exactly unless the instruction explicitly asks to change it. ` +
-      `Never invent employers, roles, degrees, dates, or numbers that are not in the resume or the instruction.`
-    userPrompt = `CURRENT RESUME HTML:\n${validHtml}\n\nINSTRUCTION: ${validInstruction}\n\nReturn the full updated resume HTML.`
-  }
-
   try {
-    const raw = await withTimeout(
-      generateText(systemPrompt, userPrompt, 6000),
-      45000,
-      'resume-studio'
-    )
-    const cleaned = sanitizeResumeHtml(raw)
-    if (!cleaned) {
-      await logRoute(ROUTE, user.id, Date.now() - start, 500)
-      return err('The AI returned an unusable result. Please try again.', 500)
+    if (action === 'generate') {
+      const { doc: parsed } = await withTimeout(
+        parseResumeText(validText),
+        55000,
+        'resume-studio-generate'
+      )
+      await Promise.all([
+        recordRateLimitUse('resume-studio', user.id),
+        logRoute(ROUTE, user.id, Date.now() - start, 200),
+      ])
+      return ok({ doc: parsed })
     }
-    // Deterministic safety net: even if the AI ignored the link instructions,
-    // bare URLs/emails and known destinations still end up clickable.
-    const linked = linkifyResumeHtml(cleaned, knownLinks)
-    // Charge the limit only now that the AI actually produced a usable result.
+
+    // validDoc is non-null on every path that reaches here: the 'edit' branch
+    // above returns 400 unless isResumeDoc accepted it.
+    const result = await withTimeout(
+      editTagged(validDoc as ResumeDoc, validInstruction),
+      55000,
+      'resume-studio-edit'
+    )
+
+    if (result.failed) {
+      await logRoute(ROUTE, user.id, Date.now() - start, 422)
+      return err('We could not apply that change. Try describing it differently.', 422)
+    }
+
+    // Charge the limit only now that the edit actually applied.
     await Promise.all([
       recordRateLimitUse('resume-studio', user.id),
       logRoute(ROUTE, user.id, Date.now() - start, 200),
     ])
-    return ok({ html: linked })
+
+    // The tagged format carries text only, so the edit came back with no
+    // paragraph references at all. Restoring them by text is what keeps the
+    // download writing into the user's own file: an edit that reworded one
+    // bullet should not cost them the formatting of the other forty lines.
+    return ok({ doc: carrySources(validDoc as ResumeDoc, result.doc) })
   } catch (e) {
     if (isAiQuotaError(e)) {
       await logRoute(ROUTE, user.id, Date.now() - start, 429)
       return err(AI_BUSY_MESSAGE, 429)
+    }
+    if (e instanceof Error && e.message.startsWith('Could not read that resume')) {
+      await logRoute(ROUTE, user.id, Date.now() - start, 400)
+      return err(e.message, 400)
     }
     await logRoute(ROUTE, user.id, Date.now() - start, 500)
     return serverError(e)

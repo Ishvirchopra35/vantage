@@ -4,7 +4,7 @@ import { getRateLimitOverview } from '@/lib/rateLimit'
 import PageHeader from '@/components/ui/PageHeader'
 
 export const metadata = {
-  title: 'Usage limits - Vantage',
+  title: 'Usage Limits',
 }
 
 export const dynamic = 'force-dynamic'

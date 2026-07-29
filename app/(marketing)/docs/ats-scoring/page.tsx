@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'ATS Scoring Â· Docs',
+  title: 'ATS Scoring · Docs',
   description: 'Understand how ATS systems evaluate resumes and how Vantage scores yours.',
   alternates: { canonical: '/docs/ats-scoring' },
 };

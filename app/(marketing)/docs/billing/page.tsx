@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Billing Â· Docs',
+  title: 'Billing · Docs',
   description: 'Free vs Pro plan comparison, how to upgrade, cancel, and manage your Vantage subscription.',
   alternates: { canonical: '/docs/billing' },
 };

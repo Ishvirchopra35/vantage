@@ -4,6 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import { UpgradeButton, ManageButton } from '@/components/BillingActions'
 import PageHeader from '@/components/ui/PageHeader'
 
+export const metadata = {
+  title: 'Billing',
+  description: 'Your plan and payment details',
+};
+
 interface Subscription {
   plan: string
   status: string

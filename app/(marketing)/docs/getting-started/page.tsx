@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Getting Started Â· Docs',
+  title: 'Getting Started · Docs',
   description: 'Set up your Vantage account, upload your resume, and submit your first tailored application.',
   alternates: { canonical: '/docs/getting-started' },
 };
@@ -27,7 +27,10 @@ export default function GettingStartedPage() {
               <Link href="/signup" style={link}>/signup</Link> and sign up with your email. No credit card required.
             </li>
             <li style={li}>
-              <strong style={strong}>Upload your resume</strong> - Navigate to your Profile page and upload your resume as a PDF (max 5 MB). Vantage extracts the text automatically so it can be used for tailoring and scoring.
+              <strong style={strong}>Upload your resume</strong> - Navigate to your Profile page and upload your resume as a Word file or PDF (max 5 MB). Vantage reads it automatically so it can be used for tailoring and scoring. Upload Word if you can - your tailored resumes are then built from that file, so they keep your exact fonts, spacing and layout, and your hyperlinks come through most reliably. With a PDF everything still works, but tailored downloads use a clean Vantage layout instead of your own design.
+            </li>
+            <li style={li}>
+              <strong style={strong}>Word template (optional)</strong> - Also on the Profile page. Your uploaded resume is already used as the design for downloads, so you only need this if you want a different one, or if your resume is a PDF. Skip it and downloads use a clean Vantage layout.
             </li>
             <li style={li}>
               <strong style={strong}>Complete your profile</strong> - Fill in your target roles, skills, university, and graduation year. This information is injected into every AI prompt, which significantly improves the quality and relevance of generated output.
@@ -36,7 +39,7 @@ export default function GettingStartedPage() {
               <strong style={strong}>Paste your first job URL</strong> - Go to the Tailor page and paste a job posting URL. Vantage reads the listing and pulls out the ATS keywords (ATS is the software companies use to screen resumes); click Tailor My Resume to generate the tailored version.
             </li>
             <li style={li}>
-              <strong style={strong}>Review your ATS score and tailored resume</strong> - Compare your original score against the tailored version. Look at the keyword matches and any skill gaps listed at the bottom.
+              <strong style={strong}>Review, edit and download</strong> - Compare your original score against the tailored version, and look at the keyword matches and any skill gaps. Switch to Full resume to click into any line and adjust it, then download it as Word or PDF.
             </li>
             <li style={li}>
               <strong style={strong}>Log the application</strong> - After you apply, open the Applications page and click Log application so you can monitor your status and response rate over time.
@@ -71,7 +74,7 @@ export default function GettingStartedPage() {
           <div style={faq}>
             <p style={faqQ}>My resume upload failed.</p>
             <p style={p}>
-              Make sure the file is a PDF and under 5 MB. Scanned image PDFs without selectable text may not extract properly - use a PDF with real text content.
+              Make sure the file is a Word document or PDF and under 5 MB. Scanned image PDFs without selectable text may not extract properly - use a Word file, or a PDF with real text content.
             </p>
           </div>
           <div style={faq}>

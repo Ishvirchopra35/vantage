@@ -1499,3 +1499,356 @@ title: Password reset, plus a fix for the "I signed up but it says wrong passwor
 - app/(auth)/login/page.tsx: added a "Forgot password?" link; the wrong-password message now suggests Google sign-in and password reset
 - lib/appKnowledge.ts: help chat now knows about password reset and the Google-vs-email-account distinction
 - no new DB columns, no new env vars, no packages
+
+---
+date: 2026-07-28
+type: Feature
+title: Resumes keep their formatting - tailoring now edits bullets in place, and downloads are Word files
+- the old pipeline asked the AI to return the whole resume rewritten as plain text, then tried to rebuild the formatting afterwards from an AI-generated HTML copy. Formatting, hyperlinks and page layout were lost at the first step and approximated at every step after. The resume is now a structured document end to end, and the AI is only ever allowed to edit the text inside it
+- lib/tagged/schema.ts, serialize.ts, skeleton.ts (new): the tagged resume format - a closed tag vocabulary (name, contact, summary, job, company, title, dates, bullet, education, skills, and a custom-section escape hatch so PROJECTS, VOLUNTEERING or anything else you wrote survives under its own heading). tagSkeleton() fingerprints the tag sequence with all text stripped out, which is how structural drift becomes detectable rather than something you hope the prompt prevented
+- lib/tagged/parseResume.ts (new): raw resume text to a structured document. Validated by round-tripping through our own parser, not by trusting the model - one retry with the parse error fed back
+- lib/tagged/tailor.ts (new): tailoring, with three checks between the model and your resume. assertSameSkeleton rejects any change to the number of jobs, the number of bullets, or the section order. lockFields restores every field that is not a bullet or summary, so a company name or graduation date cannot drift. clampBulletLengths reverts a bullet that grew more than ~15%, which is the one-page guard - the template's margins are untouched, so page count only moves if a bullet wraps. Two failed attempts return the resume unchanged rather than something broken, and that case does not consume a tailoring
+- lib/tagged/tailor.ts: the per-bullet diff and the skill-gap list are now computed from the two documents instead of asked for. The old prompt had the model explain its own edits ("Added PostgreSQL keyword") and report its own gaps, neither of which anything checked. Reasons are now true by construction
+- lib/tagged/edit.ts (new): Resume Studio's instruction pass. Deliberately weaker than tailoring - it allows structural change, because "move Projects above Experience" is the whole point there - but still guarantees the result parses with no invented tags
+- lib/docx/extractText.ts (new, replaces lib/extractResumeText.ts): DOCX extraction now goes through mammoth's HTML conversion rather than raw text, and PDF extraction through pdf-parse v2 with link annotations enabled. Both write hyperlink destinations into the text, so "LinkedIn" no longer arrives with its address thrown away
+- lib/docx/inject.ts (new): injects the document into your own .docx, replacing only the contents of <w:body>. styles.xml, header, footer, images and the trailing <w:sectPr> (page size, margins, header reference) are carried across untouched. Extended beyond the reference implementation to emit real <w:hyperlink> elements with matching entries in word/_rels/document.xml.rels, allocated above the template's highest existing rId
+- lib/docx/links.ts (new): finds the addresses hiding in a field's text and splits it into plain and linked runs. Bare domains are matched against a TLD allowlist plus a small denylist, so "Node.js", "React.ts" and "ASP.NET" do not become blue underlined links in the middle of a bullet
+- lib/docx/fallback.ts, template.ts (new): the clean default layout for users without a template, and template storage (Supabase Storage, private resumes bucket) plus the style-slot matching that runs unattended on upload
+- app/api/resume-template/route.ts (new): upload, check and remove your Word template. Styles are parsed before the file is stored, so an unreadable file is rejected up front rather than failing later at download time
+- app/api/tailor-resume/docx/route.ts, app/api/resume-studio/docx/route.ts (new): the download endpoints. No AI, so re-downloading after every edit is free
+- app/(dashboard)/tailor/page.tsx: "Full resume" is now a live editor - click any line to change it - and the button is Download Word. The document is edited, not the text, so no edit can produce something that will not render
+- components/ResumeStudio.tsx: rebuilt on the same document. Both editing paths are available - click a line to change it, or describe a bigger change. Seeding from a tailored resume is now instant (nothing to rebuild)
+- components/ResumeTemplateUpload.tsx (new): the Word template control on the Profile page
+- removed: lib/resumeHtml.ts, lib/generatePdf.ts, lib/resumeCss.ts, lib/extractResumeText.ts, /api/tailor-resume/render, /api/resume-studio/pdf. HTML is gone from the resume pipeline entirely, and with it the headless-Chromium PDF renderer, the fuzzy bullet-text matching, and up to two AI calls per resume upload
+- profiles.resume_html is kept in the database for existing rows but is no longer read or written. Resumes uploaded before this change have no structured document yet; the first tailoring creates one and saves it, so nobody needs to re-upload
+- new DB columns: resumes.tagged_doc (jsonb), documents.tailored_doc (jsonb), profiles.resume_template_path (text), profiles.resume_template_name (text), profiles.resume_template_mapping (jsonb). Migration in sql/04_tagged_resume_pipeline.sql, which also adds the storage UPDATE policy that replacing a template needs
+- packages: added jszip and docx, upgraded pdf-parse to v2, removed puppeteer-core and @sparticuz/chromium-min. next.config.ts marks pdf-parse and mammoth as server-external packages
+- tests: 50 new tests across tests/lib/tagged.test.ts, taggedTailor.test.ts, docxLinks.test.ts, docxInject.test.ts and docxRoundTrip.test.ts - property-based round-tripping of the format, the structural and field-lock guards, relationship-id allocation against a real .docx, and a full generate-then-re-read round trip proving a hyperlink survives both directions
+- no new env vars
+
+---
+date: 2026-07-28
+type: Fix
+title: Project sections keep their structure, hyperlinks survive, and downloads use your own resume as the design
+- lib/tagged/schema.ts: custom sections gained `entries` - a titled thing with its own bullets, via new <entry> and <label> tags. A PROJECTS section used to flatten into one undifferentiated bullet list, so "Wrap It Up | Github | TypeScript  Jan. 2026" rendered as though it were another of its own bullets. The title line now has somewhere to live. Flat sections (Interests, Coursework) still use bare <item>, and normaliseCustom() fills in `entries` for documents stored before it existed, so nothing needed migrating
+- lib/tagged/tailor.ts: because a project title is now separate from its bullets, project bullets can be tailored while the title stays locked. lockFields restores every <label> verbatim, clampBulletLengths holds project bullets to the original length, and diffBullets reports them under their own section heading instead of changing them silently. findSkillGaps searches title lines too, since that is where the tech stack is named
+- lib/tagged/dedupe.ts (new): drops a custom section that restates a built-in one. On a resume whose heading reads "RELEVANT EXPERIENCE" rather than the bare word "EXPERIENCE", the model was filling <experience> AND adding a custom section with the same roles, so every job printed twice - as did education. The match is on the text rather than the heading, so "Volunteer Experience" holding genuinely different roles survives, and a "Publications" section on a resume with nothing in <publications> is kept rather than losing the only copy
+- lib/tagged/baseResume.ts (new): fixes hyperlinks vanishing from downloads. Resumes uploaded before this pipeline were being tagged from their stored raw_text, which the old extractor produced by discarding every hyperlink target - so "LinkedIn" arrived as dead text before tagging even started. The original file is now fetched back out of storage and re-read with the current extractor, and the better text is saved over raw_text while we are there (buildUserContext reads that column and was missing the same links)
+- lib/docx/resolveTemplate.ts (new): downloads now use your uploaded resume as the design when it is a Word file. The resume you already use IS the design you already like, so your fonts, margins, header and spacing come through with nothing to configure. An explicitly uploaded template still wins; a PDF resume falls through to the Vantage layout
+- lib/docx/pdf.ts (new): PDF download, alongside Word. This is NOT a conversion - rendering the .docx would need LibreOffice or Word, neither of which runs on a serverless function - so the PDF is drawn from the same ResumeDoc with the same section order and the same link handling. Stated plainly in the UI: Word carries your design, PDF is a clean standard layout. Both carry working links
+- lib/docx/pdf.ts: pdfkit silently drops a link annotation when x/y are passed as explicit undefined on a continued run, which produced blue underlined text that did nothing when clicked. Continued runs now use the two-argument form; a test asserts the /Link and /URI objects are actually in the file
+- app/globals.css, app/(dashboard)/resume-studio/page.tsx: the Studio preview was squeezed into about 540px - the 900px page cap minus a 340px sidebar - so every line wrapped in the wrong place. Two-column workspaces now use a wider container
+- lib/tagged/parseResume.ts: prompt gained a worked example for project entries, an explicit rule against emitting the same content twice, and a rule about copying "Label (address)" pairs whole
+- components/resume/ResumePreview.tsx: titled entries render and edit as a title with bullets under it, with separate "+ titled entry" and "+ line" controls
+- tests: 21 new tests across tests/lib/tagged.test.ts, taggedDedupe.test.ts and resumePdf.test.ts - entry round-tripping, the skeleton still catching a dropped entry, dedupe keeping what it should, and PDF link annotations
+- packages: added pdfkit and @types/pdfkit. No new DB columns, no new env vars
+
+---
+date: 2026-07-28
+type: Fix
+title: Admin analytics were reading zero, and resume improvements now reach existing users without a re-upload
+- app/admin/page.tsx: user metrics have never worked. The page selects `profiles.created_at`, and that column has never existed - profiles only had `updated_at` - so the query errored, the result was discarded unchecked, and total users, new this week, activation rate, both retention cohorts and the growth table all rendered as 0 or "-" no matter how many people signed up. sql/05 adds the column and backfills each user's REAL signup time from auth.users, so the history is recovered rather than everyone being stamped as joining today
+- app/admin/page.tsx: failed queries are now named in a banner at the top instead of degrading silently to zero. This is the reason the missing column went unnoticed for so long - a broken query and a genuinely quiet week looked identical. `events`, `route_logs`, `costs` and `subscriptions` are still not defined in sql/ at all, so if any of them has drifted too it will now say so
+- app/admin/page.tsx: the Refresh button was a next/link to the route you are already on, which resolves from the router cache and can leave every number unchanged - "stale data" that was really "nothing refetched". It is a plain anchor now. Unbounded selects also gained explicit limits, since PostgREST silently caps at 1000 rows
+- lib/tagged/baseResume.ts, sql/05: resumes now carry a `tagged_version`. When the parsing pipeline improves, every stored document is stale, and previously the only fix was asking each user to re-upload. A version below the current one is now treated exactly like a missing document: the original file is re-read and re-parsed on the user's next tailoring. Existing rows are stamped 0, so everyone picks up project entries, section dedupe and hyperlink recovery automatically
+- lib/tagged/dedupe.ts: duplicate detection no longer keys off a list of built-in section names. The underlying failure is the model hedging about where content belongs, which it can do for any section, so a custom section is now checked against the built-in sections, against every custom section already kept, and against itself for repeated lines. The heading only chooses the threshold - 60% overlap when it names a section we model, 90% when it does not - so a Projects section sharing a phrase with a job survives while a near-total restatement is dropped
+- components/ResumeUpload.tsx, app/(dashboard)/tailor/page.tsx, components/ResumeStudio.tsx: added the note that uploading Word is what makes tailored downloads keep your own fonts and layout, and that the PDF uses a standard layout regardless. Also in the docs and the help chat, with a new FAQ entry for "my downloaded resume does not look like my own resume"
+- tests: 6 new dedupe tests covering custom-vs-custom duplication, repeats inside a section and inside a titled entry, and the two overlap thresholds
+- new DB columns: profiles.created_at (backfilled from auth.users), resumes.tagged_version. Migration in sql/05_admin_created_at_and_tagged_version.sql. No new env vars, no packages
+
+---
+date: 2026-07-28
+type: Fix
+title: PDF download failed with ENOENT on every attempt
+- lib/docx/pdf.ts: pdfkit's default build reads its standard-font metrics (Helvetica.afm and friends) off disk at runtime from a path derived from __dirname. The bundler rewrites that path - under Next it resolved to "C:\ROOT\...\node_modules\pdfkit\js\data\Helvetica.afm", which does not exist - so constructing a PDFDocument threw ENOENT and every PDF download 500'd. Switched to pdfkit's standalone build, which inlines those metrics behind a virtual filesystem, so there is no disk read left to get wrong in dev or on a serverless function
+- types/pdfkit-standalone.d.ts (new): the standalone build ships without declarations, so it borrows the ones from pdfkit's normal entry point - same API, different font source
+- the unit tests passed throughout: vitest does not bundle the module the way Next does, so it never reproduced the fault. Verified instead against a real production build (next build + next start), and confirmed the cause by reverting the import and watching the identical ENOENT come back
+
+---
+date: 2026-07-29
+type: Fix
+title: Downloaded resumes now keep their layout, links stay clickable, and the preview hides raw URLs
+- lib/docx/slotFormat.ts (new), lib/docx/inject.ts: the real cause of "the formatting is bad, everything under the name is gathered up in one spot". Injection referenced the template's paragraph styles, but almost no real resume defines any - a .docx exported from Word declares Heading1-6, Title and ListParagraph and does everything else with direct formatting, because the author selected the text and pressed the buttons. Roughly half our slots therefore had nothing to map to and inherited Normal, so the name, contact line and every section heading collapsed into plain left-aligned body text. Unmapped slots now carry their own formatting - centred bold name, centred contact line, section headings with a rule, indented bullets with a glyph. A template that genuinely does define styles is still followed exactly and imposes nothing extra
+- lib/docx/template.ts: suggestMapping no longer matches Word's built-in style names. Every .docx declares Heading1, Title and ListParagraph whether the author used them or not, so a hand-formatted resume was "finding" a style for half its slots - and Heading1 is 16pt blue Calibri Light, which looks nothing like the small bold heading the resume actually used. Matching only deliberate names ("Resume Bullet", "Contact Line") means a personal resume falls through to formatting designed to look like a resume
+- lib/docx/resolveTemplate.ts: the style mapping is now read off the file on every download instead of trusting the copy stored at upload time, so improvements to the matching rules take effect for everyone immediately rather than only for templates uploaded afterwards
+- lib/docx/pdf.ts: the PDF contact line had every link piled up in one spot. pdfkit's `align: 'center'` and `continued: true` do not compose - each run was centred against the full column independently rather than continuing from the last. Centring is now measured and positioned by hand. Verified by reading the link rectangles back out of the generated PDF: they previously overlapped (one link ended at x=433 while the next began at x=422) and now run strictly left to right
+- lib/docx/links.ts, components/resume/Editable.tsx: the preview showed "LinkedIn (linkedin.com/in/jane)" because the address has to travel through the pipeline as text. It now shows just "LinkedIn" while reading and reveals the full text on focus, so the address is still editable but never shown as something the finished resume will contain. React no longer renders the field's text at all - it is written imperatively, because letting React reconcile a contentEditable node mid-edit collapses the caret to position zero
+- lib/tagged/parseResume.ts: PUBLICATIONS had the same flattening as PROJECTS - a title line and its three bullets mashed into one entry joined by "|". The rule is now about shape rather than section name: one line per entry belongs in the named section, a title with bullets under it belongs in <custom> as an <entry>, whatever the heading says
+- tests: 15 new tests - the formatting fallback across name, contact, headings and bullets, that a styled template still wins, that a bare Word file now maps nothing, PDF link rectangles never overlapping and staying inside the margins, and link collapsing never losing a non-link character
+- no new DB columns, no new env vars, no packages
+
+---
+date: 2026-07-29
+type: Fix
+title: Section titles no longer render as bullets, and deduping stopped taking unique content with it
+- lib/tagged/restructure.ts (new): PUBLICATIONS arrived as a single line with the title and all three bullets joined by pipes, so the title rendered with a bullet glyph in front of it, indistinguishable from the bullets belonging to it - the same fault PROJECTS had. A packed line is now split back into a title and its bullets deterministically, rather than relying on the parse prompt to produce the right shape. The split is by position, not length: the first segment is always the title, because a publication's name often runs longer than any of its bullets. Short trailing segments ("Co-Author", the year) rejoin the title, where the resume had them
+- lib/tagged/restructure.ts: this runs for every stacked section - publications, awards, certifications - and for lines inside custom sections, so it is not a fix for one section that will need repeating for the next one. A section that is genuinely one line per entry is left exactly where it is; two or more sentence-length segments after the title is what marks a line as packed, because a title followed by a single long description is a normal one-line entry and splitting it would invent structure the resume never had
+- lib/tagged/dedupe.ts: deduping now removes duplicated LINES rather than duplicated sections. The previous version dropped any section that was mostly a copy, which meant a section restating the education entry that also carried a "Relevant Coursework" line lost the coursework as well - unique content discarded for keeping company with duplicated content. That was the missing education bullet. Whatever was not already printed elsewhere now always survives, and a section disappears only when every one of its lines turned out to be a copy. The two overlap thresholds are gone with it; the rule is simply whether a line repeats something already said
+- lib/docx/pdf.ts: added a page-fit check before every line and bullet. pdfkit paginates only for text it positions itself, and every line here is drawn at an explicit y so it can be centred or share a baseline with a bullet glyph - an explicit y is honoured even past the bottom margin. Nothing was observed overflowing in testing, but the manual y handling made it possible, and a line drawn below the page is still present in the file and extractable by a text parser, so it would have been invisible in exactly the way that is hardest to notice
+- lib/tagged/baseResume.ts: pipeline version bumped to 3, so every existing resume re-derives with the unpacking and line-level deduping on the user's next tailoring rather than needing a re-upload
+- tests: 16 new tests - unpacking a packed publication, leaving genuine one-liners alone, the same handling for awards and certifications, and the coursework case that regressed
+- verified by rendering a full resume through the PDF and diffing every expected line against the extracted text, and by decompressing the content streams to confirm nothing is drawn below the bottom margin
+- no new DB columns, no new env vars, no packages
+
+---
+date: 2026-07-29
+type: Fix
+title: Project and publication titles were being deleted, and a publication was promoted to a section of its own
+- lib/tagged/dedupe.ts: the missing titles were my own regression from the previous change. Deduping treated a line as a repeat if anything already printed appeared ANYWHERE inside it, so a project titled "Vantage | Github | TypeScript, Next.js, React, Supabase | Jan. 2026" matched because "TypeScript" was also in the skills list. Every project whose tech stack the candidate had listed as a skill lost its title. A line is now a repeat only when most of it - three quarters - is made up of content already printed, which still catches a job collapsed onto one line, where essentially every word came from somewhere else
+- lib/tagged/restructure.ts: the model sometimes emits a section NAMED AFTER one of its entries - a custom section headed "Artificial Intelligence and Machine Learning: A New Frontier" holding that paper's bullets, while <publications> keeps only the title stub. The title then rendered as a section heading in its own right. Such a heading is now recognised as an entry title (it carries pipes, or runs past forty characters - no real section heading does), turned back into the entry's label, and filed under the section it came from, with the leftover stub removed. Two split publications merge into one PUBLICATIONS section rather than becoming two
+- lib/tagged/restructure.ts: titles are matched on their opening rather than by containment. The two copies of a split entry usually keep different tails - one ends "| Co-Author | Jun. 2024", the other stops at the name - so neither contains the other, but they always share the beginning
+- lib/tagged/baseResume.ts: pipeline version bumped to 4, so every stored resume re-derives with these fixes on the next tailoring
+- tests: 8 new tests - a project title surviving when it names a listed skill, a line genuinely made of already-printed content still being dropped, an orphaned publication being filed back under PUBLICATIONS with its full title, a real section heading being left alone, and two split publications merging into one section
+- verified by running the exact shape from the reported screenshot through the pipeline: publications empties, the section is named PUBLICATIONS, and both the publication and project labels come through intact
+- no new DB columns, no new env vars, no packages
+
+---
+date: 2026-07-29
+type: Improvement
+title: Restructuring rules generalised beyond the one resume they were written against
+- the previous three changes were all written while looking at a single CS student's resume, which is how heuristics quietly end up encoding one document. Audited the constants introduced and fixed the three that were genuinely overfitted
+- lib/tagged/restructure.ts: entry unpacking recognised the pipe and nothing else. A resume separating with middots, bullets or tabs got no restructuring at all. It now detects which separator a line uses, splits on that, and rejoins the title with the same one - a resume written with middots no longer comes back written with pipes. Dashes are deliberately excluded: "Jun. 2024 - Sep. 2024" is a date range, and splitting on it would cut every title line in half
+- lib/tagged/restructure.ts: a segment was classed as a bullet purely on character count, which assumed verbose bullets. "Cut waste by a third in six weeks" says as much as a sentence twice its length. Word count now carries the terse case and length the wordy one
+- lib/tagged/restructure.ts: the section-heading-versus-entry-title test was a forty-character cutoff, which put "LEADERSHIP AND COMMUNITY INVOLVEMENT" (36) and "PROFESSIONAL MEMBERSHIPS AND AFFILIATIONS" (41) on opposite sides of a boundary neither belongs near - the second was being demoted from a heading. Word count is the real discriminator: headings are names of one to five words, titles are phrases. Measured against realistic headings and titles, the two overlap at five words and nothing can separate them there, so the bar sits just above the headings. An ambiguous five-word title stays a heading, which keeps the section and all its content rather than burying a real one
+- tests/lib/taggedGenerality.test.ts (new): 16 tests built from resumes deliberately unlike the one that prompted the work - a nurse, a chef, a doctoral researcher; middot, tab and pipe separators; terse bullets; headings sitting on the boundary; and resumes with no structure to recover. Two of them assert the property that actually matters, that restructuring only ever moves text and never removes a word
+- no behaviour change for resumes that were already handled correctly; all previous tests pass unchanged
+
+---
+date: 2026-07-29
+type: Improvement
+title: Structure is now inferred from the resume rather than matched against a list of known formats
+- the previous change replaced one hardcoded separator with a list of eight, which is the same mistake written longer: it works until it meets a resume using a slash or a guillemet, and then does nothing at all while looking like it should
+- lib/tagged/restructure.ts: separators are detected by behaviour instead. A separator is punctuation that sits with whitespace on both sides and does so repeatedly - that is a property of the text, not a character to be enumerated. Verified against characters named nowhere in the codebase, including the triangle, the four-pointed star, the double slash and the guillemet. The whitespace requirement is also what stops the hyphen in "state-of-the-art" and the dot in "Node.js" being candidates, without either needing to be special-cased
+- lib/tagged/restructure.ts: the title/bullet boundary within a line is now derived from that line. A packed entry holds two kinds of segment - short fields naming the thing and clauses describing it - and those groups sit far apart in length whatever the resume's house style, so the segments are sorted by word count and the widest proportional gap is the boundary. A fixed threshold has to choose between a verbose CV where the gap falls at fourteen words and a terse one where it falls at seven; measuring the gap fits both. Finding no clear gap is itself an answer: a line whose segments are all of a size is a title line, not a title plus bullets
+- lib/tagged/restructure.ts: whether a heading is really an entry title is now judged against the headings that resume actually uses, including the built-in ones, rather than against a fixed word count. A CV whose sections are called "Professional Experience and Employment History" sets a different bar from one using "WORK"
+- lib/tagged/restructure.ts: added casing as a signal, which is what finally separates "Wrap It Up | Github" from "AWARDS & HONOURS (2020-2024)". Both are two fragments around a symbol and no measurement of length or shape can tell them apart; what can is that resumes are typographically consistent about headings, so one that breaks the pattern is not a heading. Only consulted when at least three other headings agree, so a resume with mixed-case headings simply gets no signal here
+- absolute numbers survive only as floors, and are documented as such: a segment under four words is never a bullet, and a heading under six words is never demoted. They rule out the impossible rather than defining the boundary, which is measured
+- tests: the generality suite grew to 18, now including four separators that exist nowhere in the source, and a case showing a five-word title being caught by casing where word count could not
+
+---
+date: 2026-07-29
+type: Fix
+title: Empty title boxes in the preview, and a prompt rule against merging bullets
+- lib/tagged/dedupe.ts: when an entry's title turned out to be a duplicate, its bullets were left behind in a titleless entry, which the preview rendered as an empty "Title, links, tech stack, date" placeholder with bullets hanging under it. An entry with no title is not an entry - it is a few loose lines - so that is what those bullets become now. This was visible on the EDUCATION section, whose title repeated the real education entry while the coursework line beneath it did not
+- lib/tagged/parseResume.ts: added an explicit rule against merging two source lines into one tag, with the observed failure as a worked example - a publication whose three bullets arrived inside a single tag with no separator between them ("Research Paper Published research", "using ML Built a linear"). The rule is tied to a signal that is actually in the extracted text: a bullet glyph marks where a new item begins, so it must be used to split before it is stripped
+- no deterministic repair for the merged case, deliberately. Once two sentences are inside one tag with nothing between them, the only way back is to guess where the boundary was, and the available signal - a capital letter mid-line - is also how every proper noun starts ("in Arseam Foundation", "students in Python"). A wrong split would corrupt correct text, which is worse than leaving a bullet long
+- tests: 2 more, covering the education case exactly as it appeared and the general rule that orphaned bullets become loose lines
+
+---
+date: 2026-07-29
+type: Improvement
+title: Link detection now uses where text sits rather than a list of TLDs
+- lib/docx/links.ts: the last enumeration in the pipeline is gone. Deciding whether "janedoe.dev" was an address used a list of accepted TLDs, plus a second list of technologies that collided with them ("socket.io", "asp.net"). Both lists had the same flaw: they only knew what someone had thought to write down, so an unusual domain went unlinked and the next framework named after a TLD would have become a broken link
+- "Node.js" and "janedoe.dev" are the same shape, so nothing in the characters says which is an address. What says it is where it appears. A dotted word on the contact line is an address, because that line is a list of ways to reach someone; a dotted word in a bullet is a technology, because that is what bullets talk about. The generators all know which field they are rendering, so that context is now passed through
+- everything else is recognised structurally and works anywhere in the document: a scheme, a "www.", an "@", or a path. A name does not have a path, which is why "github.com/jane/repo" links inside a bullet while "socket.io" does not
+- patterns are Unicode-aware, so an internationalised domain is not the one that quietly fails
+- tests: link coverage grew to 26, including TLDs no list would have contained (.quest, .zone, .engineering, a non-Latin one) and the collision cases now handled by position rather than by name
+
+---
+date: 2026-07-29
+type: Fix
+title: Corrupted dates in the PDF, and a publication losing its title
+- lib/docx/pdf.ts: every tab-aligned date in the PDF came out mangled - "Jun. 2024" as "" un. 2024", "Nov. 2025" as ""aov. 2025". Resumes right-align their dates with a tab, so a project title arrives as "...OpenSCAD\tFeb. 2026", and pdfkit's built-in fonts have no glyph for a tab: it emitted a replacement glyph that also swallowed the character after it. Control characters are now turned into spaces before anything is drawn. It looked like an encoding fault somewhere far upstream and was neither - the .docx of the same resume was clean, which is what pointed at the renderer
+- lib/tagged/restructure.ts: a publication lost its title entirely. When the model splits an entry, the two halves of its title line land in different places - the paper's name became the section heading while "Co-Author | Research Paper | Jun. 2024" stayed as the entry label - and the code kept the label and discarded the heading. The finished resume listed a publication with no name. The two are now merged, with neither allowed to replace the other, and a title already contained in the label is not repeated
+- lib/docx/inject.ts: tabs in the Word output are emitted as <w:tab/> rather than left inside <w:t>, which is how Word actually records one
+- lib/tagged/baseResume.ts: pipeline version bumped to 5
+- tests: 9 new - the tabbed date across five month formats, ordinary punctuation surviving the same pass, the split-title merge, and a property check that no word of either half is lost
+- found by reading the actual .docx and .pdf downloads rather than a screenshot: the .docx contained "Co-Author | Research Paper \tJun. 2024" intact, which located both faults in minutes
+
+---
+date: 2026-07-29
+type: Fix
+title: Education entries can carry their own lines, so coursework stops becoming a section of its own
+- lib/tagged/schema.ts: ResumeEducation gained `bullets`. "Relevant Coursework" kept appearing as a section at the very end of the resume, after PROJECTS, and no heuristic was at fault - the schema had nowhere to put a line beneath a degree, so the model had to invent somewhere and invented a section. Scrubbed modelled education as one line because a recruiter's template prints it as one line; a student's resume is the opposite, with the degree on one line and everything distinctive about it hanging underneath
+- this is the same shape of problem as the publications one, and the same kind of fix. Where the format cannot represent a resume the model improvises, and no amount of prompt instruction or downstream repair removes the need to improvise. Closing the gap does
+- carried through every stage: the tag format nests <bullet> inside <edu>, the structure check counts them so tailoring cannot drop one, and Word, PDF, the plain-text rendering and the browser editor all print and edit them under the qualification
+- lib/tagged/tailor.ts: education bullets are locked, not tailored. Coursework and a thesis title are facts, and rewording them is not tailoring
+- lib/tagged/parseResume.ts: the prompt now shows <bullet> inside <edu> and says plainly that anything printed under a qualification belongs to it - coursework, a thesis, honours, a society - and is never its own section
+- documents stored before the field existed are read as having no bullets, so nothing needed migrating. Pipeline version bumped to 6, so every resume re-derives on its next tailoring
+- tests: 10 new, including that coursework prints between EDUCATION and PROJECTS rather than after both in all three output formats
+
+---
+date: 2026-07-29
+type: Fix
+title: A resume keeps its own section order instead of being rearranged into Vantage's
+- SECTION_ORDER was a constant in the code and custom sections were appended after all of it, so every resume came back in Vantage's order rather than its own. A candidate who leads with PROJECTS had them moved to the end, and one who puts education above experience had that swapped. The styles were coming from the user's template, but the layout was not
+- lib/tagged/sectionOrder.ts (new): the order is read off the source text rather than asked of the model. The extracted text still has the sections in the order they were printed, so where each one sat is a fact that can be measured. Each section is located by its heading first - matched loosely, so "WORK EXPERIENCE" and "Technical Skills" still match the plainer names we know them by - and by its own content when there is no heading to find
+- a heading only counts when it sits alone on a short line, which is what stops "eight years of experience across payments" inside a summary from being mistaken for the EXPERIENCE heading
+- lib/tagged/schema.ts: ResumeDoc gained `order`, and resolveSectionOrder turns it into a single list of sections to render. All four outputs - Word, PDF, plain text and the browser editor - now walk that one list instead of iterating SECTION_ORDER and then appending the custom sections, so none of them can disagree about the order and the editor shows what the download will produce
+- anything the recorded order does not mention keeps its default position rather than being dropped or pushed to the end, so a section added in the editor after parsing still appears somewhere sensible, and a resume whose order could not be read renders exactly as it did before
+- lib/tagged/tailor.ts: the order is locked like every other fact about the resume - tailoring rewrites bullets, it does not move sections
+- documents stored without an order render in the default order, so nothing needed migrating. Pipeline version bumped to 7
+- tests: 10 new, covering the derivation, the summary false-positive, differently worded headings, and the order actually reaching all three output formats
+
+---
+date: 2026-07-29
+type: Fix
+title: Content filed under the wrong adjacent heading is put back where the resume had it
+- lib/tagged/reheading.ts (new): a publication came back under a "RELEVANT EXPERIENCE" heading, which read as though the resume had two experience sections. The two headings are adjacent in the source and the model attached the content to the second one
+- this class of fault does not need a better prompt, because it is not a judgement call. The source says exactly which heading a piece of content sits under, so rather than asking more carefully the parser now checks: find where the content actually appears in the extracted text, find the nearest heading above it, and use that name. The resume is the authority on its own layout
+- headings are recognised three ways, any one being enough: the line is short and capitalised the way this resume capitalises its headings, it matches a heading the document already claims to have, or it matches one of the standard names. Being generous is safe here because only the nearest heading above the content wins
+- only the heading is changed. Content is never moved between sections, so the pass cannot lose or duplicate anything - at worst it leaves a heading alone for want of evidence
+- runs before deduping and ordering, both of which reason about which section content is in and so need it filed correctly first
+- pipeline version bumped to 8
+- tests: 6 new, including the exact PUBLICATIONS / RELEVANT EXPERIENCE layout that produced the fault, a resume with title-case headings, and resumes where no heading can be identified at all
+
+---
+date: 2026-07-29
+type: Fix
+title: A resume keeps its own wording for its section headings
+- the duplication was two faults compounding, and this was the one that made it visible. A resume heading its jobs "RELEVANT EXPERIENCE" had them printed under "EXPERIENCE", because the heading text came from DEFAULT_SECTIONS rather than from the document. Alongside a second section the model had mislabelled, that read on screen as two experience sections where the candidate had written one
+- lib/tagged/schema.ts, lib/tagged/sectionOrder.ts: ResumeDoc gained `headings`, filled from the source at parse time by the same pass that reads section order - it was already finding each section's heading line, and was throwing the text away. Word, PDF, plain text and the editor all print the resume's wording and fall back to the standard name only when none was found
+- this is the same principle as section order and section position: what a resume calls its sections, what order it puts them in, and which heading a piece of content sits under are all facts about the document. Reading them is more reliable than deciding them, and it removes one more thing the model can get wrong
+- locked during tailoring, like the order - tailoring rewrites bullets, it does not rename sections
+- pipeline version bumped to 9
+- tests: 6 new, covering the heading being read, printed in all three formats, surviving the round trip, resisting a tailoring, and falling back to the standard name when the resume has no heading of its own
+
+---
+date: 2026-07-29
+type: Fix
+title: No two sections can print the same heading
+- lib/tagged/headingCollisions.ts (new): the duplication was never duplicated content - it was two sections printing the same heading. The resume headed its jobs "RELEVANT EXPERIENCE", and once that wording was honoured (v9) the mislabelled section carrying the same name collided with it. Each heading was individually defensible, which is why correcting them one at a time never resolved it: the pair was the fault
+- expressed as an invariant rather than a rule about any particular section, so nothing is keyed to what sections are called. The same check covers a repeated "RELEVANT EXPERIENCE", two "Board Positions" sections, or any pair a future resume produces, and comparison ignores case and spacing
+- the duplicate loses its heading, never its content. Blanking it makes the content read as a continuation of the section above - which is what the model claimed by giving it that name - and cannot lose anything, where renaming would mean inventing a name and dropping would mean discarding whatever it held. A test asserts no word is ever lost
+- built-in sections claim their heading first, because theirs is the resume's own wording for content the format understands; a custom section repeating it is the one that was mislabelled
+- runs after headings are read and before the order is derived, since suppressing a heading changes a section's identity and therefore how the order refers to it
+- pipeline version bumped to 10
+- tests: 8 new, including the reported layout end to end, a collision between two sections the code has never heard of, and the guarantee that content survives regardless
+
+---
+date: 2026-07-29
+type: Fix
+title: Content printed inside a section now stays inside it, instead of becoming an unnamed section
+- the previous change was wrong, and caused both faults reported after it. A resume lists things inside sections the format models separately - a publication under EXPERIENCE - and blanking the duplicate heading turned a merely mislabelled section into an unnamed one, floating at whatever position the order derivation guessed. The publication ended up printed under SKILLS
+- lib/tagged/headingCollisions.ts: rewritten. The heading is evidence of where content belongs, so it is acted on rather than erased. A custom section whose heading matches a built-in section's is marked as part of it, and renders directly after that section's own content under the one heading - which is where the resume had it. Nothing is keyed to particular names: the rule is that a matching heading means "part of", whatever either is called, and it matches the resume's own wording rather than our default
+- lib/tagged/schema.ts: CustomSection gained `partOf`, and resolveSectionOrder splices absorbed sections in after their parent rather than ordering them by where their content was found. Their placement is stated, not inferred
+- lib/tagged/dedupe.ts: a duplicated skills section survived deduping and then became the second unnamed section. A list section prints as one comma-separated line, and the duplicate arrived as that whole line, but it was only ever compared against the individual skills - each too short to be distinctive. The joined form is now compared too
+- absorbed sections are locked through tailoring, so a tailoring cannot re-parent content
+- pipeline version bumped to 11
+- tests: 5 new covering the real layout - publication under EXPERIENCE after the jobs, exactly one EXPERIENCE heading, nothing unnamed, a genuinely separate PROJECTS section untouched, and matching on the resume's own heading wording
+
+---
+date: 2026-07-29
+type: Feature
+title: The resume format now has no fixed sections - a resume's sections are whatever the candidate wrote
+- every bug in this pipeline came from one design decision, and this removes it. The format had named buckets - experience[], education[], skills[], publications[], plus custom[] for the rest - so the AI had to route each piece of a resume into one of them. Content the buckets could not hold had to be improvised somewhere, and each improvisation needed a repair pass to detect and undo. A publication printed inside EXPERIENCE became a second experience section; coursework under a degree became a section at the end; a section the resume called "RELEVANT EXPERIENCE" was relabelled "EXPERIENCE"
+- a resume is now a name, a contact line, and an ordered list of sections. Each section has the heading the candidate wrote, and holds a paragraph, titled entries with bullets, standalone lines, or any combination. There is no wrong bucket to put something in because there are no buckets, and no list of known sections because the resume's sections are the sections
+- deleted outright: lib/tagged/dedupe.ts, restructure.ts, reheading.ts, headingCollisions.ts, sectionOrder.ts, and every heuristic in them - duplicate detection, packed-entry unpacking, orphan-title reattachment, heading correction, collision suppression, section-order derivation, heading derivation. None of it has anything to do any more. Around 900 lines of repair logic replaced by a format that does not need repairing
+- lockFields is now one rule for the whole document - bullets may change, nothing else may - where it previously needed a clause per section type and a new section type meant remembering to add another
+- the Word style slots dropped from seventeen to nine. The old list had one per section type, which is exactly the assumption being removed: a bullet is a bullet whichever section it is in
+- documents stored in the old shape are converted rather than rejected, so a resume tailored before the change can still be downloaded and nobody is told to start again
+- pipeline version bumped to 12, so every stored resume re-derives on its next tailoring
+- tests: the suite shrank with the code it covered. tests/lib/realResume.test.ts is new and asserts the reported resume end to end - the section keeping the name "RELEVANT EXPERIENCE", the publication printing inside it after the jobs, skills appearing once, coursework staying under education, every heading appearing exactly once, no unnamed section, and the same order reaching Word and PDF
+
+---
+date: 2026-07-29
+type: Fix
+title: A resume saved by an older build no longer crashes the editor
+- Resume Studio keeps the working document in sessionStorage, so a resume left there before the format changed came back with no `sections` at all and took the whole page down on first render
+- lib/tagged/validate.ts: readStoredDoc is now the single entry point for a document that has been sitting somewhere - a database row, sessionStorage, a request body. Current shape passes straight through, the old bucketed shape is converted, anything else is refused. Used by the Studio, the tailor page, the base-resume loader and the Studio download route, so no path trusts stored data to match today's code
+- lib/tagged/schema.ts: normaliseDoc fills in a document's missing fields, and the editor runs everything through it before rendering. Stored data outlives the code that wrote it, and a missing array should be a degraded render rather than a crash
+- tests: 5 new covering conversion, pass-through, refusal of anything else, and normalising a document with no sections or a section with no fields
+
+---
+date: 2026-07-29
+type: Fix
+title: Dates print against the right margin, and a transcription that drops a bullet is caught and retried
+- two faults reported together, both about the document saying less or looking less like the original than it should
+- **right-aligned dates.** Resumes put dates hard against the right margin, and the tab that does it survives extraction - so the tab is the instruction, and honouring it reproduces the layout exactly. That is better than the alternative of guessing which part of a line is a date, which would work until it met a line the guess did not fit
+- lib/docx/links.ts: splitAtTab splits a line at its last tab. The last one, because a line with several is laying out columns and the right margin is where the final one lands
+- lib/docx/slotFormat.ts, lib/docx/inject.ts: a tabbed line gets a right tab stop at the margin and emits a real `<w:tab/>` element rather than a tab character, which Word ignores inside `<w:t>`. Lines without a tab are untouched, so nothing that was already correct moves
+- lib/docx/fallback.ts: the same in the built-in layout, via the docx library's right tab stop
+- lib/docx/pdf.ts: the tail is drawn separately, right-aligned on the same baseline. Two fixes here - the PDF has no tab stops to align to, and the baseline was two points low because the height being subtracted excluded the line gap that the draw had actually advanced by. Small enough to look like nothing on screen and like every date sitting low once printed
+- **missing bullets.** Verified first that nothing in our own code was losing them: a full-size resume through serialize, parse and render kept all 23. The loss was the model dropping a line while transcribing, which is the worst kind of fault because nothing looks wrong - the document parses, renders and downloads perfectly, it just says less than the candidate wrote
+- lib/tagged/completeness.ts (new): the source text is right there, so this is checkable rather than something to hope for. Every substantial line of the original is looked for in the parsed document, matched on a fingerprint of its opening so a bullet that legitimately lost its glyph and spacing still counts. Lines too short to be distinctive are skipped, since they appear inside other lines by chance
+- lib/tagged/parseResume.ts: up to three attempts, and the bar is now "the result contains the resume", not "it parsed". A transcription below 90% coverage is rejected and retried with the dropped lines quoted back verbatim - showing the model the specific text it lost works where repeating the rule does not. The fullest attempt is kept and returned if none clears the bar, with a Sentry warning: a resume missing one line beats no resume at all
+- 90% rather than 100% because a resume's page furniture and the odd line the extractor garbles are legitimately absent, and failing every upload over one of those would be worse than the problem
+- pipeline version bumped to 13, so a resume parsed before the completeness check re-derives on its next tailoring. Those documents may be missing a bullet and nothing about them looks wrong, so they would never be re-parsed otherwise
+- tests: 23 new. The PDF ones read coordinates back out of the content stream, since extracted text cannot tell a right-aligned date from one sitting mid-line - they assert the date starts past the middle of the page, shares a baseline with the rest of its line, and leaves the following line where it belongs. The rest cover splitAtTab, tab stops in both Word paths, and the completeness check finding the dropped bullet, naming it, retrying, and giving up gracefully
+
+---
+date: 2026-07-29
+type: Feature
+title: A Word resume is no longer rebuilt - it is edited, so the download is your own document
+- two bugs were reported together, a missing skills line and a missing education line, plus dates that had moved off the line they belonged on. Both came from the same place, and it was the same mistake as the section buckets one level further down
+- the format still had fixed slots inside a section: one `text` field, and entries with a `title`, a `subtitle` and a `meta`. A resume that prints "Employer | Role | Location<TAB>Dates" on ONE line had to be split across three of them, so the date was torn off its line and printed underneath. A skills section printed as TWO paragraphs had one field to land in, so the second was silently dropped. Neither was a bug in the code that could be fixed; the shape had nowhere to put the content
+- a section is now the lines the resume printed, in order, each marked as a bullet or not. There is nothing to route and nothing to split, so there is no wrong slot to end up in and no content that cannot fit
+- **and for a Word upload nothing is transcribed at all.** lib/docx/paragraphs.ts (new) reads word/document.xml directly: the file already states every line, its order, its tabs and which paragraphs are bullets. All of that is read. The AI is asked one question - which lines are section headings - and every number it returns is checked against the file before it is believed. No content passes through a model, so no content can be lost, reworded or moved. The reported missing lines are now impossible rather than merely detected
+- **the download is the user's own file.** lib/docx/rewrite.ts (new) reopens the uploaded .docx and changes only the paragraphs whose words changed. Every other paragraph is re-emitted byte for byte. Fonts, spacing, tab stops, bold spans, list numbering, borders, headers, footers, images and hyperlinks all survive because no code recreates them - the previous engine emptied the body and rebuilt it from our own idea of what a resume looks like, which is exactly the thing that should not exist
+- verified against the reported resume: 44 of 44 lines present including both skills paragraphs and the coursework line, the publication still inside RELEVANT EXPERIENCE, all 10 tabs intact, and 47 of 48 paragraphs byte-identical to the original with only the tailored bullet differing
+- lib/docx/extractText.ts: tabs are no longer collapsed into spaces. That single character is how a resume right-aligns its dates, and folding it away was what left the date with nothing to say it belonged on that line
+- lib/tagged/serialize.ts: tabs cross the wire as an escape so trimming cannot take the layout with them, and the escape is reversible - a property test caught text containing a literal backslash-t decoding into a real tab, which would have invented layout out of a file path
+- lib/tagged/completeness.ts: the line-length floor was 30 characters of fingerprint, which exempted exactly the lines that were going missing - a skills line fingerprints to 26. Now 14. The acceptance bar went from 90% to every line: a resume was previously allowed to lose three lines and pass. It still returns the fullest attempt when none is perfect, so this costs at most an extra call and cannot fail an upload
+- the PDF path keeps the transcription and the retries, because a PDF has no structure to read. That difference is now explicit in the code rather than incidental
+- Word style slots dropped from nine to five. Each drop came from removing an assumption about structure, not from cutting anything: a bullet is a bullet whichever section it is in, and a line is a line whether it names an employer or lists a language
+- pipeline version bumped to 14, so every stored resume re-derives on its next tailoring and picks up its paragraph references. Documents stored in either older shape are converted rather than rejected, keeping every word
+- tests: 410 passing, 51 new. tests/lib/ownDocument.test.ts builds a real .docx in the reported shape and asserts the whole guarantee - every line read, the entry kept whole with its tab, both skills paragraphs, bullet-ness read from the file, nothing changed when nothing was tailored, exactly one paragraph changed when one bullet was, list numbering surviving a rewrite, and every other part of the archive repacked untouched
+
+---
+date: 2026-07-29
+type: Fix
+title: Tailored downloads keep the link to the user's own document
+- found while checking that the rewrite reached the tailor flow and not only a fresh upload. It did not
+- tailorTagged took the tagged STRING and re-parsed it to get the document it restores locked fields from. The tagged format carries text only - a line's paragraph reference is deliberately never shown to the model - so that re-parse produced a document with no references at all, and lockFields dutifully restored nothing. Every tailored resume therefore arrived at the download with its link to the user's file already broken, and fell back to being rebuilt
+- nothing about that looks wrong from the outside, which is the point: the document is complete, correctly tailored and readable. It is just formatted by us instead of by them, silently, on exactly the path that matters most
+- lib/tagged/tailor.ts: tailorTagged now takes the ResumeDoc and serialises it itself, so the original it restores from is the real document rather than a lossy round trip of it
+- tests: 2 new in tests/lib/ownDocument.test.ts running the route's own sequence - serialise, model answer, skeleton check, lock, clamp - and asserting the references survive it, then that the finished .docx changes every bullet and nothing else, with the tabbed entry lines byte-identical to the original
+
+---
+date: 2026-07-29
+type: Fix
+title: Resume Studio downloads the user's own file too, the way tailoring does
+- reported as "tailor is perfect, Studio is a bit off, and the dates come out tabbed rather than right-aligned". Three separate causes, all of them Studio taking a different route to the same download
+- lib/tagged/edit.ts: the edit prompt still listed the OLD tag vocabulary - job, company, title, dates, edu, school, skill, item - none of which exists any more. taggedToDoc rejects unknown tags, so every Studio AI edit failed both attempts and silently returned the document unchanged. Rewritten for the current seven tags, including keeping a printed line whole and leaving a tab where it is
+- lib/tagged/sources.ts (new): an edit is allowed to restructure, so paragraph references cannot be restored positionally the way tailoring restores them. They are matched by text instead: a line whose wording came back unchanged is the same line and gets its paragraph back, and a line the instruction actually rewrote does not. Verified on the reported resume - 37 of 38 lines keep their reference through an edit, the one that does not being the bullet the edit reworded
+- app/api/resume-studio/route.ts: a Word upload in the Studio is now read from its own paragraphs rather than transcribed, the same as everywhere else, so it arrives with references already attached
+- lib/docx/rewrite.ts: the writer walked the FILE's paragraph order, which meant "move Projects above Experience" would have been silently ignored. It walks the document's order now, and each line still emits its own paragraph, so moving a line carries its formatting with it. Blank paragraphs travel with the line below them, so a moved section takes its spacing and a deleted one does not leave a hole
+- lib/docx/rewrite.ts: sourcesFit (new) refuses to write a document into a file it did not come from. The references are plain indices, so pointing them at the wrong file does not fail - it writes each line into whatever paragraph sits at that number. Studio can open a file that is not the base resume, and a stored document outlives the upload it came from, so this is reachable. Judged on lines rather than bullets, since bullets are expected to differ after tailoring
+- **and nothing is right-aligned on the user's behalf any more.** Their document decides: rewriting their file adds no tab stops at all, and the reported resume comes back with the same 10 tabs and zero stops of ours. The right-aligned stop applies only where Vantage supplies the layout - the built-in Word template and the PDF
+- lib/docx/slotFormat.ts: where a stop IS written, its position is read from that document's own page size and margins. It was hardcoded to 6.5 inches, which on a page with half-inch margins lands an inch and a half short of the edge - looking exactly like a date tabbed across rather than aligned
+- lib/docx/inject.ts: a tabbed line gets its stop whether or not the slot has a template style. The styled branch skipped it, on the reasoning that a template's style says everything - but a paragraph style rarely defines a tab stop, and one that does not leaves the date with nothing to aim at
+- components/ui/DismissibleNote.tsx (new): the Word-versus-PDF explanation on both the Tailor and Studio pages can now be dismissed, and stays dismissed. Useful the first time, noise on the fortieth download. Reads localStorage through useSyncExternalStore rather than copying it into state in an effect, so the server and client renders agree and dismissing updates every copy of the note at once
+- tests: 421 passing, 9 new covering a section moved in the editor keeping its order and its formatting, an edit reconnecting untouched lines while leaving the reworded one to be rebuilt, two lines never claiming one paragraph, and the writer refusing a document whose lines do not match the file
+
+---
+date: 2026-07-29
+type: Improvement
+title: Undo, redo and Save in Resume Studio, and a prompt to upload the Word version of your resume
+- components/resume/useDocHistory.ts (new): undo and redo over the whole document. A step is one committed change rather than one keystroke - fields commit on blur, and the AI edit and the structural buttons each replace the document once - so the history reads the way a user would describe their own edits. Capped at 60 steps
+- Save is real, not decorative. The editor already kept a draft in sessionStorage, which is per-tab and lost when the tab closes, so a Save button backed by that would have promised more than it delivered. Explicit saves go to localStorage and survive closing the tab, and the label says which of "Unsaved changes" and "Saved to this browser" is actually true rather than always claiming one
+- the saved copy is read through useSyncExternalStore rather than mirrored into React state, so there is one source of truth for whether there are unsaved changes, and undoing back to the saved state correctly reports none
+- Ctrl+Z, Ctrl+Shift+Z and Ctrl+S. Undo is ignored while the caret is inside a field, where the browser's own text undo is the right behaviour - undoing the whole document mid-word is not
+- components/WordResumeNudge.tsx (new): tells someone whose resume is a PDF that uploading the Word version keeps their own formatting. Shown as a card on the dashboard, where it is worth interrupting for, and as an inline note beside the download buttons. Dismissing either dismisses both, because it is one piece of advice
+- shown only to people it applies to. Whether the base resume is a Word file is answered on the server on the dashboard, so it never flashes at the users it does not apply to, and someone with no resume at all is left alone - the page is already telling them to upload one
+- lib/docx/fileType.ts (new): isDocxFile moved out of extractText.ts, which pulls in a zip library the browser has no business loading
+- components/ui/DismissibleNote.tsx (new): the Word-versus-PDF explanation on the Tailor and Studio pages can now be dismissed and stays dismissed. Useful the first time, noise on the fortieth download
+
+---
+date: 2026-07-29
+type: Fix
+title: Loading spinners were invisible in light mode
+- the shared Spinner drew itself in var(--accent), which is the page's text colour - near-black in light mode. Most spinners sit inside the primary button, which is dark-filled with white text in both themes, so in light mode it was a near-black arc on a near-black button
+- it inherits currentColor now, which is right everywhere without a per-place override: white on the dark button, dark on a light page
+- also stopped injecting a duplicate `@keyframes spin` for every spinner on the page; it is defined once in globals.css
+
+---
+date: 2026-07-29
+type: Fix
+title: Page titles are consistent across every page in the app
+- three different things were wrong at once. Some pages appended " - Vantage" to a title the root layout already appends " · Vantage" to, so Usage Limits read "Usage limits - Vantage · Vantage". Some had no title at all and fell back to the full marketing tagline, so /jobs read "Vantage - Your unfair advantage in job searching". And every docs page had a double-encoded middle dot, rendering a literal "Â·" in the tab
+- every route now resolves to its own name plus " · Vantage", and the names match what the sidebar calls each page rather than being invented separately
+- eleven client pages could not export metadata at all, which is why they had none: a client component cannot. Each has a small layout beside it that supplies the title and nothing else
+- added to the four server pages that were missing one: Billing, Strategy, Contact, Admin
+- app/(marketing)/layout.tsx declared its OWN `template: '%s - Vantage'`, which overrode the root layout's `'%s · Vantage'` for every marketing page - Blog, Changelog, About, Feedback, the docs and the legal pages all rendered a hyphen while the app rendered a middle dot. Removed, so the site has one template rather than two that drifted apart. Its `default` was identical, so nothing was lost
+- the first audit missed that, because it read page titles and assumed the root template applied. It now resolves the whole chain - the title from the page or the layout beside it, the template from the nearest ancestor layout that declares one - and the result is checked against the built HTML rather than the source
+- app/not-found.tsx had no title either, so the 404 was the last page still showing the full marketing tagline
+- all 45 routes verified, plus every prerendered page in the build output
+- docs pages keep their "· Docs" qualifier deliberately: without it /docs/billing and /billing would both be "Billing · Vantage", which is ambiguous in search results and browser history
+
+---
+date: 2026-07-29
+type: Fix
+title: The upload-your-Word-resume card fills the width it is given
+- the text carried a max-width meant to keep a comfortable reading measure, but the card is as wide as the dashboard - so the words wrapped in a narrow column with two thirds of a white box empty beside them
+- the buttons moved out of the body and became its sibling, so they sit at the right of a wide card and fill it. Below 860px they wrap underneath instead
+- and it had no bottom margin, so the stats row sat flush against it

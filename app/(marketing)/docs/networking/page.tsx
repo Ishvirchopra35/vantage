@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Networking Assistant Â· Docs',
+  title: 'Networking Assistant · Docs',
   description: 'Find contacts at target companies and generate personalized outreach messages.',
   alternates: { canonical: '/docs/networking' },
 };

@@ -8,7 +8,11 @@ import TailorDiff, { formatTailoredBullets, type TailorChange } from '@/componen
 import ErrorNotice from '@/components/ui/ErrorNotice'
 import FeatureFeedbackNudge, { recordFeatureSuccess } from '@/components/FeatureFeedbackNudge'
 import { rateLimitMessage } from '@/lib/rateLimitMessage'
-import { RESUME_CSS } from '@/lib/resumeCss'
+import ResumePreview from '@/components/resume/ResumePreview'
+import DismissibleNote from '@/components/ui/DismissibleNote'
+import WordResumeNudge from '@/components/WordResumeNudge'
+import type { ResumeDoc } from '@/lib/tagged/schema'
+import { readStoredDoc } from '@/lib/tagged/validate'
 
 // --- Types -------------------------------------------------------------------
 
@@ -42,6 +46,7 @@ interface ATSScore {
 interface Doc {
   id: string
   content: string
+  tailored_doc?: ResumeDoc | null
 }
 
 // --- Helpers -----------------------------------------------------------------
@@ -224,13 +229,15 @@ export default function TailorPage() {
   const [activeTab, setActiveTab] = useState<'ats' | 'resume' | 'cover'>('resume')
   const [copied, setCopied] = useState<'resume' | 'cover' | null>(null)
 
-  // Tailored Resume tab has two views: the per-bullet diff (default) and a
-  // full rendered resume that can be downloaded as a PDF.
+  // Tailored Resume tab has two views: the per-bullet diff (default) and the
+  // full resume, which is editable and downloads as a Word file.
   const [resumeView, setResumeView] = useState<'diff' | 'full'>('diff')
-  const [fullHtml, setFullHtml] = useState<string | null>(null)
-  const [fullHtmlError, setFullHtmlError] = useState<string | null>(null)
-  const [loadingFull, setLoadingFull] = useState(false)
-  const [downloadingResumePdf, setDownloadingResumePdf] = useState(false)
+  // The working copy the preview edits. It starts as what the tailoring
+  // returned and diverges as the user tweaks it; the download always sends
+  // this, so the file matches what is on screen.
+  const [editedDoc, setEditedDoc] = useState<ResumeDoc | null>(null)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+  const [downloading, setDownloading] = useState<'docx' | 'pdf' | null>(null)
 
   // Log application
   const [logCompany, setLogCompany] = useState('')
@@ -373,6 +380,7 @@ export default function TailorPage() {
       changes: TailorChange[]
       skillGaps: string[]
       atsScore: ATSScore | null
+      warning?: string
     }>('/api/tailor-resume', {
       method: 'POST',
       body: JSON.stringify({ jobId: parsedJob.id }),
@@ -386,63 +394,53 @@ export default function TailorPage() {
     recordFeatureSuccess()
     setTailorChanges(data.changes ?? [])
     if (data.atsScore) setTailoredAtsScore(data.atsScore)
-    // New tailoring invalidates any previously rendered full resume.
-    setFullHtml(null)
-    setFullHtmlError(null)
+    // The structured resume is what the preview edits and the download sends.
+    // A new tailoring replaces any edits made to the previous one.
+    setEditedDoc(readStoredDoc(data.document.tailored_doc))
+    setDownloadError(null)
+    // Surfaced rather than swallowed: the server sends this when it could not
+    // tailor without changing the resume's structure, so it returned the
+    // original. An empty diff would otherwise read as "already perfect".
+    setActionError(data.warning ?? null)
     setResumeView('diff')
     setStep(3)
     setActiveTab('resume')
   }
 
-  async function loadFullResume() {
-    if (!tailoredDoc || loadingFull) return
-    setFullHtmlError(null)
-    setLoadingFull(true)
-    const { data, error } = await apiFetch<{ html: string }>('/api/tailor-resume/render', {
-      method: 'POST',
-      body: JSON.stringify({ documentId: tailoredDoc.id }),
-    })
-    setLoadingFull(false)
-    if (error || !data?.html) {
-      setFullHtmlError(error || 'Could not render the full resume. Please try again.')
-      return
-    }
-    setFullHtml(data.html)
-  }
-
-  function switchResumeView(view: 'diff' | 'full') {
-    setResumeView(view)
-    if (view === 'full' && !fullHtml && !loadingFull) void loadFullResume()
-  }
-
-  async function downloadResumePdf() {
-    if (!fullHtml || downloadingResumePdf) return
-    setFullHtmlError(null)
-    setDownloadingResumePdf(true)
+  // The preview needs no fetch - the structured resume arrived with the
+  // tailoring, so switching views is instant and costs nothing.
+  async function downloadResume(format: 'docx' | 'pdf') {
+    if (!tailoredDoc || !editedDoc || downloading) return
+    setDownloadError(null)
+    setDownloading(format)
     try {
-      const res = await fetch('/api/resume-studio/pdf', {
+      const fileName = parsedJob
+        ? `${parsedJob.company} - ${parsedJob.title} - Resume`
+        : 'Tailored Resume'
+
+      const res = await fetch('/api/tailor-resume/docx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ html: fullHtml }),
+        // Sending the edited document means the file always matches what is on
+        // screen, including edits made since the tailoring ran.
+        body: JSON.stringify({ documentId: tailoredDoc.id, doc: editedDoc, fileName, format }),
       })
       if (!res.ok) {
         const json = await res.json().catch(() => null)
-        setFullHtmlError(json?.error ?? 'Could not create the PDF. Please try again.')
+        setDownloadError(json?.error ?? 'Could not create the file. Please try again.')
         return
       }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = parsedJob
-        ? `${parsedJob.company} - ${parsedJob.title} - Resume.pdf`
-        : 'Tailored Resume.pdf'
+      link.download = `${fileName}.${format}`
       link.click()
       URL.revokeObjectURL(url)
     } catch {
-      setFullHtmlError('Network error. Please try again.')
+      setDownloadError('Network error. Please try again.')
     } finally {
-      setDownloadingResumePdf(false)
+      setDownloading(null)
     }
   }
 
@@ -596,7 +594,7 @@ export default function TailorPage() {
           <div>
             <PageHeader
               title="Tailor your resume"
-              subtitle="Paste a job URL. We'll read it, tailor your resume to match, score it against ATS systems (the software companies use to screen resumes), and generate a cover letter."
+              subtitle="Paste a job URL. We'll read it, tailor your resume to match, score it against ATS systems, and generate a cover letter."
             />
 
             {/* Auto-load banner for jobId flow */}
@@ -1044,18 +1042,22 @@ export default function TailorPage() {
               </div>
             )}
 
-            {/* -- Tailored Resume tab: per-bullet diff or full rendered resume -- */}
+            {/* -- Tailored Resume tab: per-bullet diff or the editable resume -- */}
             {activeTab === 'resume' && (
               <div style={card}>
                 {tailoredDoc ? (
                   <>
+                    {/* Set when the server could not tailor without changing the
+                        resume's structure and returned it unchanged. Without
+                        this an empty diff would read as "already perfect". */}
+                    {actionError && <ErrorNotice message={actionError} style={{ marginBottom: '14px' }} />}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '18px' }}>
                       {/* View toggle: bullet changes vs the full resume */}
                       <div style={{ display: 'inline-flex', background: 'var(--card-raised)', borderRadius: '999px', padding: '3px' }}>
                         {([['diff', 'Bullet changes'], ['full', 'Full resume']] as const).map(([view, label]) => (
                           <button
                             key={view}
-                            onClick={() => switchResumeView(view)}
+                            onClick={() => setResumeView(view)}
                             style={{
                               background: resumeView === view ? 'var(--btn-primary-bg)' : 'transparent',
                               color: resumeView === view ? 'var(--btn-primary-text)' : 'var(--muted)',
@@ -1088,21 +1090,42 @@ export default function TailorPage() {
                             {copied === 'resume' ? 'Copied!' : 'Copy all tailored bullets'}
                           </button>
                         )}
-                        {resumeView === 'full' && fullHtml && (
-                          <button
-                            onClick={() => void downloadResumePdf()}
-                            disabled={downloadingResumePdf}
-                            style={{ ...smallSecondaryBtn, opacity: downloadingResumePdf ? 0.6 : 1 }}
-                          >
-                            {downloadingResumePdf ? <Spinner /> : (
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <polyline points="7 10 12 15 17 10" />
-                                <line x1="12" y1="15" x2="12" y2="3" />
-                              </svg>
-                            )}
-                            <span style={{ marginLeft: '6px' }}>Download PDF</span>
-                          </button>
+                        {resumeView === 'full' && editedDoc && (
+                          <>
+                            <span style={{ fontSize: '13px', color: 'var(--muted)' }}>
+                              Click any line to edit it
+                            </span>
+                            <button
+                              onClick={() => void downloadResume('docx')}
+                              disabled={downloading !== null}
+                              style={{ ...smallSecondaryBtn, opacity: downloading !== null ? 0.6 : 1 }}
+                              title="Keeps the design of your uploaded resume or template"
+                            >
+                              {downloading === 'docx' ? <Spinner /> : (
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                  <polyline points="7 10 12 15 17 10" />
+                                  <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                              )}
+                              <span style={{ marginLeft: '6px' }}>Download Word</span>
+                            </button>
+                            <button
+                              onClick={() => void downloadResume('pdf')}
+                              disabled={downloading !== null}
+                              style={{ ...smallSecondaryBtn, opacity: downloading !== null ? 0.6 : 1 }}
+                              title="A clean standard layout - your own design only comes through in the Word file"
+                            >
+                              {downloading === 'pdf' ? <Spinner /> : (
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                  <polyline points="7 10 12 15 17 10" />
+                                  <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                              )}
+                              <span style={{ marginLeft: '6px' }}>PDF</span>
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -1117,35 +1140,30 @@ export default function TailorPage() {
                       )
                     ) : (
                       <>
-                        {fullHtmlError && <ErrorNotice message={fullHtmlError} style={{ marginBottom: '12px' }} />}
-                        {loadingFull ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '48px 0', justifyContent: 'center', color: 'var(--muted)', fontSize: '14px' }}>
-                            <Spinner /> Building your full resume…
-                          </div>
-                        ) : fullHtml ? (
-                          <iframe
-                            title="Tailored resume preview"
-                            sandbox=""
-                            srcDoc={`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><style>${RESUME_CSS} body { padding: 32px 40px; }</style></head><body>${fullHtml}</body></html>`}
-                            style={{
-                              width: '100%',
-                              minHeight: '700px',
-                              border: 'none',
-                              borderRadius: '8px',
-                              background: '#ffffff',
-                            }}
-                          />
-                        ) : !fullHtmlError ? (
-                          <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                            <button onClick={() => void loadFullResume()} style={secondaryBtn}>
-                              Build full resume
-                            </button>
-                          </div>
+                        {downloadError && <ErrorNotice message={downloadError} style={{ marginBottom: '12px' }} />}
+                        {editedDoc ? (
+                          <>
+                            <WordResumeNudge style={{ marginBottom: '14px' }} />
+                            <DismissibleNote
+                              id="tailor-download-formats"
+                              style={{ marginBottom: '14px' }}
+                            >
+                              <strong style={{ color: 'var(--text)', fontWeight: 600 }}>Word keeps your formatting.</strong>{' '}
+                              It is your uploaded resume with the tailored wording in it, so your
+                              fonts, spacing and layout are untouched. The PDF has the same content
+                              and working links but uses a standard layout, so it will not match
+                              your own design. For a PDF that looks exactly like your resume,
+                              download the Word file and save it as a PDF from Word.
+                            </DismissibleNote>
+                            {/* Edits happen on the document, not on text, so
+                                the structure stays valid no matter what is
+                                changed. */}
+                            <ResumePreview doc={editedDoc} onChange={setEditedDoc} />
+                          </>
                         ) : (
-                          <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                            <button onClick={() => void loadFullResume()} style={secondaryBtn}>
-                              Try again
-                            </button>
+                          <div style={{ fontSize: '13px', color: 'var(--muted)', padding: '24px 0', textAlign: 'center' }}>
+                            This tailored resume was made before Word downloads were available.
+                            Tailor it again to preview and download it.
                           </div>
                         )}
                       </>

@@ -1,32 +1,26 @@
-// SQL migration required:
-// ALTER TABLE profiles ADD COLUMN IF NOT EXISTS resume_html text;
-// ALTER TABLE profiles ADD COLUMN IF NOT EXISTS resume_pdf_path text;
-
+// Base resume upload -> raw text -> AI -> tagged ResumeDoc.
+//
+// This is the only place the AI is allowed to *decide* structure. Everything
+// downstream - tailoring, the browser editor, the .docx download - treats the
+// resulting tag tree as fixed, so the cost of a mistake here is high, which is
+// why parseResumeText validates by round-tripping through our own parser
+// rather than trusting the model's output text.
+//
+// The route stops at producing the document; /api/save-resume writes the row.
 import { requireAuth } from '@/lib/requireAuth';
 import { validateBody } from '@/lib/validateRequest';
 import { ok, err, serverError } from '@/lib/apiResponse';
 import { logRoute } from '@/lib/logger';
 import { withTimeout } from '@/lib/withTimeout';
-import { generateText } from '@/lib/ai';
+import { isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai';
 import { checkRateLimit, rateLimitResponse, recordRateLimitUse } from '@/lib/rateLimit';
-import { createClient } from '@/lib/supabase/server';
-import { extractResumeText, isDocxFile } from '@/lib/extractResumeText';
+import { extractResumeText, isDocxFile } from '@/lib/docx/extractText';
+import { parseResumeFile } from '@/lib/tagged/parseResume';
 
-type ProfileLinks = {
-  linkedin_url: string | null;
-  github_url: string | null;
-  portfolio_url: string | null;
-  projects: { name: string; url: string | null }[] | null;
-};
+const ROUTE = '/api/parse-resume';
 
-// Strip <html>/<head>/<body> wrappers if the AI included them despite the prompt
-function extractBodyContent(html: string): string {
-  const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
-  if (bodyMatch) return bodyMatch[1].trim()
-  const htmlMatch = html.match(/<html[^>]*>([\s\S]*)<\/html>/i)
-  if (htmlMatch) return htmlMatch[1].replace(/<head[^>]*>[\s\S]*<\/head>/i, '').trim()
-  return html.trim()
-}
+// Tagging a long resume is the slowest AI call in the app.
+export const maxDuration = 60;
 
 export async function POST(request: Request): Promise<Response> {
   const start = Date.now();
@@ -46,7 +40,7 @@ export async function POST(request: Request): Promise<Response> {
     proWindowMinutes: 1440,
   });
   if (!rateLimit.allowed) {
-    await logRoute('/api/parse-resume', user.id, Date.now() - start, 429);
+    await logRoute(ROUTE, user.id, Date.now() - start, 429);
     return rateLimitResponse(rateLimit.resetAt, rateLimit.remaining, rateLimit.tier);
   }
 
@@ -74,129 +68,62 @@ export async function POST(request: Request): Promise<Response> {
   let text: string;
   try {
     text = await extractResumeText(buffer, isDocx);
+  } catch {
+    await logRoute(ROUTE, user.id, Date.now() - start, 400);
+    return err(
+      isDocx
+        ? 'That file could not be read. Try re-saving it from Word as a .docx.'
+        : 'That file could not be read. Scanned or image-only PDFs are not supported yet.',
+      400
+    );
+  }
+
+  if (text.trim().length < 50) {
+    await logRoute(ROUTE, user.id, Date.now() - start, 400);
+    return err(
+      isDocx
+        ? 'Almost no text was found in that file - it looks empty.'
+        : 'Almost no text was found in that file - it may be a scan rather than a text PDF.',
+      400
+    );
+  }
+
+  try {
+    // For a .docx this reads the file's own paragraphs instead of asking the
+    // model to retype the resume, so no line can be dropped or reworded and
+    // each one keeps a reference to the paragraph it came from.
+    const { doc } = await withTimeout(parseResumeFile(buffer, isDocx), 55000, 'parse-resume-tagged');
+
+    // The AI is told never to invent content, so feeding it something that is
+    // not a resume produces an honest but empty result rather than a fabricated
+    // career. Good - but silently handing back a nameless resume looks like a
+    // bug, so say what happened.
+    const looksLikeResume = Boolean(doc.name.trim()) || doc.sections.length > 0;
+
+    // Charge the limit only now that the resume actually parsed.
+    await Promise.all([
+      recordRateLimitUse('parse-resume', user.id),
+      logRoute(ROUTE, user.id, Date.now() - start, 200),
+    ]);
+
+    return ok({
+      text,
+      doc,
+      warning: looksLikeResume
+        ? undefined
+        : 'This does not look like a resume - no name or work history was found. Check you uploaded the right file.',
+    });
   } catch (e) {
-    await logRoute('/api/parse-resume', user.id, Date.now() - start, 500);
+    if (isAiQuotaError(e)) {
+      await logRoute(ROUTE, user.id, Date.now() - start, 429);
+      return err(AI_BUSY_MESSAGE, 429);
+    }
+    // parseResumeText throws a message written for the user, so surface it.
+    if (e instanceof Error && e.message.startsWith('Could not read that resume')) {
+      await logRoute(ROUTE, user.id, Date.now() - start, 400);
+      return err(e.message, 400);
+    }
+    await logRoute(ROUTE, user.id, Date.now() - start, 500);
     return serverError(e);
   }
-
-  // Generate structured HTML - saved to profiles for surgical tailoring later.
-  // Non-critical: text extraction already succeeded even if this fails.
-  let resumeHtml: string | null = null;
-  try {
-    const supabase = await createClient();
-
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('linkedin_url, github_url, portfolio_url, projects')
-      .eq('id', user.id)
-      .single();
-
-    const profile = profileData as ProfileLinks | null;
-    const profileLinkedin = profile?.linkedin_url ?? null;
-    const profileGithub = profile?.github_url ?? null;
-    const profilePortfolio = profile?.portfolio_url ?? null;
-
-    // Build project links block - only include projects that have a URL
-    const projectsWithUrls = (profile?.projects ?? []).filter(p => p.url);
-    const projectLinksBlock = projectsWithUrls.length > 0
-      ? `PROJECT LINKS (use these exact URLs, do not guess or hallucinate):\n` +
-        projectsWithUrls.map(p => `- ${p.name}: ${p.url}`).join('\n')
-      : '';
-
-    // Build contact link instructions using exact profile values
-    const contactLinkLines = [
-      profileLinkedin && `- "LinkedIn" in the contact line → <a href="${profileLinkedin}">LinkedIn</a>`,
-      profileGithub && `- "GitHub" in the contact line → <a href="${profileGithub}">GitHub</a>`,
-      profilePortfolio && `- "Portfolio" or "Website" in the contact line → <a href="${profilePortfolio}">Portfolio</a>`,
-      `- Any email address → <a href="mailto:EMAIL">EMAIL</a>`,
-      `- Any raw URL found in the text → <a href="URL">display text</a>`,
-    ].filter(Boolean).join('\n');
-
-    const rawHtml = await withTimeout(
-      generateText(
-        'You are a resume formatter. Convert plain-text resumes to clean, semantic HTML body content. Return ONLY the HTML body content - no <html>, <head>, or <body> tags.',
-        `Convert this resume to clean HTML that exactly preserves the layout and formatting.
-
-RULES:
-- Use <h1> for the candidate's full name (first line)
-- Use <h2> for section headers (Experience, Education, Skills, Projects, etc.)
-- Use <p> for contact info and summary paragraphs
-- Use <ul><li> for bullet points
-- Use <strong> for bold text, <em> for italic
-- Single column layout, no tables, no floats, no CSS classes
-- Do NOT add, remove, or invent any content - preserve 100% of the original text
-
-CONTACT LINE LINKS - reconstruct these exact hyperlinks:
-${contactLinkLines}
-
-${projectLinksBlock ? `${projectLinksBlock}
-
-PROJECT LINK RULES:
-- For project entries, use ONLY the URLs listed in PROJECT LINKS above - match by project name
-- If a project is not listed in PROJECT LINKS, render the project name as plain text with NO link
-- Do not fabricate any URLs under any circumstances` : `Do not fabricate any project URLs. Only link to URLs that appear verbatim in the resume text.`}
-
-Resume text:
-${text}`,
-        2000
-      ),
-      20000,
-      'resume-to-html'
-    );
-    resumeHtml = extractBodyContent(rawHtml);
-
-    // If the AI dropped all hyperlinks, retry with an explicit link-injection prompt
-    const linkCount = (resumeHtml.match(/<a\s/gi) ?? []).length;
-    if (linkCount === 0 && (profileLinkedin || profileGithub)) {
-      const mustHaveLinks = [
-        profileLinkedin && `<a href="${profileLinkedin}">LinkedIn</a>`,
-        profileGithub && `<a href="${profileGithub}">GitHub</a>`,
-        profilePortfolio && `<a href="${profilePortfolio}">Portfolio</a>`,
-      ].filter(Boolean).join(', ');
-
-      const retryHtml = await withTimeout(
-        generateText(
-          'You are a resume formatter. Convert plain-text resumes to clean, semantic HTML body content. Return ONLY the HTML body content - no <html>, <head>, or <body> tags.',
-          `Convert this resume to HTML using the same rules as before.
-
-CRITICAL - the contact <p> tag MUST contain these exact links: ${mustHaveLinks}
-Do NOT omit them under any circumstances.
-
-${projectLinksBlock ? `${projectLinksBlock}\nDo not fabricate project URLs - only use URLs from PROJECT LINKS above.` : 'Do not fabricate any project URLs.'}
-
-Rules:
-- Use <h1> for the candidate's full name
-- Use <h2> for section headers
-- Use <p> for contact info and summary paragraphs
-- Use <ul><li> for bullet points
-- Single column, no tables, no CSS classes
-- Preserve 100% of the original text
-
-Resume text:
-${text}`,
-          2000
-        ),
-        20000,
-        'resume-to-html-retry'
-      );
-      resumeHtml = extractBodyContent(retryHtml);
-    }
-
-    await supabase
-      .from('profiles')
-      .update({
-        resume_html: resumeHtml,
-        ...(!isDocx ? { resume_pdf_path: fileUrl } : {}),
-      })
-      .eq('id', user.id);
-  } catch (e) {
-    console.error('[parse-resume] html generation failed:', e)
-  }
-
-  // Charge the limit only now that the resume actually parsed.
-  await Promise.all([
-    recordRateLimitUse('parse-resume', user.id),
-    logRoute('/api/parse-resume', user.id, Date.now() - start, 200),
-  ]);
-  return ok({ text, resumeHtml });
 }

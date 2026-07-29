@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Resume Tailoring Â· Docs',
+  title: 'Resume Tailoring · Docs',
   description: 'Learn how Vantage rewrites your resume to match ATS keywords without fabricating experience.',
   alternates: { canonical: '/docs/resume-tailoring' },
 };
@@ -25,7 +25,10 @@ export default function ResumeTailoringPage() {
             When you paste a job URL or description into the Tailor page, Vantage reads the listing and pulls out a comprehensive keyword list. This is not just the skills section - it includes all significant terminology the ATS would scan for, including industry jargon, tools, methodologies, certifications, and soft skills mentioned throughout the posting.
           </p>
           <p style={p}>
-            The tailoring engine then rewrites your resume against that keyword list. It follows a strict rule: <strong style={strong}>tailoring never fabricates experience</strong>. It reorders bullet points, rewords descriptions to incorporate target keywords naturally, and repositions sections so that the most relevant content appears first. If you do not have experience with something the job requires, it is listed as a skill gap - not invented.
+            The tailoring engine then rewords your bullet points against that keyword list, incorporating the job&apos;s own terminology wherever your existing work genuinely touches it. It follows a strict rule: <strong style={strong}>tailoring never fabricates experience</strong>. If you do not have experience with something the job requires, it is listed as a skill gap - not invented.
+          </p>
+          <p style={p}>
+            Only your bullet points and summary are ever rewritten. Your section headings, job titles, company names, dates and education come back exactly as they went in, and so does the number of bullets under each role - this is checked mechanically before a tailored resume is accepted, not left to the AI to respect. Rewritten bullets are also held to roughly the original&apos;s length, so a one-page resume stays one page.
           </p>
         </section>
 
@@ -36,18 +39,22 @@ export default function ResumeTailoringPage() {
             <li style={li}>Paste the job posting URL, or switch to pasting the job description text directly.</li>
             <li style={li}>Click <strong style={strong}>Analyze job</strong>. Vantage reads the listing and pulls out the keywords (usually 5 to 10 seconds).</li>
             <li style={li}>Review the parsed job, then click <strong style={strong}>Tailor My Resume</strong> to generate the optimized version.</li>
-            <li style={li}>Read the result in the <strong style={strong}>Tailored Resume</strong> tab; skill gaps are listed alongside it, and the <strong style={strong}>ATS Score</strong> tab shows the before/after.</li>
-            <li style={li}>Copy the tailored resume and use it for your application.</li>
+            <li style={li}>Read the result in the <strong style={strong}>Tailored Resume</strong> tab. <strong style={strong}>Bullet changes</strong> shows exactly which bullets moved and why; skill gaps are listed alongside, and the <strong style={strong}>ATS Score</strong> tab shows the before/after.</li>
+            <li style={li}>Switch to <strong style={strong}>Full resume</strong> to see the whole thing. Click any line to edit it - your changes are kept for the download.</li>
+            <li style={li}>Download it as <strong style={strong}>Word</strong> or <strong style={strong}>PDF</strong>. The Word file keeps your design - it is built by putting your text into your own resume file. The PDF is a clean standard layout with the same content and working links.</li>
           </ol>
         </section>
 
         <section style={section}>
           <h2 style={h2}>What to expect</h2>
           <p style={p}>
-            The output is your full resume rewritten to maximize keyword coverage for the specific role. You will see a before/after ATS score comparison when both scores are available, showing exactly how much the tailoring improved your match. Skill gaps - keywords the job requires that are not reflected anywhere in your experience - are listed separately so you know where the mismatches are.
+            The output is your resume with its bullet points reworded for the specific role, downloadable as Word or PDF. You will see a before/after ATS score comparison when both scores are available, showing exactly how much the tailoring improved your match. Skill gaps - keywords the job requires that are not reflected anywhere in your experience - are listed separately so you know where the mismatches are.
           </p>
           <p style={p}>
-            The AI does not add skills you do not have, exaggerate your experience level, or change the factual content of your work history. It only changes how your existing experience is described and organized.
+            It is normal for only a handful of bullets to change. A bullet that already reads well for the job is left alone rather than edited for the sake of it.
+          </p>
+          <p style={p}>
+            The AI does not add skills you do not have, exaggerate your experience level, or change the factual content of your work history. It only changes how your existing experience is described. Hyperlinks in your original resume - LinkedIn, GitHub, portfolio, email - stay clickable in either download.
           </p>
         </section>
 
@@ -78,6 +85,16 @@ export default function ResumeTailoringPage() {
             <p style={faqQ}>The output has too many skill gaps.</p>
             <p style={p}>
               A large skill gap list usually means the job requires experience you genuinely do not have. This is useful information -it tells you whether this role is realistic to pursue or if you should focus on closer matches.
+            </p>
+          </div>
+          <div style={faq}>
+            <p style={faqQ}>My downloaded resume does not look like my own resume.</p>
+            <p style={p}>
+              The Word download is built from the file you uploaded, so it can only keep your
+              design if you uploaded a Word file. If your base resume is a PDF, upload a .docx
+              version on the Profile page - either as your resume or as a template - and
+              downloads will match it. The PDF download always uses a standard layout; for a PDF
+              in your own design, download the Word file and save it as a PDF from Word.
             </p>
           </div>
           <div style={faq}>

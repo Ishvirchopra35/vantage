@@ -3,10 +3,11 @@ import { createClient } from '@/lib/supabase/server';
 import ProfileForm from '@/components/ProfileForm';
 import type { Profile as BaseProfile } from '@/components/ProfileForm';
 import ExtensionTokenSection from '@/components/ExtensionTokenSection';
+import ResumeTemplateUpload from '@/components/ResumeTemplateUpload';
 import PageHeader from '@/components/ui/PageHeader';
 
 export const metadata = {
-  title: 'Profile - Vantage',
+  title: 'Profile',
   description: 'Complete your profile for better AI outputs',
 };
 
@@ -54,6 +55,7 @@ export default async function ProfilePage({
             subtitle="Complete your profile so every AI output sounds like you."
           />
           <ProfileForm initialData={profile} isNew={isNew} />
+          <ResumeTemplateUpload />
           {/* Anchor target for "/profile#extension-token" links across the app. */}
           <div id="extension-token" style={{ scrollMarginTop: 96 }}>
             <ExtensionTokenSection

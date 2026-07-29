@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import DocumentsClient from '@/components/DocumentsClient'
 
 export const metadata = {
-  title: 'Documents - Vantage',
+  title: 'Documents',
 }
 
 export interface TailorChangeRow {

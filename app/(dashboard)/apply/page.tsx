@@ -7,7 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import { toAutoApplyList, autoApplyHref, type TrackedApplicationRow } from '@/lib/autoApply';
 
 export const metadata = {
-  title: 'Auto-apply - Vantage',
+  title: 'Auto-apply',
   description: 'Pre-fill job applications automatically',
 };
 

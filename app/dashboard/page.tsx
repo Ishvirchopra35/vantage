@@ -6,6 +6,8 @@ import { filterTrackedJobs } from '@/lib/jobFilters';
 import ArrowIcon from '@/components/ui/ArrowIcon';
 import PageHeader from '@/components/ui/PageHeader';
 import FeedbackNudge from '@/components/FeedbackNudge';
+import WordResumeNudge from '@/components/WordResumeNudge';
+import { isDocxFile } from '@/lib/docx/fileType';
 
 export const metadata = {
   title: 'Dashboard',
@@ -158,6 +160,7 @@ export default async function DashboardPage() {
     subscriptionResult,
     weeklyTailoringsResult,
     allAtsScoresResult,
+    baseResumeResult,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -197,6 +200,17 @@ export default async function DashboardPage() {
       .from('ats_scores')
       .select('overall_score, job_id')
       .eq('user_id', user.id),
+    // Answered here rather than in the browser: the prompt below only applies
+    // to a PDF resume, and asking on the server means it never flashes at the
+    // Word users it does not apply to.
+    supabase
+      .from('resumes')
+      .select('file_name, file_url')
+      .eq('user_id', user.id)
+      .eq('is_base', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const profile = profileResult.data as ProfileRow | null;
@@ -209,6 +223,12 @@ export default async function DashboardPage() {
   const firstName = getFirstName(profile, user.email);
   const bucket = getTimeBucket();
   const plan = subscription?.plan === 'pro' ? 'Pro' : 'Free';
+
+  // Only when there IS a resume and it is not Word. Someone with no resume is
+  // already being told to upload one, and telling them which format first
+  // would be answering a question they have not reached yet.
+  const baseResumeName = baseResumeResult.data?.file_name ?? baseResumeResult.data?.file_url ?? '';
+  const needsWordResume = Boolean(baseResumeName) && !isDocxFile(baseResumeName, '');
   const profileComplete = Boolean((profile?.skills?.length ?? 0) > 0 && (profile?.target_roles?.length ?? 0) > 0);
 
   const totalApplications = applications.length;
@@ -370,6 +390,16 @@ export default async function DashboardPage() {
           </span>
         ) : undefined}
       />
+
+      {/* A resume already uploaded as Word downloads as that exact document,
+          so this is only worth saying to someone whose resume is a PDF. */}
+      {needsWordResume && (
+        <WordResumeNudge
+          variant="card"
+          needsWord
+          style={{ marginTop: '16px', marginBottom: '16px' }}
+        />
+      )}
 
       <FeedbackNudge />
 

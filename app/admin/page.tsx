@@ -1,9 +1,13 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import AdminCampaignForm from '@/components/AdminCampaignForm';
 import AdminResetAnalytics from '@/components/AdminResetAnalytics';
+
+export const metadata = {
+  title: 'Admin',
+  description: 'Internal analytics',
+};
 
 export const dynamic = 'force-dynamic';
 
@@ -150,11 +154,19 @@ export default async function AdminPage() {
   const sixDaysAgo = addDays(now, -6);
 
   const [profilesResult, subscriptionsResult, eventsResult, atsScoresResult, routeLogsResult] = await Promise.all([
-    svc.from('profiles').select('id, created_at').order('created_at', { ascending: false }),
+    // Explicit limits everywhere: PostgREST caps an unbounded select at 1000
+    // rows by default, so without one these silently stop counting past that
+    // and the totals quietly understate.
+    svc
+      .from('profiles')
+      .select('id, created_at')
+      .order('created_at', { ascending: false })
+      .limit(50000),
     svc
       .from('subscriptions')
       .select('user_id, plan, status, cancelled_at, created_at')
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(50000),
     // Guardrails, not pagination: this page aggregates in memory, so cap the
     // two unbounded tables at the most recent 50k rows. Totals silently
     // become "last 50k" past that - use Reset analytics to keep them small.
@@ -165,7 +177,8 @@ export default async function AdminPage() {
       .limit(50000),
     svc
       .from('ats_scores')
-      .select('job_id, document_id, resume_id, overall_score, created_at'),
+      .select('job_id, document_id, resume_id, overall_score, created_at')
+      .limit(50000),
     svc
       .from('route_logs')
       .select('route, duration_ms, created_at')
@@ -186,6 +199,23 @@ export default async function AdminPage() {
   } catch {
     optedInCount = 0;
   }
+
+  // Every metric on this page is derived from these five queries, and every
+  // one of them degrades to 0 or "-" when its query fails. A missing column
+  // therefore looked exactly like "nobody signed up this week" - which is how
+  // profiles.created_at not existing went unnoticed while the numbers sat
+  // still. Failures are now named at the top of the page instead.
+  const queryFailures = (
+    [
+      ['profiles', profilesResult.error],
+      ['subscriptions', subscriptionsResult.error],
+      ['events', eventsResult.error],
+      ['ats_scores', atsScoresResult.error],
+      ['route_logs', routeLogsResult.error],
+    ] as const
+  )
+    .filter(([, error]) => Boolean(error))
+    .map(([table, error]) => `${table}: ${error?.message ?? 'unknown error'}`);
 
   const profiles = (profilesResult.data ?? []) as ProfileRow[];
   const subscriptions = (subscriptionsResult.data ?? []) as SubscriptionRow[];
@@ -415,7 +445,11 @@ export default async function AdminPage() {
           <h1 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text)', lineHeight: 1.1 }}>Admin</h1>
           <p style={{ marginTop: '6px', color: 'var(--muted)', fontSize: '0.95rem' }}>Operational metrics and system health.</p>
         </div>
-        <Link
+        {/* A plain anchor, not next/link: a Link to the route you are already
+            on resolves from the router cache and can leave the numbers
+            unchanged, which reads as "the data is stale" when it is really
+            "nothing was refetched". */}
+        <a
           href="/admin"
           style={{
             display: 'inline-flex',
@@ -432,8 +466,33 @@ export default async function AdminPage() {
           }}
         >
           Refresh
-        </Link>
+        </a>
       </div>
+
+      {queryFailures.length > 0 && (
+        <section
+          style={{
+            ...pageCardStyle,
+            borderColor: 'var(--score-red)',
+            background: 'rgba(239,68,68,0.06)',
+          }}
+        >
+          <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--score-red)', marginBottom: '8px' }}>
+            Some data could not be loaded
+          </h2>
+          <p style={{ color: 'var(--text)', fontSize: '0.9rem', marginBottom: '10px' }}>
+            Any metric derived from these tables is wrong on this page - it is showing zero
+            because the query failed, not because the number is zero.
+          </p>
+          <ul style={{ margin: 0, paddingLeft: '18px' }}>
+            {queryFailures.map((failure) => (
+              <li key={failure} style={{ color: 'var(--muted)', fontSize: '0.85rem', fontFamily: 'monospace' }}>
+                {failure}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {revenueEnabled && (
         <section style={pageCardStyle}>

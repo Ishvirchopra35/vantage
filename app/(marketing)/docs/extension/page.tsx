@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Browser Extension Â· Docs',
+  title: 'Browser Extension · Docs',
   description: 'Install the Vantage Chrome extension, connect your account, and troubleshoot issues.',
   alternates: { canonical: '/docs/extension' },
 };

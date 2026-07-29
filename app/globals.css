@@ -1796,6 +1796,15 @@ html[data-theme="light"] .filter-pill[data-active="true"] {
   margin: 0 auto;
 }
 
+/* Two-column workspaces need more room than the reading-width cap: at 900px a
+   340px sidebar leaves the resume about 540px, which is narrower than the page
+   it represents and makes every line wrap in the wrong place. */
+.dashboard-page-wide {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
 /* ============================================================
    Page letterhead - the shared header on every dashboard page.
    One title treatment, one rhythm, one gold signature tick, so
@@ -2733,3 +2742,456 @@ html[data-theme="light"] .lph-lit {
 }
 
 
+
+/* ============================================================================
+   RESUME PREVIEW - components/resume/*
+   The click-to-edit rendering of a tagged ResumeDoc. Styled as a document
+   rather than a form: the controls stay invisible until a row is hovered or
+   focused, so a user reading their resume sees a resume.
+   ========================================================================== */
+
+.resume-sheet {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 32px 36px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .resume-sheet {
+    padding: 20px 16px;
+  }
+}
+
+/* -- editable fields ------------------------------------------------------- */
+
+.resume-editable {
+  display: inline-block;
+  min-width: 2rem;
+  border-radius: 4px;
+  padding: 0 3px;
+  outline: none;
+  transition: background 0.12s;
+}
+
+.resume-editable:hover {
+  background: var(--card-raised);
+}
+
+.resume-editable:focus {
+  background: var(--card-raised);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* The placeholder is a pseudo-element so it never becomes real text content
+   that could end up saved into the document. */
+.resume-editable:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+/* -- row controls ---------------------------------------------------------- */
+
+.resume-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* A line the resume printed without a bullet: an employer, a skills list. It
+   sits flush rather than indented, because that is where the document puts it. */
+.resume-row-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.resume-row-line:first-child {
+  margin-top: 0;
+}
+
+/* A line that introduces bullets is the one naming an employer, a project or a
+   degree, and every resume layout gives it more weight. Matched to what the
+   Word and PDF renderers do, so the preview is not the odd one out. */
+.resume-row-line:has(+ .resume-row) {
+  font-weight: 600;
+}
+
+/* The text after a tab: a date, pushed to the right margin exactly as the
+   .docx and the PDF push it. */
+.resume-tail {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.resume-row-delete,
+.resume-remove-entry {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  opacity: 0;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: opacity 0.12s, color 0.12s, background 0.12s;
+}
+
+.resume-row-delete {
+  padding: 3px;
+  line-height: 0;
+  margin-top: 3px;
+}
+
+.resume-remove-entry {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.resume-row:hover .resume-row-delete,
+.resume-entry:hover .resume-remove-entry,
+.resume-chip:hover .resume-row-delete,
+.resume-row-delete:focus-visible,
+.resume-remove-entry:focus-visible {
+  opacity: 1;
+}
+
+.resume-row-delete:hover,
+.resume-remove-entry:hover {
+  color: var(--score-red);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.resume-row-add {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 3px 10px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+.resume-row-add:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+/* -- document structure ---------------------------------------------------- */
+
+.resume-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.resume-contact {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.resume-summary {
+  margin: 12px 0 0;
+}
+
+.resume-heading {
+  margin: 22px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* An empty section still renders so there is somewhere to click "+ entry",
+   but it is dimmed and labelled - the Word file will not contain it. */
+.resume-heading-empty {
+  border-bottom-style: dashed;
+  opacity: 0.5;
+}
+
+.resume-heading-note {
+  margin-left: 8px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.resume-entry {
+  margin-bottom: 14px;
+}
+
+.resume-entry-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.resume-flex {
+  flex: 1;
+  min-width: 0;
+}
+
+.resume-company {
+  font-weight: 600;
+}
+
+.resume-title {
+  font-style: italic;
+}
+
+.resume-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.resume-meta-sep {
+  margin: 0 6px;
+  opacity: 0.4;
+}
+
+.resume-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.resume-bullet-dot {
+  user-select: none;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.resume-add-inset {
+  margin-top: 6px;
+  padding-left: 16px;
+}
+
+.resume-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.resume-chip {
+  background: var(--card-raised);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.resume-subentry {
+  margin: 10px 0 12px;
+}
+
+.resume-subentry:hover .resume-remove-entry {
+  opacity: 1;
+}
+
+.resume-add-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+}
+
+/* Resume Studio: instruction sidebar beside the editable resume. Stacks on
+   narrow screens so the resume never gets squeezed into an unreadable column. */
+.studio-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  min-height: 640px;
+}
+
+.studio-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+}
+
+@media (max-width: 900px) {
+  .studio-layout {
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .studio-sidebar {
+    width: 100%;
+    position: static;
+    max-height: none;
+  }
+}
+
+/* -- dismissible note ------------------------------------------------------ */
+
+.note-dismiss {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: -2px -2px 0 0;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.note-dismiss:hover,
+.note-dismiss:focus-visible {
+  opacity: 1;
+  background: var(--border);
+}
+
+/* -- resume studio toolbar ------------------------------------------------- */
+
+.studio-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.studio-toolbar-actions,
+.studio-toolbar-save {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: var(--card-raised);
+  color: var(--text);
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.studio-tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.studio-tool:not(:disabled):hover {
+  opacity: 0.85;
+}
+
+.studio-tool-primary:not(:disabled) {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+}
+
+.studio-save-state {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* -- upload-your-word-resume prompt ----------------------------------------
+   Layout only. The surface, the buttons and the icon tile all come from the
+   shared .ds-* material, so this card matches every other card on the page
+   instead of being a second opinion about what a card looks like. */
+
+.word-nudge {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.word-nudge-icon {
+  width: 34px;
+  height: 34px;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.word-nudge-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.word-nudge-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 4px 0 6px;
+}
+
+.word-nudge-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--muted);
+  /* No max-width. The card is as wide as the dashboard, and capping the
+     measure left two thirds of it empty with the text wrapping in a narrow
+     column against a wide white box. The actions take the right-hand side
+     instead, which is what fills it. */
+}
+
+.word-nudge-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.word-nudge-actions .ds-btn-primary {
+  text-decoration: none;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Stacked once there is no room to sit beside the text. */
+@media (max-width: 860px) {
+  .word-nudge {
+    flex-wrap: wrap;
+  }
+
+  .word-nudge-body {
+    flex-basis: 100%;
+  }
+
+  .word-nudge-actions {
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .word-nudge-icon {
+    display: none;
+  }
+}

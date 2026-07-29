@@ -1,5 +1,11 @@
 // Tailors the base resume to a job posting and returns a per-bullet diff;
 // optionally ATS-scores the result. The heaviest AI route in the app.
+//
+// The AI edits bullet text inside the tagged document rather than rewriting the
+// resume, and lib/tagged/tailor.ts refuses any result whose structure drifted.
+// So the section order, job count, bullet count, employers, dates and education
+// that come out are the ones that went in - guaranteed mechanically, not by
+// asking the model nicely.
 export const maxDuration = 120;
 
 import { requireAuth } from '@/lib/requireAuth';
@@ -11,45 +17,10 @@ import { withTimeout } from '@/lib/withTimeout';
 import { generateJSON, isAiQuotaError, AI_BUSY_MESSAGE } from '@/lib/ai';
 import { buildUserContext, formatContextForPrompt } from '@/lib/userContext';
 import { createClient } from '@/lib/supabase/server';
-
-interface TailorChange {
-  section: string;
-  entry: string;
-  original: string;
-  tailored: string;
-  reason: string;
-}
-
-interface TailorResult {
-  changes: TailorChange[];
-  tailored_resume_text: string;
-  skill_gaps: string[];
-}
-
-// Safety net behind the prompt: even with instructions to skip cosmetic
-// edits, the model occasionally returns "removed 'a' for conciseness"-style
-// changes. Those are noise in the diff view, so they are dropped server-side.
-const INTERCHANGEABLE_VERBS = new Map<string, string>([
-  ['built', 'made'], ['developed', 'made'], ['created', 'made'], ['made', 'made'],
-  ['implemented', 'made'], ['constructed', 'made'], ['engineered', 'made'],
-]);
-const FILLER_WORDS = new Set(['a', 'an', 'the', 'and', 'with', 'using', 'to', 'of', 'for', 'in', 'on']);
-
-function isTrivialChange(original: string, tailored: string, reason: string): boolean {
-  // A reason about wording/conciseness means no job-alignment happened.
-  if (/\b(concis|wording|redundant|filler|shorten|brevity|streamlin)\w*/i.test(reason)) return true;
-
-  const normalize = (text: string): string =>
-    text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s%$.+~-]/g, ' ')
-      .split(/\s+/)
-      .filter((w) => w && !FILLER_WORDS.has(w))
-      .map((w) => INTERCHANGEABLE_VERBS.get(w) ?? w)
-      .join(' ');
-
-  return normalize(original) === normalize(tailored);
-}
+import { docToPlainText } from '@/lib/tagged/plainText';
+import { resolveBaseResume } from '@/lib/tagged/baseResume';
+import { tailorTagged, diffBullets, findSkillGaps, type TailorTarget } from '@/lib/tagged/tailor';
+import type { ResumeDoc } from '@/lib/tagged/schema';
 
 interface ATSScoreResult {
   overall_score: number;
@@ -106,7 +77,7 @@ export async function POST(request: Request): Promise<Response> {
       .single(),
     supabase
       .from('resumes')
-      .select('id, raw_text')
+      .select('id, raw_text, tagged_doc, tagged_version, file_url, file_name')
       .eq('user_id', user.id)
       .eq('is_base', true)
       .order('created_at', { ascending: false })
@@ -129,72 +100,47 @@ export async function POST(request: Request): Promise<Response> {
   const ctx = await buildUserContext(user.id);
   const contextStr = formatContextForPrompt(ctx);
 
-  const jobSkills = (job.required_skills || []).join(', ');
-  const jobNiceToHave = (job.nice_to_have_skills || []).join(', ');
-  const jobResponsibilities = (job.key_responsibilities || []).join('\n- ');
-  const jobKeywords = (job.keywords || []).slice(0, 30).join(', ');
+  const target: TailorTarget = {
+    title: job.title ?? '',
+    company: job.company ?? '',
+    requiredSkills: job.required_skills || [],
+    niceToHaveSkills: job.nice_to_have_skills || [],
+    keyResponsibilities: job.key_responsibilities || [],
+    keywords: job.keywords || [],
+  };
 
-  const systemPrompt =
-    `You are an expert resume writer specializing in students and new graduates. ` +
-    `You tailor resumes to job descriptions by rewriting individual bullet points. ` +
-    `Return ONLY valid JSON.\n\n` +
-    `YOUR PRIMARY GOAL: re-frame each relevant bullet so it speaks the job description's language. ` +
-    `Scan the required skills, key responsibilities, and ATS keywords below; whenever a bullet ` +
-    `describes work that touches one of them, rewrite the bullet to NAME it using the job's exact ` +
-    `terminology and to mirror how the job describes that responsibility. Example: if the job lists ` +
-    `React, Node.js, PostgreSQL, Jest, and Agile, a bullet about building a web feature should say ` +
-    `React/Node.js, a bullet about databases should say PostgreSQL, a bullet about testing should ` +
-    `say Jest - provided the original bullet is genuinely about that work. Re-framing can also mean ` +
-    `re-ordering the bullet to lead with the part the job cares about, or describing the same work ` +
-    `at the altitude the job posting uses (e.g. "data pipeline" instead of "script" for a data role).\n\n` +
-    `WHAT COUNTS AS A CHANGE - every entry in "changes" must do at least one of:\n` +
-    `(a) weave in a required skill, responsibility phrase, or ATS keyword from the job,\n` +
-    `(b) re-frame the bullet toward the job's domain or seniority language, or\n` +
-    `(c) restructure the bullet to front-load the result or metric the job values.\n` +
-    `NOT a change: shortening the wording, deleting articles ("a", "the"), swapping one generic verb ` +
-    `for another ("Built" -> "Developed"), or any edit whose only benefit is conciseness. If the best ` +
-    `you can do for a bullet is trim words, LEAVE IT OUT of "changes" entirely - an unchanged strong ` +
-    `bullet is better than a cosmetic edit.\n\n` +
-    `ABSOLUTE RULES:\n` +
-    `1. NEVER add experience, skills, or facts not in the original resume - only name a technology if the original bullet's work plausibly involved it (e.g. the resume mentions it elsewhere or the bullet describes exactly that activity)\n` +
-    `2. Preserve ALL specific numbers, percentages, dollar amounts, and metrics verbatim - "45s to 38s", "$45K+", "99%" must appear exactly as in the original\n` +
-    `3. Keep each rewritten bullet roughly the original's length (never longer than 25 words), in the same direct, first-person-implied tone - never add filler like "demonstrating my ability to" or "leveraging my expertise in"\n` +
-    `4. Max 2 job keywords per bullet; never force a keyword into a bullet about unrelated work\n` +
-    `5. Do not invent new bullets or drop existing ones; keep every section, job title, company name, date, and education entry unchanged\n` +
-    `6. Only rewrite bullets that materially improve the match for THIS job - leave already-strong bullets untouched and OUT of the changes array. It is normal and correct to change only a handful of bullets.\n\n` +
-    `Return a JSON object with exactly these keys:\n` +
-    `{\n` +
-    `  "changes": [\n` +
-    `    {\n` +
-    `      "section": "the resume section heading this bullet lives under, e.g. Experience, Projects",\n` +
-    `      "entry": "the company name (for work experience) or project name this bullet belongs to, exactly as written in the resume",\n` +
-    `      "original": "the original bullet text, verbatim",\n` +
-    `      "tailored": "the rewritten bullet",\n` +
-    `      "reason": "one short line (max 12 words) that NAMES the specific keyword, skill, or responsibility from the job this rewrite serves - e.g. 'Added PostgreSQL keyword from job description' or 'Mirrored data pipeline responsibility wording'. Never write a reason about conciseness or wording."\n` +
-    `    }\n` +
-    `  ],\n` +
-    `  "tailored_resume_text": "the COMPLETE updated resume as plain text, all sections included, with the rewritten bullets in place of the originals",\n` +
-    `  "skill_gaps": ["required skills genuinely absent from the resume"]\n` +
-    `}\n` +
-    `Only bullets that actually changed belong in "changes".`;
-
-  const userPrompt =
-    `${contextStr}\n\n` +
-    `TARGET JOB:\n` +
-    `Title: ${job.title} at ${job.company}\n` +
-    `Required skills: ${jobSkills}\n` +
-    `Nice to have: ${jobNiceToHave}\n` +
-    `Key responsibilities: ${jobResponsibilities}\n` +
-    `ATS keywords to weave in naturally: ${jobKeywords}\n\n` +
-    `ORIGINAL RESUME:\n${resume.raw_text}`;
-
-  let result: TailorResult;
+  // The tagged document is the input to tailoring. Resumes uploaded before this
+  // pipeline existed get tagged here on demand, from the original file rather
+  // than the stored text - see lib/tagged/baseResume.ts for why that matters
+  // for hyperlinks.
+  let baseDoc: ResumeDoc;
   try {
-    result = await withTimeout(
-      generateJSON<TailorResult>(systemPrompt, userPrompt, 6000),
+    const resolved = await withTimeout(
+      resolveBaseResume(resume, supabase),
+      55000,
+      'tailor-backfill-tagged'
+    );
+    baseDoc = resolved.doc;
+  } catch (e) {
+    if (isAiQuotaError(e)) {
+      await logRoute('/api/tailor-resume', user.id, Date.now() - start, 429);
+      return err(AI_BUSY_MESSAGE, 429);
+    }
+    await logRoute('/api/tailor-resume', user.id, Date.now() - start, 500);
+    return serverError(new Error('Could not read your base resume. Try re-uploading it.'));
+  }
+
+
+  let tailoredDoc: ResumeDoc;
+  let usedFallback: boolean;
+  try {
+    const result = await withTimeout(
+      tailorTagged(baseDoc, target, contextStr),
       60000,
       'tailor-resume'
     );
+    tailoredDoc = result.doc;
+    usedFallback = result.usedFallback;
   } catch (e) {
     if (isAiQuotaError(e)) {
       await logRoute('/api/tailor-resume', user.id, Date.now() - start, 429);
@@ -204,39 +150,11 @@ export async function POST(request: Request): Promise<Response> {
     return serverError(new Error('Failed to generate tailored resume'));
   }
 
-  const tailoredResumeText =
-    typeof result.tailored_resume_text === 'string' ? result.tailored_resume_text.trim() : '';
-  if (!tailoredResumeText) {
-    await logRoute('/api/tailor-resume', user.id, Date.now() - start, 500);
-    return serverError(new Error('AI returned an empty tailored resume'));
-  }
-
-  // Keep only well-formed changes where the text actually differs and the
-  // edit is substantive (not a pure conciseness/verb-swap edit).
-  const changes: TailorChange[] = (Array.isArray(result.changes) ? result.changes : [])
-    .filter(
-      (c): c is TailorChange =>
-        !!c &&
-        typeof c.original === 'string' &&
-        typeof c.tailored === 'string' &&
-        c.original.trim() !== '' &&
-        c.tailored.trim() !== '' &&
-        c.original.trim() !== c.tailored.trim() &&
-        !isTrivialChange(c.original, c.tailored, typeof c.reason === 'string' ? c.reason : '')
-    )
-    .map((c) => ({
-      section: typeof c.section === 'string' && c.section.trim() ? c.section.trim() : 'Resume',
-      entry: typeof c.entry === 'string' ? c.entry.trim() : '',
-      original: c.original.trim(),
-      tailored: c.tailored.trim(),
-      reason: typeof c.reason === 'string' ? c.reason.trim() : '',
-    }))
-    .slice(0, 60);
-
-  const parsedGaps = (Array.isArray(result.skill_gaps) ? result.skill_gaps : [])
-    .filter((s): s is string => typeof s === 'string' && s.trim() !== '')
-    .map((s) => s.trim())
-    .slice(0, 20);
+  // Both documents have the same structure by construction, so the diff pairs
+  // bullets by position rather than trying to match them by text.
+  const changes = diffBullets(baseDoc, tailoredDoc, target);
+  const parsedGaps = findSkillGaps(tailoredDoc, target);
+  const tailoredResumeText = docToPlainText(tailoredDoc);
 
   const { data: savedDoc, error: saveError } = await supabase
     .from('documents')
@@ -244,13 +162,15 @@ export async function POST(request: Request): Promise<Response> {
       user_id: user.id,
       job_id: jobId,
       type: 'tailored_resume',
+      // `tailored_doc` is the real artifact - the browser editor and the .docx
+      // download both work from it. `content` is its plain-text rendering, kept
+      // because ATS scoring, auto-fill and the documents list all read text.
+      tailored_doc: tailoredDoc,
       content: tailoredResumeText,
-      // The per-bullet diff is what users see everywhere; the full text in
-      // `content` is kept for internal use only (ATS scoring, auto-fill).
       changes,
       skill_gaps: parsedGaps,
     })
-    .select('id, user_id, job_id, type, content, changes, skill_gaps, version')
+    .select('id, user_id, job_id, type, content, tailored_doc, changes, skill_gaps, version')
     .single();
 
   if (saveError || !savedDoc) {
@@ -326,15 +246,31 @@ Return JSON with:
         company: job.company,
         skill_gap_count: parsedGaps.length,
         change_count: changes.length,
+        used_fallback: usedFallback,
       },
     })
   ).catch(() => {});
 
-  // Charge the limits only now that the tailoring actually succeeded.
+  // Charge the limits only now that the tailoring actually succeeded - and
+  // `usedFallback` means it did not. The model failed to keep the resume's
+  // structure across both attempts, so what came back is the original resume
+  // unchanged. The user still gets a document they can edit and download, but
+  // charging a tailoring for work that was not done is not defensible.
   await Promise.all([
-    consumeLimit(user.id, 'tailoring'),
+    ...(usedFallback ? [] : [consumeLimit(user.id, 'tailoring')]),
     recordRateLimitUse('tailor-resume', user.id),
     logRoute('/api/tailor-resume', user.id, Date.now() - start, 200),
   ]);
-  return ok({ document: savedDoc, changes, skillGaps: parsedGaps, atsScore: immediateScore });
+
+  return ok({
+    document: savedDoc,
+    changes,
+    skillGaps: parsedGaps,
+    atsScore: immediateScore,
+    // The client shows an honest notice rather than an empty diff that looks
+    // like "your resume was already perfect".
+    warning: usedFallback
+      ? 'We could not safely tailor this resume without changing its structure, so it has been left as-is. Please try again.'
+      : undefined,
+  });
 }

@@ -13,6 +13,10 @@ const withMDX = createMDX({
 
 const nextConfig: NextConfig = {
   pageExtensions: ['ts', 'tsx', 'md', 'mdx'],
+  // pdf-parse and mammoth both load native/vendored assets at runtime that the
+  // bundler cannot trace. Leaving them external lets lib/docx/extractText.ts use
+  // a plain dynamic import() instead of a require() path hack.
+  serverExternalPackages: ['pdf-parse', 'mammoth'],
 };
 
 export default withSentryConfig(withMDX(nextConfig), {

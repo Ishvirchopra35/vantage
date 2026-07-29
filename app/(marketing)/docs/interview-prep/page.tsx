@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Interview Prep Â· Docs',
+  title: 'Interview Prep · Docs',
   description: 'Practice behavioral, technical, and company-specific interview questions with voice or text mode.',
   alternates: { canonical: '/docs/interview-prep' },
 };

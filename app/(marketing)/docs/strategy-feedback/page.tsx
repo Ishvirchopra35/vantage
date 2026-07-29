@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Strategy Feedback Â· Docs',
+  title: 'Strategy Feedback · Docs',
   description: 'Get AI analysis of your application patterns to optimize your job search approach.',
   alternates: { canonical: '/docs/strategy-feedback' },
 };

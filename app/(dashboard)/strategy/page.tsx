@@ -3,6 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 import StrategyReport from './StrategyReport'
 import PageHeader from '@/components/ui/PageHeader'
 
+export const metadata = {
+  title: 'Strategy',
+  description: 'What your application history says about your job search',
+};
+
 function LockIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">

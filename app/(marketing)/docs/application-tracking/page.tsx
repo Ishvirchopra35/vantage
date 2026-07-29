@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Application Tracking Â· Docs',
+  title: 'Application Tracking · Docs',
   description: 'Track your job applications, monitor statuses, and measure your response rate.',
   alternates: { canonical: '/docs/application-tracking' },
 };

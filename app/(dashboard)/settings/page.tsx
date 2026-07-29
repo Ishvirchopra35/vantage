@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import SettingsClient from '@/components/SettingsClient'
 
 export const metadata = {
-  title: 'Settings - Vantage',
+  title: 'Settings',
 }
 
 export default async function SettingsPage() {

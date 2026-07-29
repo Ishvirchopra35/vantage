@@ -5,7 +5,7 @@ import ArrowIcon from '@/components/ui/ArrowIcon';
 export const dynamic = 'force-static';
 
 export const metadata = {
-  title: 'Auto-fill Â· Docs',
+  title: 'Auto-fill · Docs',
   description: 'Fill job application forms with the Vantage Chrome extension, and generate answers to open-ended application questions.',
   alternates: { canonical: '/docs/auto-fill' },
 };

@@ -1,5 +1,12 @@
 import Link from 'next/link';
 
+// The 404 is a page like any other, and without this it was the last place
+// still falling back to the full marketing tagline.
+export const metadata = {
+  title: 'Page not found',
+  description: 'That page does not exist.',
+};
+
 export default function NotFound() {
   return (
     <div
