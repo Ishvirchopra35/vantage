@@ -6,6 +6,14 @@ import type { StrategyFeedback } from '@/app/api/strategy-feedback/route'
 import { asArray } from '@/lib/asArray'
 import ArrowIcon from '@/components/ui/ArrowIcon'
 import { recordFeatureSuccess } from '@/components/FeatureFeedbackNudge'
+import SlowProgress, { type LoadStage } from '@/components/ui/SlowProgress'
+
+// app/api/strategy-feedback reads the whole application history, then writes the
+// report. Labels for a time estimate, not progress the server reports.
+const STRATEGY_STAGES: LoadStage[] = [
+  { label: 'Reading your application history', seconds: 5 },
+  { label: 'Looking for what is working and what is not', seconds: 20 },
+]
 
 function Spinner() {
   return (
@@ -363,6 +371,7 @@ export default function StrategyReport() {
           Refresh
         </button>
       </div>
+      <SlowProgress active={refreshing} stages={STRATEGY_STAGES} style={{ marginTop: '12px' }} />
     </div>
   )
 }

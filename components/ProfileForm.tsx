@@ -335,7 +335,8 @@ export default function ProfileForm({ initialData, isNew }: ProfileFormProps) {
       )}
 
       {/* Resume - always visible so users can replace it */}
-      <div style={{ marginBottom: '24px' }}>
+      {/* data-tour: the walkthrough points here. */}
+      <div style={{ marginBottom: '24px' }} data-tour="resume-upload">
         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
           Resume
         </label>

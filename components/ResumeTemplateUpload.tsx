@@ -116,10 +116,16 @@ export default function ResumeTemplateUpload(): React.ReactElement {
         Resume design
       </div>
       <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '6px 0 16px', lineHeight: 1.6 }}>
-        Downloads already keep the design of the resume you uploaded above, as long as it is a
-        Word file. Upload something here only if you want a different design - we keep its fonts,
-        spacing, header and footer, and only change the words. If your resume is a PDF and you
-        have not uploaded a Word file here, downloads use a clean Vantage layout instead.
+        Only useful if your resume is a PDF. Vantage would otherwise download it in a plain
+        layout, and a Word file here gives it a design to use instead.
+      </p>
+      <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '0 0 16px', lineHeight: 1.6 }}>
+        {/* Said plainly because it is a real downgrade and easy to walk into:
+            the rewrite path only applies to the resume itself. */}
+        If you uploaded a Word resume above, you do not need this and it will make your downloads
+        worse. Yours come back as that exact file with new wording in it. Add a design here and
+        they get rebuilt in this one instead, which keeps its fonts and spacing but not your
+        document.
       </p>
 
       {status?.hasTemplate && (

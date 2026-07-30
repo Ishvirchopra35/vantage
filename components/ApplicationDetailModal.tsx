@@ -7,6 +7,13 @@ import { useRouter } from 'next/navigation'
 import TailorDiff, { formatTailoredBullets, type TailorChange } from '@/components/TailorDiff'
 import CustomSelect from '@/components/CustomSelect'
 import Spinner from '@/components/ui/Spinner'
+import SlowProgress, { type LoadStage } from '@/components/ui/SlowProgress'
+
+// app/api/parse-job fetches the posting, then reads it.
+const READ_POSTING_STAGES: LoadStage[] = [
+  { label: 'Fetching the job posting', seconds: 6 },
+  { label: 'Pulling out the requirements and keywords', seconds: 10 },
+]
 
 // --- Types --------------------------------------------------------------------
 
@@ -530,6 +537,11 @@ export default function ApplicationDetailModal({ applicationId, onClose, onUpdat
                     {tailorLoading && <Spinner size="sm" />}
                     {tailorLoading ? 'Reading posting…' : 'Continue to tailor'}
                   </button>
+                  <SlowProgress
+                    active={tailorLoading}
+                    stages={READ_POSTING_STAGES}
+                    style={{ marginTop: '12px' }}
+                  />
                   {tailorError && <span style={{ fontSize: '12px', color: 'var(--score-red)' }}>{tailorError}</span>}
                 </div>
               </div>

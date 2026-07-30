@@ -10,6 +10,7 @@ import CustomSelect from '@/components/CustomSelect'
 import PageHeader from '@/components/ui/PageHeader'
 import ExternalLinkIcon from '@/components/ui/ExternalLinkIcon'
 import ErrorNotice from '@/components/ui/ErrorNotice'
+import SlowProgress, { type LoadStage } from '@/components/ui/SlowProgress'
 import { recordFeatureSuccess } from '@/components/FeatureFeedbackNudge'
 
 // --- Types --------------------------------------------------------------------
@@ -130,6 +131,13 @@ function ContactCard({ contact, onUse }: { contact: Contact; onUse: (c: Contact)
 }
 
 // --- Page ---------------------------------------------------------------------
+
+// What the wait is doing, in the order the route does it. Labels for a time
+// estimate, not progress the server reports.
+const MESSAGE_STAGES: LoadStage[] = [
+  { label: 'Reading your background and theirs', seconds: 4 },
+  { label: 'Writing the message', seconds: 15 },
+]
 
 export default function NetworkingPage() {
   const supabase = createClient()
@@ -602,7 +610,7 @@ export default function NetworkingPage() {
       </div>
 
       {/* -- Section 2: Generate message ------------------------------------- */}
-      <div style={card} ref={generateSectionRef}>
+      <div style={card} ref={generateSectionRef} data-tour="networking-generate">
         <div style={sectionTitle}>2 · Generate message</div>
         <div className="rsp-grid-3" style={{ gap: '12px', marginBottom: '12px' }}>
           <div>
@@ -659,6 +667,7 @@ export default function NetworkingPage() {
           {generating && <Spinner size="sm" />}
           {generating ? 'Generating…' : 'Generate'}
         </button>
+        <SlowProgress active={generating} stages={MESSAGE_STAGES} style={{ marginTop: '14px' }} />
 
         {generateError && <ErrorNotice message={generateError} style={{ marginTop: '12px' }} />}
 

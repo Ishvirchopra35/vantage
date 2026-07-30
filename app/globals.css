@@ -3240,3 +3240,166 @@ html[data-theme="light"] .lph-lit {
   font-size: 11px;
   color: var(--muted);
 }
+
+/* -- onboarding walkthrough ------------------------------------------------
+   driver.js ships its own light-only theme, so the popover is restyled onto
+   the app's own surfaces. Both themes, because the tour runs on first login
+   and that is exactly when someone is most likely to be on the default one. */
+
+/* The overlay must not swallow clicks.
+   driver's backdrop covers everything except the highlighted element, which
+   trapped people mid-walkthrough: when analysing a job failed, the "paste the
+   description instead" toggle was outside the highlight, so the one thing the
+   popover was telling them to click was the one thing they could not. The
+   walkthrough asks the user to do real work, so the page has to stay usable -
+   and nothing advances on a backdrop click anyway. */
+.driver-overlay,
+.driver-overlay * {
+  pointer-events: none !important;
+}
+
+/* Steps ease in rather than snapping from one place to the next.
+
+   THIS IS WHY IT IS DONE HERE AND NOT WITH driver's `animate` OPTION. Turning
+   that on hands the movement to driver's own transition state machine, which
+   was tried and does not finish cleanly: the previous target keeps its
+   `driver-active-element` class so two things end up highlighted at once, and
+   its fade leaves the popover stranded at partial opacity whenever it restarts
+   mid-run - faint, unreadable text sitting behind the page. Both are worse than
+   the hard cut they were meant to fix.
+
+   A CSS entrance animation cannot go stale. The popover is rebuilt for every
+   step, so this plays once per step and always ends where it should: `forwards`
+   plus a 100% keyframe at full opacity means an interrupted run still settles
+   opaque and in position rather than half-faded.
+
+   Kept short and small on purpose - it is meant to take the edge off the change,
+   not to be a thing you wait for. */
+@keyframes vantage-tour-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.driver-popover.vantage-tour {
+  animation: vantage-tour-step-in 190ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Someone who has asked for less motion gets the step, not the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .driver-popover.vantage-tour {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.driver-popover.vantage-tour {
+  background: var(--card);
+  color: var(--text);
+  border-radius: var(--radius);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 18px 40px -12px rgba(0, 0, 0, 0.55);
+  max-width: 340px;
+  padding: 18px;
+}
+
+html[data-theme="light"] .driver-popover.vantage-tour {
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    inset 0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 18px 40px -12px rgba(0, 0, 0, 0.18);
+}
+
+.driver-popover.vantage-tour .driver-popover-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.driver-popover.vantage-tour .driver-popover-description {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.driver-popover.vantage-tour .driver-popover-progress-text {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.driver-popover.vantage-tour .driver-popover-footer button {
+  background: var(--card-raised);
+  color: var(--text);
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  text-shadow: none;
+  cursor: pointer;
+}
+
+/* The one action the tour wants people to take is "keep going". */
+.driver-popover.vantage-tour .driver-popover-next-btn {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+}
+
+.driver-popover.vantage-tour .driver-popover-footer button:hover {
+  opacity: 0.85;
+}
+
+/* The close control reads "Skip tour" rather than showing a bare x, so leaving
+   is an obvious choice rather than something to hunt for.
+
+   The LABEL IS SET IN JS (onPopoverRender), not with content/::after here. Two
+   attempts at doing it in CSS both put the visible word and the clickable box
+   in different places - `all: unset` stripped the button's box model, and
+   font-size:0 with a ::after left the text overflowing below the box, so it
+   only responded to a click above the label. Writing the text into the element
+   means the box is sized by the text, which is the whole problem solved. */
+.driver-popover.vantage-tour .driver-popover-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: auto;
+  height: auto;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  text-indent: 0;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.driver-popover.vantage-tour .driver-popover-close-btn:hover,
+.driver-popover.vantage-tour .driver-popover-close-btn:focus-visible {
+  color: var(--text);
+  background: var(--card-raised);
+}
+
+/* Room for the label, so it never sits on top of the title. */
+.driver-popover.vantage-tour .driver-popover-title {
+  padding-right: 78px;
+}
+
+.driver-popover.vantage-tour .driver-popover-arrow {
+  border-color: var(--card);
+}

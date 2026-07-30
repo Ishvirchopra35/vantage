@@ -7,6 +7,14 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader';
 import CustomSelect from '@/components/CustomSelect';
 import PageHeader from '@/components/ui/PageHeader';
 import ErrorNotice from '@/components/ui/ErrorNotice';
+import SlowProgress, { type LoadStage } from '@/components/ui/SlowProgress';
+
+// app/api/ats-score reads the resume against the job, then scores it. Labels for
+// a time estimate, not progress the server reports.
+const ATS_STAGES: LoadStage[] = [
+  { label: 'Reading your resume against the job', seconds: 5 },
+  { label: 'Scoring keywords, format, experience and skills', seconds: 14 },
+];
 import { recordFeatureSuccess } from '@/components/FeatureFeedbackNudge';
 
 type ScoreColor = 'red' | 'amber' | 'green';
@@ -642,6 +650,8 @@ export default function AtsPage() {
             {running ? 'Running...' : 'Run ATS check'}
           </button>
         </div>
+
+        <SlowProgress active={running} stages={ATS_STAGES} style={{ marginTop: '14px' }} />
 
         {runError && <ErrorNotice message={runError} style={{ marginTop: '12px' }} />}
 

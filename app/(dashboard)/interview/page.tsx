@@ -8,6 +8,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CustomSelect from '@/components/CustomSelect'
 import ArrowIcon from '@/components/ui/ArrowIcon'
 import PageHeader from '@/components/ui/PageHeader'
+import SlowProgress, { type LoadStage } from '@/components/ui/SlowProgress'
 import { sessionProgress } from '@/lib/interviewProgress'
 import ErrorNotice from '@/components/ui/ErrorNotice'
 import { recordFeatureSuccess } from '@/components/FeatureFeedbackNudge'
@@ -118,6 +119,18 @@ function progressBadge(assessed: number, total: number): {
 }
 
 // --- Page ---------------------------------------------------------------------
+
+// What each wait is doing, in the order the interview-prep routes do it. Labels
+// for a time estimate, not progress the server reports.
+const QUESTION_STAGES: LoadStage[] = [
+  { label: 'Reading the job and your background', seconds: 5 },
+  { label: 'Writing questions for this specific role', seconds: 18 },
+]
+
+const FEEDBACK_STAGES: LoadStage[] = [
+  { label: 'Reading your answer', seconds: 4 },
+  { label: 'Working out what would make it stronger', seconds: 14 },
+]
 
 export default function InterviewPage() {
   const supabase = useMemo(() => createClient(), [])
@@ -398,7 +411,7 @@ export default function InterviewPage() {
         />
 
         {/* Start session card */}
-        <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px', marginBottom: '20px' }}>
+        <div data-tour="interview-start" style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', padding: '24px', marginBottom: '20px' }}>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '14px' }}>Start a new session</div>
 
           {!useManual ? (
@@ -420,6 +433,7 @@ export default function InterviewPage() {
                 {creating && <Spinner size="sm" />}
                 {creating ? 'Generating…' : 'Start new session'}
               </button>
+              <SlowProgress active={creating} stages={QUESTION_STAGES} style={{ marginTop: '14px' }} />
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -756,6 +770,7 @@ export default function InterviewPage() {
                         {isAssessing ? 'Assessing…' : 'Stop + Assess'}
                       </button>
                     </div>
+                    <SlowProgress active={isAssessing} stages={FEEDBACK_STAGES} style={{ marginTop: '10px' }} />
                     <button
                       type="button"
                       onClick={() => void submitAssessment(activeSession.id, q, "I don't know")}

@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getRemainingLimits } from '@/lib/rateLimit';
 import Sidebar, { type SidebarUserProfile } from '@/components/Sidebar';
 import HelpChatWidget from '@/components/HelpChatWidget';
+import OnboardingTour from '@/components/OnboardingTour';
+import { readOnboarding, shouldRunTour } from '@/lib/onboarding';
 
 export default async function DashboardLayout({
   children,
@@ -20,7 +22,13 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  const [profileResult, subscriptionResult, applicationCountResult, limitsResult] = await Promise.all([
+  const [
+    profileResult,
+    subscriptionResult,
+    applicationCountResult,
+    limitsResult,
+    onboardingResult,
+  ] = await Promise.all([
     supabase
       .from('profiles')
       .select('full_name, email')
@@ -37,6 +45,9 @@ export default async function DashboardLayout({
       .eq('user_id', user.id)
       .is('deleted_at', null),
     enableFreemium ? getRemainingLimits(user.id) : Promise.resolve(null),
+    // Its own query: if the column is not there yet, the walkthrough simply
+    // does not run and nothing else on the page is affected.
+    supabase.from('profiles').select('onboarding').eq('id', user.id).maybeSingle(),
   ]);
 
   const profile: SidebarUserProfile | null = profileResult.data
@@ -52,6 +63,10 @@ export default async function DashboardLayout({
   const plan = subscriptionResult.data?.plan === 'pro' ? 'pro' : 'free';
   const applicationCount = applicationCountResult.count ?? 0;
   const remainingTailorings = enableFreemium ? (limitsResult?.tailoring ?? null) : null;
+
+  // Mounted in the layout rather than on one page: the walkthrough visits every
+  // section, so it has to survive navigating between them.
+  const onboarding = readOnboarding(onboardingResult.error ? null : onboardingResult.data?.onboarding);
 
   return (
     <>
@@ -81,6 +96,15 @@ export default async function DashboardLayout({
           <div className="dashboard-main-inner">{children}</div>
         </main>
         <HelpChatWidget />
+        <OnboardingTour
+          run={shouldRunTour(onboarding)}
+          startAt={onboarding.step}
+          // The SERVER flag, not the public one: /billing redirects on this
+          // rather than on NEXT_PUBLIC_ENABLE_FREEMIUM, and the two can
+          // disagree. Gating the walkthrough on the public flag let it walk to
+          // a page that bounced it straight back.
+          includeBilling={process.env.ENABLE_FREEMIUM === 'true'}
+        />
       </div>
     </>
   );

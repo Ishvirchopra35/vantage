@@ -416,6 +416,7 @@ export default function TrackerPage() {
             <button
               onClick={() => setShowLogForm(v => !v)}
               className="btn-gold-hover"
+              data-tour="log-application"
               style={primaryBtn}
             >
               {showLogForm ? 'Cancel' : '+ Log application'}

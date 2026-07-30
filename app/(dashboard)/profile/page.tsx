@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server';
 import ProfileForm from '@/components/ProfileForm';
 import type { Profile as BaseProfile } from '@/components/ProfileForm';
 import ExtensionTokenSection from '@/components/ExtensionTokenSection';
-import ResumeTemplateUpload from '@/components/ResumeTemplateUpload';
 import PageHeader from '@/components/ui/PageHeader';
 
 export const metadata = {
@@ -55,7 +54,16 @@ export default async function ProfilePage({
             subtitle="Complete your profile so every AI output sounds like you."
           />
           <ProfileForm initialData={profile} isNew={isNew} />
-          <ResumeTemplateUpload />
+          {/* Resume design upload - hidden, not removed.
+              It predates the rewrite pipeline. Downloads are now the user's own
+              uploaded .docx with new wording written into it, so a separate
+              "design" file is redundant for anyone with a Word resume and
+              actively worse: resolveTemplate prefers it, which skips the
+              rewrite and rebuilds the document instead.
+              Everything behind it is left intact - the component, the API route
+              and the stored template - so anyone who already uploaded one keeps
+              exactly the behaviour they have today. Only the way in is closed.
+              <ResumeTemplateUpload /> */}
           {/* Anchor target for "/profile#extension-token" links across the app. */}
           <div id="extension-token" style={{ scrollMarginTop: 96 }}>
             <ExtensionTokenSection

@@ -553,6 +553,7 @@ export default function JobsPage() {
             type="button"
             onClick={() => void fetchJobs()}
             disabled={loading}
+            data-tour="refresh-jobs"
             style={{
               background: 'var(--btn-primary-bg)',
               border: 'none',

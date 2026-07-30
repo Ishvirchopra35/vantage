@@ -1865,3 +1865,153 @@ title: Long waits say what is happening instead of spinning
 - lib/debugSlow.ts (new): `localStorage.setItem('vantage-slow', '25000')` makes the client hold every tracked response for that long, so the long-wait UI can be seen on demand rather than by clicking buttons hoping to catch a slow request. The request really was made and really did return, so the UI goes through exactly the states it would on a slow day. Capped at two minutes, and inert unless set
 - tests: 16 new. The component is a pure function of elapsed time, so fake timers cover all of it - that it stays hidden while a spinner is still convincing, names the right step at each point, advances, never fills while running, admits an overrun, never prints a percentage, and starts from zero on the next request rather than resuming
 - also removed a ref in useDocHistory that was assigned during render and never read
+
+---
+date: 2026-07-29
+type: Feature
+title: A guided walkthrough of the app on first sign-in
+- new users landed on a dashboard with thirteen sections and no explanation of any of them. The walkthrough now runs once on first arrival and points out each one in turn
+- **it costs nothing to take.** No step runs an action, so no tailoring, job parsing or cover letter credits are spent by walking through it - and the first thing it says is that, because a new user has every reason to assume otherwise. Enforced by tests that read app/api/onboarding/route.ts and fail if checkLimit, consumeLimit, recordRateLimitUse or any AI call ever appears in it, and that assert the tour makes no request other than saving its own position
+- **nothing that failed is counted.** A step whose target is not on the page - Billing behind the freemium flag, a section that did not render - is dropped before the tour starts, so "Step 6 of 14" always refers to fourteen steps that can actually be shown. And if saving progress fails, the walkthrough is not recorded as finished: the server keeps what it last knew and the user gets it again, because showing it twice is a small annoyance where losing it silently is a broken feature
+- leaving is cheap by design. Position is saved after every step, so closing the tab at step four returns to step four rather than the beginning. Skip is on every step and is permanent. Long tours are known to lose people, and the mitigation chosen here is to make stopping and resuming free rather than to cut the tour short
+- driver.js for the overlay: MIT, zero dependencies, framework-agnostic. The two better-known alternatives were both disqualified - react-joyride does not support React 19, and Shepherd.js and Intro.js are AGPL unless separately licensed, which is not a licence to take on for a commercial product
+- lib/onboarding.ts holds the steps and the stored shape, so the client and the route cannot disagree about how many steps there are. A test checks the tour against the sidebar itself, so adding a section to the app without adding it to the walkthrough fails the build
+- sql/06_onboarding.sql (new): profiles.onboarding jsonb. Kept on the profile rather than in the browser so the walkthrough follows the user to a new device, and so completion is measurable. Malformed or out-of-range stored values degrade to "not started" rather than throwing, because this renders on the dashboard
+- Settings gained a Replay the walkthrough control, and /dashboard?tour=1 forces it without resetting anything
+- tests: 22 new
+
+---
+date: 2026-07-29
+type: Fix
+title: The walkthrough now has you use the app, and three bugs in it
+- **it was a narrated tour of page headers.** It visited each page and described it, which is not onboarding - it is a slideshow with navigation. Steps can now WAIT: `advanceOn` names something that only appears once the user has actually done the thing, and the tour sits there until it does. By the end they have uploaded a resume and tailored it to a real job rather than having read about both
+- the three waits are on real state, not on clicks: the upload confirmation that only renders once a resume is stored, the parsed-job card that only renders once a posting came back, and the tailored-result panel that only renders once there is a tailored resume. So a click that failed cannot advance the tour
+- the tour still never presses anything itself, so it cannot spend a use on the user's behalf. The one step that does cost a use says so before they press it, because finding that out afterwards would be a nasty surprise on a new account. Every waiting step also offers "Skip this bit", so nobody is trapped by an action they do not want to take
+- order changed to match how the app is actually used: profile and resume first, then a real job tailored end to end, then everything else - which now has something to be about
+- **fixed a redirect loop after finishing.** A Next layout does not re-render on client-side navigation, so `run` and the stored step stayed at their first-render values for the rest of the session. After the last step the tour read that stale position and drove itself back to Billing, then to the dashboard, then to Billing, forever. The tab now keeps its own final word on being finished, checked before anything else
+- **fixed the Skip button hitbox for the second time, properly.** The label is now written into the element in JS. Both CSS attempts put the visible word and the clickable box in different places - `all: unset` stripped the button's box model, and font-size:0 with a `::after` left the text overflowing below its own box, so it only responded to a click above the label
+- the resume design upload on the Profile page is hidden. It predates this pipeline and is now redundant for anyone with a Word resume, and worse than redundant: resolveTemplate prefers it, which skips the rewrite and rebuilds the document instead. Nothing behind it was touched - the component, the route and any stored template still work exactly as before, so nobody who has one is affected. Only the way in is closed
+- also fixed: adding the onboarding column to the dashboard's profile query meant that before sql/06 was run the whole select failed, so the greeting lost the user's name and fell back to their email prefix. It is its own query now, and an optional feature cannot take the page down with it
+- tests: 11 new, covering the waits, the marker sources, the paid step warning it, and the loop fix
+
+---
+date: 2026-07-29
+type: Fix
+title: Replay the walkthrough did nothing
+- it reset the stored progress, navigated to the dashboard, and then sat there. Two causes, both the same underlying fact: a Next layout does not re-render on client-side navigation
+- the reset cleared the saved position but not the "finished in this tab" flag, so the tour stopped itself on arrival. And Settings had rendered while the walkthrough was already finished, so the layout it navigated through still passed run=false. Fixing either alone would not have been enough
+- lib/onboarding.ts now owns the four session keys and a requestWalkthrough() helper. Three files have to agree about those keys and they were being spelled out separately in two of them, which is how they came apart. A test asserts Settings no longer writes them itself
+- a forced replay starts from the beginning rather than the saved position, because someone pressing Replay wants the whole thing, and the request is consumed on use so it runs once rather than reopening on every page
+- the database reset still happens, so the replay survives a full reload as well
+- tests: 6 new
+
+---
+date: 2026-07-29
+type: Fix
+title: The walkthrough now follows the tailor page's actual flow
+- the steps had been written from the shape of the code rather than from walking the page, and it showed. Tailoring is three screens - paste and Analyze, then Continue off the job preview card, then the actions - and the walkthrough jumped from Analyze straight to "press Tailor My Resume", which is on the next screen and not rendered yet. There was no step for Continue at all
+- worse, the signal it waited on for "a job was parsed" was attached to the collapsed job header, which only renders on screen three. So the wait could never be satisfied where the tour was standing
+- and it did move anyway, for the wrong reason: overlayClickBehavior was 'nextStep', so any stray click on the backdrop advanced the tour past whatever it was waiting for. It is a no-op now. Next, Back and Skip are the only ways to move
+- the tailor steps are now paste and Analyze, check what it read and press Continue, press Tailor My Resume, then the result - with the waits attached to markers that appear on the screen the step is actually standing on. A test asserts that order against the page
+- **a failed job analysis is handled.** Previously the step waited forever on a success that was never coming, still telling the user to paste a job link they had just pasted. A step can now name a failure signal too: when it appears the step stays put and re-words itself to explain what happened and offer the paste-the-description route instead. It keeps waiting afterwards, so a retry still moves them on
+- the actions step also mentions Check ATS Score and Generate Cover Letter, which sit next to the button it points at
+- tests: 4 new
+
+---
+date: 2026-07-29
+type: Fix
+title: The walkthrough stopped trapping people, and stopped losing the Next button
+- **the overlay was swallowing every click outside the highlight.** That is what made the failed-job-analysis message useless: it told the user to switch to pasting the description, and the toggle that does it sits outside the highlighted input, so the one thing they were being told to press was the one thing they could not. The overlay is pointer-events: none now, so the whole page stays usable - which a walkthrough that asks the user to do real work needs anyway
+- **the Next button read "Skip this bit" on steps that were not waiting for anything.** The label was set on the driver instance, but a same-page step change reused that instance, so every step after the first on a page inherited the first one's configuration - its button text and its padding. The step index is React state now, so each step builds its own driver and cannot inherit anything. The button reads "Next" throughout; the close control reads "Skip tour"
+- lib: the waiting logic moved into watchStepOutcome, which is exported and tested against a real DOM. Scanning the source for a string does not answer "does it recover from a failed job analysis" - that is a behaviour. 12 new tests cover advancing, re-wording on failure, continuing to wait so a retry still counts, not spinning while the error is still on screen, preferring a success that arrives alongside a stale error, and ignoring a failure signal a step never asked about
+- the starting step is resolved at first render rather than in an effect, which also removed a setState-in-effect the linter was right about. The component renders nothing in either case, so there is no hydration mismatch to cause
+- tests: 13 new
+
+---
+date: 2026-07-29
+type: Fix
+title: The dashboard/billing loop, properly this time, and every feature actually explained
+- **the loop was /billing redirecting.** That page sends you to the dashboard whenever ENABLE_FREEMIUM is not 'true', which is the default. The tour pushed /billing, the server bounced it to /dashboard, the tour read the same step and pushed /billing again. It never reached the end, so the "finished in this tab" flag added earlier could not help - it was guarding a loop that happens after completion, and this one happens before it. That fix was aimed at a cause I had assumed rather than found
+- fixed at both levels. The Billing step is now marked freemiumOnly and is not in the list at all when paid plans are off, so the tour never walks to a page that will not hold still. And generally: if a step's route is pushed and the pathname ends up somewhere else, that step is stepped over instead of retried, so any future redirecting page degrades to a skipped step rather than an infinite bounce
+- **seven features were being "explained" by highlighting their page heading.** Tracker, Jobs, Strategy, Networking, Interview Prep, Auto-apply and Resume Studio now each get a step pointing at the control that does the work, saying what it does and what it needs: the Log application button and what the statuses are for, refreshing the feed and how a saved job carries into tailoring with its description attached, the message generator and the three message types, starting a practice session from a tracked job, connecting the extension and that it fills but never submits, and what the Studio's two editing modes are
+- **Strategy says it needs 15 logged applications**, because it refuses below that. Presenting it as ready to use was setting people up to click it and get an error
+- tests: 19 new. Every feature page is asserted to have a step pointing at something other than its heading, and to say more than a restatement of its title - so "onboarding" that only highlights a header fails the build. Plus the Billing gating both ways and the general bounce guard
+
+---
+date: 2026-07-29
+type: Fix
+title: Next moved forward and then jumped straight back a step
+- goTo wrote the new position to the tab but only updated the component's own index on the same-page branch. So after navigating, the index still pointed at the step on the page just left - and the effect that keeps the tour on its step's page dutifully pushed back to it. Forward, then back, every time a step crossed to another page
+- the index now moves first, whether or not a navigation follows
+- the give-up guard was rebuilt while fixing it. It counted attempts, which meant a slow navigation looked identical to a page refusing to load, and a slow connection would skip real steps. It is time-based now, and when a page does refuse it gives up on every step that lives there rather than retrying the same dead route once per step
+- tests: 6 new, and these ones render the component with the router mocked instead of scanning the source. Both bugs in this entry were invisible to a source scan and obvious the moment the tour is actually rendered and told which page it is on: that it navigates forward, does not push back to the page it just left, drives a step belonging to the page it landed on, remembers the position across the navigation, steps over a page that never loads, and waits out a slow one
+- also replaced the last source-scanning assertion about the bounce guard with the behavioural one, having watched it break for the third time over a renamed variable
+
+---
+date: 2026-07-29
+type: Fix
+title: The walkthrough no longer holds people hostage, and the real cause of its flakiness
+- **it was trapping people.** Pressing Next on a step that was waiting, then trying to visit any other page, pushed you straight back - the effect that keeps the tour on its step's page had no idea whether a navigation was its own doing or the user's. A walkthrough is a suggestion, not a cage: it now recognises a navigation it did not start, goes quiet, and keeps its place so returning to that page picks it up again. Verified in a browser: clicking Applications mid-tour lands on Applications, and going back to Profile resumes at the same step
+- **found the cause of most of the erratic behaviour, and it was not any of the individual symptoms.** driver.js highlights an element by MUTATING it - adding a class, aria-haspopup, aria-expanded, aria-controls, and marking the parent. Those are nodes React owns. The tour lives in the layout, and a layout's effects run before the page segment beneath it has hydrated, so driver was reaching into not-yet-hydrated DOM. React then hydrated, found attributes it had not written, reported a mismatch and threw the subtree away - taking the element the tour was pointing at with it. That is why steps showed on one page and not another, why popovers vanished, and why behaviour changed on reload. The tour now waits for the page to go idle before it highlights anything
+- **the popover was rendering at a fraction of full opacity.** driver fades the popover and the overlay with a CSS animation, and the popover is rebuilt on every step, so the animation restarted before finishing and the whole thing sat faint and unreadable behind the page. Measured it at opacity 0.22 in the browser. The fade is off now
+- the overlay no longer swallows clicks, which is what made the failed-job-analysis message useless: it told the user to switch to pasting the description, and that toggle is outside the highlight
+- **the /billing loop was gated on the wrong flag.** /billing redirects on ENABLE_FREEMIUM, the server flag, but the walkthrough was gated on NEXT_PUBLIC_ENABLE_FREEMIUM - and on this project the two disagree, so the tour still walked to a page that bounced it back. It reads the server flag now
+- a hard ceiling on navigations per session, as a backstop. Every loop so far had a different cause, so this one is for whatever the next cause turns out to be
+- added a GET to /api/onboarding. "Why is the walkthrough not running" was otherwise unanswerable from the browser, because the state only ever reached the client as a prop - a stale row looked identical to a broken component
+
+---
+date: 2026-07-29
+type: Improvement
+title: Every long wait explains itself, not just the tailor page
+- the progress loader was added to tailoring, job parsing and cover letters, and the other eight long operations were left with a bare spinner
+- now covered: reading an uploaded resume, the ATS check on both the Tailor and ATS pages, the strategy report, generating an outreach message, generating interview questions, assessing an answer, and reading a posting from the tracker's detail modal
+- each has its own steps, named after what its route actually does in the order it does it - reading a resume is upload, then read it line by line, then fill in your profile; a strategy report is read your history, then look for what is working
+- tests/static/slow-progress-coverage.test.ts (new): every AI-backed route is checked to have a caller, and every caller is checked to show progress. Missing seven of eight is exactly the gap nobody notices until a user is staring at a spinner, so it is checked rather than remembered. It also rejects a one-step stage list or a vague label, since either would pass a coverage check while telling the user nothing
+- writing that test found two call sites I had missed on my own list - the ATS page and the tracker's detail modal - and one bug in the test itself, which only recognised single-quoted 'use client' and so silently skipped the interview page
+
+---
+date: 2026-07-29
+type: Fix
+title: The walkthrough's popover was covering the control it told people to press
+- found by driving the walkthrough in a browser rather than reasoning about it. On the step that asks for a job, the failure message says to switch to pasting the description instead - and the popover sat directly on top of that toggle. elementFromPoint over the toggle returned the popover's own description element, so the one control the message pointed at was the one control that could not be clicked
+- driver places its popover under whatever it highlights, and the highlight was the input row alone. The anchor is now the whole "give us a job" group - the input, the toggle, the textarea and the error - so the popover sits below all of it
+- verified after the change: the popover no longer overlaps the toggle, and the toggle is the actual hit target at its own centre point
+
+---
+date: 2026-07-30
+type: Improvement
+title: The walkthrough now has you use every feature, and catches it when one fails
+- it walked through the whole app but only ever waited on the resume upload and the tailoring. Everything else - applications, the job feed, networking, interview prep, Resume Studio - was a sentence pointing at a heading. Those five now ask you to actually do the thing and wait for you, so a finished walkthrough means a used app rather than a read one
+- every one of those waits has a failure path. A step that waits on work which can fail with nowhere to report the failure is a trap: you did what it asked, it broke, and the popover still says do it. lib/onboarding.ts now carries failOn/failBody for the resume upload, the tailoring itself, logging an application, the job feed, networking and interview prep, matching what analysing a job already had
+- new markers behind the state they represent, so nothing can advance on a click that failed: application-logged, jobs-listed, jobs-no-roles, networking-result, studio-loaded, plus resume-error, tailor-error, log-error, jobs-error, networking-error, interview-error, studio-error (components/ResumeUpload.tsx, components/ResumeStudio.tsx, tailor/tracker/jobs/networking/interview pages)
+- Strategy and Auto-apply stay explanations on purpose, and a test keeps them that way: Strategy needs 15 logged applications before it produces anything and Auto-apply needs the extension installed, so demanding either would strand a new account on a step it cannot finish
+- a waiting step now says "Skip this bit" instead of "Next". The only visible way past one used to be Skip tour, which ends the whole walkthrough - "I don't want to do this one" and "stop showing me this" are not the same thing
+- a step whose work is already done explains instead of waiting. Replaying it, you already have a resume and applications, so the wait resolved instantly and the step flashed past unread - the sections you had used were the ones it never told you about. Caught twice: before the step renders, and again inside 1.5s of it, because these pages fetch their own data and a slow load arriving looks exactly like you having just done it
+- fix: reloading the page could throw away your place and restart from the beginning. Number(null) is 0, so a missing saved position read as a legitimate "step 0". Resuming sets the active flag but only pressing Next writes the position, so coming back to step 6 and reloading sent you to step 1
+- fix: the Resume Studio step was silently skipped for anyone who had used it before. It anchored to the source picker, which does not exist once the Studio restores the document it keeps in your browser, so the step timed out and moved on. It now anchors to either state and reads correctly in both
+- fix: the Strategy step opened "Strategy needs history first" and closed with "come back once you have a few weeks in" to people looking straight at a finished report. It describes the feature and states the 15-application threshold as a condition instead
+- lib/appKnowledge.ts: the help chat was still describing a walkthrough that "never generates anything"
+- tests: 4 new. The anchor test now checks advanceOn and failOn as well as target - a typo in either waits forever, and a failOn that matches nothing turns a failure back into that same forever wait
+
+---
+date: 2026-07-30
+type: Fix
+title: The walkthrough said tailoring logs the application for you
+- it does not. Tailoring on Tailor + ATS ends with a Log button filled in from the posting, and it only runs when you press it - checked against the source, not the wording: the only two inserts into `applications` are that button and the tracker's own form, and neither runs on its own
+- this one mattered more than a wrong sentence. Told that applications are tracked for them, someone stops logging any, and the tracker quietly stops reflecting their search - which then feeds "What is working", Strategy, and every AI feature that reads the history
+- lib/appKnowledge.ts said "when logging by hand", which implied some other automatic path, and the Tailor + ATS entry never mentioned the Log button at all. Both now state that nothing is tracked unless you press Log
+- tests: 1 new, asserting the guarantee against the source and scanning every step body, fail body and the help-chat knowledge for the claim
+
+---
+date: 2026-07-30
+type: Update
+title: The walkthrough explains again instead of making you do things
+- the hands-on version is reverted. It had each page's step block until it detected you had done the thing, and two problems came with that which were structural rather than tunable
+- HALF THE ANCHORS DID NOT EXIST YET. A step pointing at the tailored-resume panel points at markup that only exists after a job has been analysed and a resume tailored. Skip that work and the tour spent four seconds hunting each missing anchor, invisibly, then gave up on it - and every give-up could push a route. Pressing "skip this bit" on the Analyze step left the popover gone but the tour still walking the rest of /tailor, so trying to go anywhere else dragged you back until the chain ran out, then dumped you on Applications
+- a walkthrough is also not something you can fail. Making someone produce output before they may read the next sentence turns an explanation into a gate, and a gate in front of a third-party lookup that can fail is a dead end
+- every target is now required to be present on a freshly loaded page, with nothing typed and nothing generated. That single rule is what keeps the tour off the route-pushing path, and a test enforces it by name for the four anchors that caused it
+- 20 steps, still covering every section. The /tailor step describes the flow in words rather than trying to walk screens that do not exist yet
+- fix: steps eased in rather than cutting. Each step now plays a short entrance animation (globals.css). Done in CSS rather than with driver's own `animate` option, which was tried first: it does tween, and it also leaves its transition state machine half-finished - the previous target keeps its highlight class so two elements stay lit, and its fade strands the popover at partial opacity whenever it restarts mid-run, which is the faint unreadable popover it was disabled for originally. A CSS entrance cannot go stale, settles opaque with `forwards`, and respects prefers-reduced-motion
+- components/OnboardingTour.tsx: the outcome watcher, the failure re-wording and the "Skip this bit" relabel are gone with the waits. lib/appKnowledge.ts updated - the help chat was describing a walkthrough that asks you to do things
+- the data-tour markers added for the waits are removed from the six pages that carried them
+- tests: the waiting suite is replaced by one that asserts the tour asks for nothing, points only at load-time anchors, still reaches every section, and eases in

@@ -16,7 +16,10 @@ export interface PageHeaderProps {
  */
 export default function PageHeader({ title, subtitle, action }: PageHeaderProps): ReactElement {
   return (
-    <div className="page-header">
+    // data-tour: the walkthrough anchors to the letterhead on every page, so
+    // one attribute here gives it a stable target everywhere rather than
+    // thirteen page-specific selectors that break when a page is restyled.
+    <div className="page-header" data-tour="page-header">
       <div className="page-header-text">
         <span className="page-header-kicker" aria-hidden="true" />
         <h1

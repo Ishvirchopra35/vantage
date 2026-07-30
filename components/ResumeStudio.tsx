@@ -479,7 +479,11 @@ export default function ResumeStudio(): React.ReactElement {
 
     return (
       <div style={{ ...card, padding: '40px 24px' }}>
-        <div style={{ maxWidth: '520px', margin: '0 auto' }}>
+        {/* data-tour: the walkthrough points at the whole source picker, NOT at
+            an individual tailored-resume button - those only exist once
+            something has been tailored, so anchoring to one meant the step
+            silently skipped itself for anyone who had not. */}
+        <div style={{ maxWidth: '520px', margin: '0 auto' }} data-tour="studio-sources">
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px', textAlign: 'center' }}>
             Pick a resume to fine-tune
           </div>
@@ -575,7 +579,9 @@ export default function ResumeStudio(): React.ReactElement {
   // ---- Editing state ---------------------------------------------------------
 
   return (
-    <div className="studio-layout">
+    // data-tour: the editor exists only once a resume has been opened, which is
+    // what the walkthrough waits for on this page.
+    <div className="studio-layout" data-tour="studio-loaded">
       {/* Left: instructions */}
       <div style={{ ...card, display: 'flex', flexDirection: 'column' }} className="studio-sidebar">
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

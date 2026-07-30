@@ -6,6 +6,17 @@ import { useState, useEffect, useRef } from 'react'
 import { rateLimitMessage } from '@/lib/rateLimitMessage'
 import { createClient } from '@/lib/supabase/client'
 import ErrorNotice from '@/components/ui/ErrorNotice'
+import SlowProgress, { type LoadStage } from '@/components/ui/SlowProgress'
+
+// Reading a resume is the longest wait a new user meets, and the one where they
+// have least reason to trust that anything is happening. A Word file is read
+// from its own paragraphs; a PDF has to be transcribed, which is slower - the
+// wording covers both without claiming which is happening.
+const READ_RESUME_STAGES: LoadStage[] = [
+  { label: 'Uploading your file', seconds: 4 },
+  { label: 'Reading it line by line', seconds: 14 },
+  { label: 'Filling in your profile from it', seconds: 10 },
+]
 
 interface ResumeInfo {
   id: string
@@ -229,6 +240,8 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
         )}
       </button>
 
+      <SlowProgress active={loading} stages={READ_RESUME_STAGES} style={{ marginTop: '12px' }} />
+
       {error && <ErrorNotice message={error} style={{ marginTop: '10px' }} />}
 
       {success && !warning && (
@@ -242,6 +255,9 @@ export default function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
             color: 'var(--score-green)',
             fontSize: '13px',
           }}
+          // The walkthrough waits for this: it appears only once a resume has
+          // actually been stored, so it cannot advance on a click that failed.
+          data-tour="resume-present"
         >
           Resume uploaded successfully.
         </div>

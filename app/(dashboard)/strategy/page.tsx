@@ -121,7 +121,9 @@ export default async function StrategyPage() {
           subtitle="Data-driven insights on your job search."
         />
 
-        <StrategyReport />
+        <div data-tour="strategy-report">
+          <StrategyReport />
+        </div>
       </div>
     </div>
   )

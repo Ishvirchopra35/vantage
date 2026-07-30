@@ -1,11 +1,12 @@
 'use client'
 
 // Settings page body: account email, theme, email preferences, base resume
-// replacement, and the danger zone (reset data / delete account).
+// replacement, replaying the walkthrough, and the danger zone.
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Spinner from '@/components/ui/Spinner'
+import { requestWalkthrough } from '@/lib/onboarding'
 import ResumeUpload from '@/components/ResumeUpload'
 import PageHeader from '@/components/ui/PageHeader'
 import ErrorNotice from '@/components/ui/ErrorNotice'
@@ -205,6 +206,31 @@ export default function SettingsClient({ userId, email, marketingEmailsEnabled }
   const router = useRouter()
   const supabase = createClient()
 
+  // Replaying the walkthrough clears the stored position rather than forcing
+  // it with a query parameter, so the tour starts from the beginning and the
+  // layout picks it up on the next page like any other unfinished walkthrough.
+  const [replaying, setReplaying] = useState(false)
+
+  async function replayWalkthrough() {
+    setReplaying(true)
+    try {
+      await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step: 0, completed: false, skipped: false }),
+      })
+      // Clears the tab's copy AND asks for the tour to start regardless of what
+      // the server last said. Both are needed: Settings rendered with the tour
+      // already finished, so the layout on the way to the dashboard still says
+      // "do not run", and the done flag was still set. Without this the button
+      // reset the database and then appeared to do nothing at all.
+      requestWalkthrough()
+      router.push('/dashboard')
+    } catch {
+      setReplaying(false)
+    }
+  }
+
   // Resume section
   const [resumeModalOpen, setResumeModalOpen] = useState(false)
   const [resumeSuccess, setResumeSuccess] = useState(false)
@@ -345,6 +371,24 @@ export default function SettingsClient({ userId, email, marketingEmailsEnabled }
           <div style={sectionTitle}>Appearance</div>
           <label style={{ ...label, marginBottom: '12px' }}>Theme</label>
           <ThemePills />
+        </div>
+
+        {/* -- Walkthrough ---------------------------------------------- */}
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '24px', marginTop: '24px' }}>
+          <div style={sectionTitle}>Walkthrough</div>
+          <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 12px' }}>
+            The tour of the app you saw when you signed up. It only points things out, so replaying
+            it does not use any of your monthly uses.
+          </p>
+          <button
+            type="button"
+            onClick={replayWalkthrough}
+            disabled={replaying}
+            className="ds-btn"
+          >
+            {replaying && <Spinner size="sm" />}
+            Replay the walkthrough
+          </button>
         </div>
 
         {/* -- Email preferences ---------------------------------------- */}

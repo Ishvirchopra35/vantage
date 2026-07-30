@@ -241,6 +241,7 @@ export default function Sidebar({
     if (comingSoon) {
       return (
         <span
+          data-tour={item.href}
           style={{
             ...baseStyle,
             color: 'var(--muted)',
@@ -269,6 +270,7 @@ export default function Sidebar({
     return (
       <Link
         href={item.href}
+        data-tour={item.href}
         onClick={() => mobile && setMobileOpen(false)}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}

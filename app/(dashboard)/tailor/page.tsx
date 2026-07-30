@@ -225,6 +225,12 @@ const TAILOR_STAGES: LoadStage[] = [
   { label: 'Scoring the result against ATS screening', seconds: 10 },
 ]
 
+// app/api/ats-score: reads the resume and the job, then scores it.
+const ATS_STAGES: LoadStage[] = [
+  { label: 'Reading your resume against the job', seconds: 5 },
+  { label: 'Scoring keywords, format, experience and skills', seconds: 14 },
+]
+
 // app/api/generate-cover-letter.
 const COVER_STAGES: LoadStage[] = [
   { label: 'Reading your resume and the job', seconds: 5 },
@@ -387,6 +393,7 @@ export default function TailorPage() {
       method: 'POST',
       body: JSON.stringify({ jobId: parsedJob.id, resumeId: baseResumeId }),
     })
+    await debugSlow()
     setLoading(l => ({ ...l, ats: false }))
     if (error || !data?.score) {
       setActionError(error || 'Could not compute ATS score.')
@@ -646,7 +653,14 @@ export default function TailorPage() {
               </div>
             )}
 
-            {/* Input row */}
+            {/* Everything for "give us a job": the input, the paste-the-
+                description alternative, the textarea and the error. One group,
+                because driver puts its popover under whatever it highlights -
+                highlighting the input row alone left the popover sitting on top
+                of the toggle, which is the exact control the failure message
+                tells the user to press. */}
+            <div data-tour="job-input">
+
             <div className="tailor-input-row">
               {!useTextarea && (
                 <input
@@ -728,7 +742,13 @@ export default function TailorPage() {
             )}
 
             {/* Parse error */}
-            {parseError && <ErrorNotice message={parseError} style={{ marginTop: '12px' }} />}
+            {parseError && (
+              <div data-tour="job-parse-error">
+                <ErrorNotice message={parseError} style={{ marginTop: '12px' }} />
+              </div>
+            )}
+
+            </div>
 
             {/* Placeholder before a job is parsed */}
             {!parsedJob && !autoLoading && (
@@ -751,9 +771,11 @@ export default function TailorPage() {
               </div>
             )}
 
-            {/* Job preview card */}
+            {/* Job preview card. data-tour: the real signal that a posting was
+                parsed - it appears here, on step 1, which is where the
+                walkthrough is waiting. */}
             {parsedJob && (
-              <div style={{ ...card, marginTop: '20px' }}>
+              <div data-tour="job-analyzed" style={{ ...card, marginTop: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
                   <div>
                     <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>
@@ -764,7 +786,14 @@ export default function TailorPage() {
                       {parsedJob.employment_type && ` · ${parsedJob.employment_type}`}
                     </div>
                   </div>
-                  <button onClick={() => void goToStep2()} className="btn-gold-hover" style={primaryBtn}>Continue <ArrowIcon /></button>
+                  <button
+                    onClick={() => void goToStep2()}
+                    className="btn-gold-hover"
+                    data-tour="job-continue"
+                    style={primaryBtn}
+                  >
+                    Continue <ArrowIcon />
+                  </button>
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '14px' }}>
                   {parsedJob.required_skills.slice(0, 8).map(s => (
@@ -863,6 +892,7 @@ export default function TailorPage() {
                 onClick={tailorResume}
                 disabled={loading.tailor}
                 className="btn-gold-hover"
+                data-tour="tailor-button"
                 style={{ ...primaryBtn, opacity: loading.tailor ? 0.6 : 1 }}
               >
                 {loading.tailor ? <Spinner /> : 'Tailor My Resume'}
@@ -878,6 +908,11 @@ export default function TailorPage() {
 
             {/* Past a few seconds a spinner stops reassuring anyone, so it is
                 replaced by what the server is actually doing. */}
+            <SlowProgress
+              active={loading.ats}
+              stages={ATS_STAGES}
+              style={{ marginTop: '16px' }}
+            />
             <SlowProgress
               active={loading.tailor}
               stages={TAILOR_STAGES}
@@ -1100,7 +1135,10 @@ export default function TailorPage() {
                         resume's structure and returned it unchanged. Without
                         this an empty diff would read as "already perfect". */}
                     {actionError && <ErrorNotice message={actionError} style={{ marginBottom: '14px' }} />}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '18px' }}>
+                    {/* data-tour: only rendered once a tailored resume exists,
+                        so the walkthrough advances on the real result rather
+                        than on the button having been pressed. */}
+                    <div data-tour="tailored-result" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '18px' }}>
                       {/* View toggle: bullet changes vs the full resume */}
                       <div style={{ display: 'inline-flex', background: 'var(--card-raised)', borderRadius: '999px', padding: '3px' }}>
                         {([['diff', 'Bullet changes'], ['full', 'Full resume']] as const).map(([view, label]) => (

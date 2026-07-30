@@ -164,7 +164,7 @@ export default async function AutoApplyIndexPage(): Promise<React.ReactElement> 
       />
 
       {/* -- Set up once ---------------------------------------------------- */}
-      <div className="ds-card" style={{ padding: '24px', marginBottom: '28px' }}>
+      <div className="ds-card" data-tour="apply-setup" style={{ padding: '24px', marginBottom: '28px' }}>
         <div className="ds-section-label" style={{ marginBottom: '4px' }}>Set up once</div>
         <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
           Connect the Chrome extension
