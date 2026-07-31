@@ -45,6 +45,30 @@ describe('RATE_LIMIT_SPECS - /limits page mirror', () => {
       expect(spec.proLimit).toBeGreaterThan(0);
     }
   });
+
+  // Free and pro are both counted over a month now, so the numbers are directly
+  // comparable and paying must never buy you less. While pro was on a daily
+  // window most pro limits looked smaller than the free ones and no check could
+  // tell a real regression from that mismatch.
+  it('never gives a pro user a smaller monthly allowance than a free user', async () => {
+    const { RATE_LIMIT_SPECS } = await loadRateLimit({ ENABLE_FREEMIUM: 'false' });
+    for (const spec of RATE_LIMIT_SPECS) {
+      expect(
+        spec.proLimit,
+        `${spec.key}: pro ${spec.proLimit}/mo is below free ${spec.freeLimit}/mo`
+      ).toBeGreaterThanOrEqual(spec.freeLimit);
+    }
+  });
+
+  // Pro is no longer advertised as unlimited, so nothing may opt out of having
+  // a number. Only the admin bypass is uncounted.
+  it('gives every feature a real pro ceiling', async () => {
+    const { RATE_LIMIT_SPECS } = await loadRateLimit({ ENABLE_FREEMIUM: 'false' });
+    for (const spec of RATE_LIMIT_SPECS) {
+      expect(spec).not.toHaveProperty('proUnlimited');
+      expect(Number.isFinite(spec.proLimit)).toBe(true);
+    }
+  });
 });
 
 describe('dev mode (ENABLE_FREEMIUM=false) - everything short-circuits to unlimited', () => {
@@ -130,7 +154,7 @@ describe('rateLimitResponse', () => {
     expect(body.remaining).toBe(0);
   });
 
-  it('mentions upgrading only on the free (monthly) tier', async () => {
+  it('mentions upgrading only on the free tier', async () => {
     const { rateLimitResponse } = await loadRateLimit({ ENABLE_FREEMIUM: 'false' });
     const resetAt = new Date(Date.now() + 60_000);
 
@@ -139,8 +163,24 @@ describe('rateLimitResponse', () => {
 
     for (const tier of ['dev', 'pro'] as const) {
       const body = (await rateLimitResponse(resetAt, 0, tier).json()) as { error: string };
-      expect(body.error).toContain('Try again tomorrow');
       expect(body.error).not.toContain('Upgrade');
+    }
+  });
+
+  // Telling a pro user to try again tomorrow when their window is a month is
+  // worse than saying nothing - they would come back tomorrow to the same wall.
+  it('names the right reset period for each tier', async () => {
+    const { rateLimitResponse } = await loadRateLimit({ ENABLE_FREEMIUM: 'false' });
+    const resetAt = new Date(Date.now() + 60_000);
+
+    const dev = (await rateLimitResponse(resetAt, 0, 'dev').json()) as { error: string };
+    expect(dev.error).toContain('Try again tomorrow');
+
+    for (const tier of ['free', 'pro'] as const) {
+      const body = (await rateLimitResponse(resetAt, 0, tier).json()) as { error: string };
+      expect(body.error).toContain('Monthly limit reached');
+      expect(body.error).toContain('next month');
+      expect(body.error).not.toContain('tomorrow');
     }
   });
 });

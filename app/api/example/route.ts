@@ -36,10 +36,10 @@ export async function POST(req: NextRequest) {
         userId,
         devLimit: 5,
         freeLimit: 10,
-        proLimit: 10,
+        proLimit: 300,
         devWindowMinutes: 1440,
         freeWindowMinutes: 43200,
-        proWindowMinutes: 1440,
+        proWindowMinutes: 43200,
       });
       if (!rateLimit.allowed) {
         await logRoute('/api/example', userId, Date.now() - start, 429).catch(() => {});

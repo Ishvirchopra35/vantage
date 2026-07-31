@@ -2015,3 +2015,16 @@ title: The walkthrough explains again instead of making you do things
 - components/OnboardingTour.tsx: the outcome watcher, the failure re-wording and the "Skip this bit" relabel are gone with the waits. lib/appKnowledge.ts updated - the help chat was describing a walkthrough that asks you to do things
 - the data-tour markers added for the waits are removed from the six pages that carried them
 - tests: the waiting suite is replaced by one that asserts the tour asks for nothing, points only at load-time anchors, still reaches every section, and eases in
+
+---
+date: 2026-07-30
+type: Update
+title: Pro is counted per month like Free, and no longer sold as unlimited
+- **Pro was rate limited per day while Free was per month**, so the two tiers could not be compared and the pricing pages papered over it with "unlimited". They were not: every Pro feature had a daily wall behind it, and for four of them - contact searches, job feed refreshes, resume uploads and profile imports - the daily cap was 1, so a Pro user could not do two resume uploads in a day where a Free user could do three back to back
+- every Pro rate limit is now counted over a month, on the same window as Free. The numbers are the old daily caps x30, rounded up, so nobody loses anything in the switch: tailoring 150/month, ATS checks 250, cover letters 120, job parses 300, auto-fills 300, interview sessions 150, answer feedback 300, outreach 250, help chat 300, Studio edits 500, PDF downloads 2000, and 30 each for the four that were 1/day
+- **strategy feedback had no real limit at all.** It was flagged proUnlimited, so its stated 5/day was dead code and `?force=true` could regenerate it without bound. It is 30/month now - the report reads your whole application history, which barely moves day to day, so a fresh one roughly daily is the useful ceiling rather than an arbitrary one
+- the 429 told Pro users to "try again tomorrow", which on a monthly window would have sent them back to the same wall the next morning. Free and Pro now both say next month; only the Free message mentions upgrading
+- the pricing tables on the landing page, the billing docs, the README and CLAUDE.md carry the real numbers instead of "Unlimited". Application tracking is the one row that still says it, because it is the one feature with no rate limit behind it and genuinely has no Pro cap - that is now stated rather than implied. lib/appKnowledge.ts too, so the help chat stops promising unlimited use
+- /limits already read its window from the tier, and now reports "per month" for Pro rather than "per day"
+- tests/static/pro-monthly-window.test.ts (new): the window is a literal in each of the twenty route configs rather than in one shared place, so a new route can reintroduce the daily one just by copying its neighbour. Every config is read out of the source and checked, and the check is verified to fail - by flipping one route back to 1440 and watching it name the file - rather than trusted because it went green. It also refuses a Pro limit below the Free one, which is the invariant the day/month mismatch made impossible to state
+- tests: 7 new

@@ -174,13 +174,13 @@ A dark-glass material system: near-black surfaces, borderless cards, compact pil
 
 | Feature | Free - $0/mo | Pro - $8/mo CAD |
 |---|---|---|
-| Resume tailorings | 10 / month | Unlimited |
-| Cover letters | 10 / month | Unlimited |
-| Auto-apply credits | 20 / month | Unlimited |
+| Resume tailorings | 10 / month | 150 / month |
+| Cover letters | 10 / month | 120 / month |
+| Auto-apply credits | 20 / month | 300 / month |
 | Application tracking | 150 total | Unlimited |
-| Strategy feedback | 2 / month | Unlimited |
-| Networking drafts | 15 / month | Unlimited |
-| Interview prep | 5 / month | Unlimited |
+| Strategy feedback | 2 / month | 30 / month |
+| Networking drafts | 15 / month | 250 / month |
+| Interview prep | 5 / month | 150 / month |
 | Support | Email | Priority |
 
 ---

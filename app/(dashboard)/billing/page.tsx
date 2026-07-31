@@ -66,7 +66,7 @@ export default async function BillingPage() {
             <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
               {isPro
                 ? `Renews ${formatDate(s?.current_period_end ?? null)}`
-                : 'Upgrade for unlimited access - $8/month CAD'}
+                : 'Upgrade for much higher limits - $8/month CAD'}
             </div>
           </div>
           {isPro ? <ManageButton /> : <UpgradeButton />}

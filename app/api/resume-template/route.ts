@@ -69,10 +69,10 @@ export async function POST(request: Request): Promise<Response> {
     userId: user.id,
     devLimit: 20,
     freeLimit: 20,
-    proLimit: 40,
+    proLimit: 1200,
     devWindowMinutes: 1440,
     freeWindowMinutes: 43200,
-    proWindowMinutes: 1440,
+    proWindowMinutes: 43200,
   });
   if (!rateLimit.allowed) {
     await logRoute(ROUTE, user.id, Date.now() - start, 429);

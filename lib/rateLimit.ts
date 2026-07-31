@@ -249,7 +249,10 @@ export async function getRemainingLimits(userId: string): Promise<Record<string,
 // Three distinct tiers, each with its own limit AND window:
 //   dev  - ENABLE_FREEMIUM=false: everyone, per day (devWindowMinutes = 1440)
 //   free - ENABLE_FREEMIUM=true + free/no subscription, per month (43200)
-//   pro  - ENABLE_FREEMIUM=true + pro+active, per day (1440)
+//   pro  - ENABLE_FREEMIUM=true + pro+active, per month (43200)
+// Pro was on a daily window and is now monthly, so a pro limit is roughly its
+// old daily number x30 rounded up - the same entitlement over a month, but
+// spendable in whatever shape the user's week actually takes.
 export interface RateLimitConfig {
   key: string;
   userId: string;
@@ -368,12 +371,14 @@ export async function recordRateLimitUse(key: string, userId: string): Promise<v
 
 export function rateLimitResponse(resetAt: Date, remaining: number, tier: Tier = 'dev'): Response {
   const retryAfter = Math.max(0, Math.ceil((resetAt.getTime() - Date.now()) / 1000));
-  // Only the free (monthly) tier mentions upgrading; dev and pro both hit a
-  // daily wall and simply reset tomorrow.
+  // Free and pro are both monthly now, so only the wording about upgrading
+  // differs between them. Dev is the only tier still on a daily window.
   const message =
     tier === 'free'
       ? 'Monthly limit reached. Upgrade to Pro for higher limits or try again next month.'
-      : 'Daily limit reached. Try again tomorrow.';
+      : tier === 'pro'
+        ? 'Monthly limit reached. Try again next month.'
+        : 'Daily limit reached. Try again tomorrow.';
   return new Response(
     JSON.stringify({
       error: message,
@@ -494,30 +499,31 @@ export interface RateLimitSpec {
   label: string;
   devLimit: number;
   freeLimit: number;
+  /** Per month, like freeLimit. Pro has no unlimited features. */
   proLimit: number;
-  /** True when pro users skip this limit entirely. */
-  proUnlimited?: boolean;
 }
 
 export const RATE_LIMIT_SPECS: RateLimitSpec[] = [
-  { key: 'tailor-resume', label: 'Resume tailoring', devLimit: 1, freeLimit: 10, proLimit: 5 },
-  { key: 'ats-score', label: 'ATS score checks', devLimit: 2, freeLimit: 10, proLimit: 7 },
-  { key: 'cover-letter', label: 'Cover letters', devLimit: 1, freeLimit: 10, proLimit: 4 },
-  { key: 'parse-job', label: 'Job posting parses', devLimit: 5, freeLimit: 20, proLimit: 10 },
-  { key: 'answer-question', label: 'Application question answers', devLimit: 5, freeLimit: 15, proLimit: 10 },
-  { key: 'extension-ai-fill', label: 'Extension auto-fills', devLimit: 2, freeLimit: 20, proLimit: 10 },
-  { key: 'interview-prep-generate', label: 'Interview practice sessions', devLimit: 1, freeLimit: 5, proLimit: 5 },
-  { key: 'interview-prep-assess', label: 'Interview answer feedback', devLimit: 5, freeLimit: 15, proLimit: 10 },
-  { key: 'networking-outreach', label: 'Outreach message generations', devLimit: 2, freeLimit: 15, proLimit: 7 },
-  { key: 'find-contacts', label: 'Contact searches', devLimit: 1, freeLimit: 3, proLimit: 1 },
-  { key: 'discover-jobs-refresh', label: 'Job feed refreshes', devLimit: 1, freeLimit: 3, proLimit: 1 },
-  { key: 'strategy-feedback', label: 'Strategy feedback generations', devLimit: 2, freeLimit: 2, proLimit: 5, proUnlimited: true },
-  { key: 'parse-resume', label: 'Resume uploads parsed', devLimit: 1, freeLimit: 3, proLimit: 1 },
-  { key: 'parse-profile', label: 'Profile imports', devLimit: 1, freeLimit: 3, proLimit: 1 },
-  { key: 'app-chat', label: 'Help chat messages', devLimit: 5, freeLimit: 50, proLimit: 10 },
-  { key: 'resume-studio', label: 'Resume Studio edits', devLimit: 10, freeLimit: 20, proLimit: 15 },
-  { key: 'render-resume', label: 'Full resume renders', devLimit: 5, freeLimit: 10, proLimit: 10 },
-  { key: 'resume-pdf', label: 'Resume PDF downloads', devLimit: 20, freeLimit: 40, proLimit: 60 },
+  { key: 'tailor-resume', label: 'Resume tailoring', devLimit: 1, freeLimit: 10, proLimit: 150 },
+  { key: 'ats-score', label: 'ATS score checks', devLimit: 2, freeLimit: 10, proLimit: 250 },
+  { key: 'cover-letter', label: 'Cover letters', devLimit: 1, freeLimit: 10, proLimit: 120 },
+  { key: 'parse-job', label: 'Job posting parses', devLimit: 5, freeLimit: 20, proLimit: 300 },
+  { key: 'answer-question', label: 'Application question answers', devLimit: 5, freeLimit: 15, proLimit: 300 },
+  { key: 'extension-ai-fill', label: 'Extension auto-fills', devLimit: 2, freeLimit: 20, proLimit: 300 },
+  { key: 'interview-prep-generate', label: 'Interview practice sessions', devLimit: 1, freeLimit: 5, proLimit: 150 },
+  { key: 'interview-prep-assess', label: 'Interview answer feedback', devLimit: 5, freeLimit: 15, proLimit: 300 },
+  { key: 'networking-outreach', label: 'Outreach message generations', devLimit: 2, freeLimit: 15, proLimit: 250 },
+  { key: 'find-contacts', label: 'Contact searches', devLimit: 1, freeLimit: 3, proLimit: 30 },
+  { key: 'discover-jobs-refresh', label: 'Job feed refreshes', devLimit: 1, freeLimit: 3, proLimit: 30 },
+  // Strategy feedback reads the whole application history, which barely moves
+  // day to day, so a fresh report roughly once a day is the useful ceiling.
+  { key: 'strategy-feedback', label: 'Strategy feedback generations', devLimit: 2, freeLimit: 2, proLimit: 30 },
+  { key: 'parse-resume', label: 'Resume uploads parsed', devLimit: 1, freeLimit: 3, proLimit: 30 },
+  { key: 'parse-profile', label: 'Profile imports', devLimit: 1, freeLimit: 3, proLimit: 30 },
+  { key: 'app-chat', label: 'Help chat messages', devLimit: 5, freeLimit: 50, proLimit: 300 },
+  { key: 'resume-studio', label: 'Resume Studio edits', devLimit: 10, freeLimit: 20, proLimit: 500 },
+  { key: 'render-resume', label: 'Full resume renders', devLimit: 5, freeLimit: 10, proLimit: 300 },
+  { key: 'resume-pdf', label: 'Resume PDF downloads', devLimit: 20, freeLimit: 40, proLimit: 2000 },
 ];
 
 export interface RateLimitStatus {
@@ -546,8 +552,9 @@ export interface RateLimitOverview {
 export async function getRateLimitOverview(userId: string): Promise<RateLimitOverview> {
   const admin = isAdminUser(userId);
   const tier: Tier = admin ? 'dev' : await resolveUserTier(userId);
-  const windowMinutes = tier === 'free' ? 43200 : 1440;
-  const windowLabel: 'day' | 'month' = tier === 'free' ? 'month' : 'day';
+  // Dev is the only daily tier; free and pro both count over a month.
+  const windowMinutes = tier === 'dev' ? 1440 : 43200;
+  const windowLabel: 'day' | 'month' = tier === 'dev' ? 'day' : 'month';
   const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000);
 
   let logs: Array<{ key: string; created_at: string }> = [];
@@ -573,7 +580,8 @@ export async function getRateLimitOverview(userId: string): Promise<RateLimitOve
   }
 
   const statuses: RateLimitStatus[] = RATE_LIMIT_SPECS.map((spec) => {
-    const unlimited = admin || (tier === 'pro' && Boolean(spec.proUnlimited));
+    // Only the admin bypass is unlimited now - pro has a real number everywhere.
+    const unlimited = admin;
     const limit = tier === 'free' ? spec.freeLimit : tier === 'pro' ? spec.proLimit : spec.devLimit;
     const timestamps = (byKey.get(spec.key) ?? []).sort();
     const used = timestamps.length;

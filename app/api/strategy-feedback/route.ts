@@ -81,18 +81,19 @@ export async function GET(request: Request): Promise<Response> {
     return rateLimited('strategy feedback', 2, 30)
   }
 
-  // Dev = 2/day, free = 2/month. Pro is sold as unlimited, but ?force=true
-  // bypasses the cache, so a hidden 5/day abuse cap keeps AI spend bounded -
-  // no genuine user regenerates strategy feedback five times in a day.
+  // Dev = 2/day, free = 2/month, pro = 30/month. ?force=true bypasses the
+  // cache, so pro needs a real ceiling rather than the unlimited it used to
+  // advertise - this report reads the whole application history, which barely
+  // moves day to day, so a fresh one roughly daily is the useful maximum.
   const rateLimit = await checkRateLimit({
     key: 'strategy-feedback',
     userId: user.id,
     devLimit: 2,
     freeLimit: 2,
-    proLimit: 5,
+    proLimit: 30,
     devWindowMinutes: 1440,
     freeWindowMinutes: 43200,
-    proWindowMinutes: 1440,
+    proWindowMinutes: 43200,
   })
   if (!rateLimit.allowed) {
     await logRoute('/api/strategy-feedback', user.id, Date.now() - start, 429)

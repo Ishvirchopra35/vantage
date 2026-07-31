@@ -229,14 +229,16 @@ const FREE_FEATURES = [
   'Email support',
 ];
 
+// Named to match FREE_FEATURES line for line, so the two columns compare
+// directly. Application tracking is the one genuinely uncapped feature on Pro.
 const PRO_FEATURES = [
-  'Unlimited resume tailoring',
-  'Unlimited cover letters',
-  'Unlimited auto-apply',
+  '150 resume tailorings per month',
+  '120 cover letters per month',
+  '300 auto-apply credits per month',
   'Unlimited application tracking',
-  'Unlimited strategy feedback',
-  'Unlimited networking assistant',
-  'Unlimited interview preparation',
+  '30 strategy feedback reports per month',
+  '250 networking message drafts per month',
+  '150 interview prep sessions per month',
   'Priority support',
 ];
 
@@ -617,7 +619,7 @@ export default function LandingPage() {
 
       <Reveal as="section" id="pricing" style={{ maxWidth: 1400, margin: '0 auto', padding: '54px clamp(24px, 4vw, 60px)' }} direction="up">
         <div style={{ ...EYEBROW, textAlign: 'center' as const }}>Simple pricing</div>
-        <h2 style={{ ...SECTION_H2, textAlign: 'center' as const }}>Free to start. Unlimited for $8.</h2>
+        <h2 style={{ ...SECTION_H2, textAlign: 'center' as const }}>Free to start. More of everything for $8.</h2>
 
         <div className="lp-pricing-grid">
           <Reveal index={0} direction="scale">

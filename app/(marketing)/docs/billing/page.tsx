@@ -29,13 +29,13 @@ export default function BillingPage() {
                 </tr>
               </thead>
               <tbody>
-                <tr><td style={td}>Resume tailorings</td><td style={td}>10/month</td><td style={td}>Unlimited</td></tr>
-                <tr><td style={td}>Cover letters</td><td style={td}>10/month</td><td style={td}>Unlimited</td></tr>
-                <tr><td style={td}>Auto-apply credits</td><td style={td}>20/month</td><td style={td}>Unlimited</td></tr>
+                <tr><td style={td}>Resume tailorings</td><td style={td}>10/month</td><td style={td}>150/month</td></tr>
+                <tr><td style={td}>Cover letters</td><td style={td}>10/month</td><td style={td}>120/month</td></tr>
+                <tr><td style={td}>Auto-apply credits</td><td style={td}>20/month</td><td style={td}>300/month</td></tr>
                 <tr><td style={td}>Application tracking</td><td style={td}>150 total</td><td style={td}>Unlimited</td></tr>
-                <tr><td style={td}>Strategy feedback</td><td style={td}>2/month</td><td style={td}>Unlimited</td></tr>
-                <tr><td style={td}>Networking drafts</td><td style={td}>15/month</td><td style={td}>Unlimited</td></tr>
-                <tr><td style={td}>Interview prep sessions</td><td style={td}>5/month</td><td style={td}>Unlimited</td></tr>
+                <tr><td style={td}>Strategy feedback</td><td style={td}>2/month</td><td style={td}>30/month</td></tr>
+                <tr><td style={td}>Networking drafts</td><td style={td}>15/month</td><td style={td}>250/month</td></tr>
+                <tr><td style={td}>Interview prep sessions</td><td style={td}>5/month</td><td style={td}>150/month</td></tr>
                 <tr><td style={td}>Support</td><td style={td}>Email</td><td style={td}>Priority</td></tr>
               </tbody>
             </table>
